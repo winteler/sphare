@@ -10,16 +10,16 @@ use leptos_router::NavigateOptions;
 use serde::de::DeserializeOwned;
 use web_sys::{FormData, MouseEvent};
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::get_profile_path;
-use sharesphere_core_user::user::User;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::get_profile_path;
+use sphare_core_user::user::User;
 
-use sharesphere_iface_user::auth::authenticate_user;
+use sphare_iface_user::auth::authenticate_user;
 
-use sharesphere_cmp_utils::form::LabeledSignalCheckbox;
-use sharesphere_cmp_utils::icons::{AuthErrorIcon, AuthorIcon, DeleteIcon, LoadingIcon, ModeratorIcon, SelfAuthorIcon, SelfModeratorIcon};
-use sharesphere_cmp_utils::unpack::{ActionError, SuspenseUnpack};
-use sharesphere_cmp_utils::widget::{ModalDialog, ModalFormButtons};
+use sphare_cmp_utils::form::LabeledSignalCheckbox;
+use sphare_cmp_utils::icons::{AuthErrorIcon, AuthorIcon, DeleteIcon, LoadingIcon, ModeratorIcon, SelfAuthorIcon, SelfModeratorIcon};
+use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack};
+use sphare_cmp_utils::widget::{ModalDialog, ModalFormButtons};
 
 use crate::state::GlobalState;
 

@@ -1,11 +1,11 @@
 [package]
-name = "sharesphere_core_user"
+name = "sphare_core_user"
 version = "0.1.0"
 edition = "2024"
 description = "User related structs and functions"
 
 [dependencies]
-sharesphere_core_common = { path = "../common", default-features = false }
+sphare_core_common = { path = "../common", default-features = false }
 
 leptos.workspace = true
 leptos_router.workspace = true
@@ -40,7 +40,7 @@ ssr = [
     "leptos_router/ssr",
     "leptos-fluent/axum",
     "leptos-fluent/ssr",
-    "sharesphere_core_common/ssr",
+    "sphare_core_common/ssr",
     "dep:anyhow",
     "dep:async-trait",
     "dep:axum_session_auth",

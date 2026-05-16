@@ -1669,7 +1669,7 @@ dependencies = [
  "console_log",
  "leptos",
  "log",
- "sharesphere_app",
+ "sphare_app",
  "wasm-bindgen",
 ]
 
@@ -4836,12 +4836,12 @@ dependencies = [
  "leptos_axum",
  "leptos_meta",
  "log",
- "sharesphere_app",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_user",
  "simple_logger",
+ "sphare_app",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_user",
  "sqlx",
  "tokio",
  "tokio-cron-scheduler",
@@ -4960,342 +4960,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sharesphere_app"
-version = "0.1.0"
-dependencies = [
- "axum",
- "const_format",
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "leptos_meta",
- "leptos_router",
- "log",
- "regex",
- "serde_json",
- "sharesphere_cmp_base",
- "sharesphere_cmp_common",
- "sharesphere_cmp_content",
- "sharesphere_cmp_sphere",
- "sharesphere_cmp_ui",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_iface_content",
- "sharesphere_iface_sphere",
- "sharesphere_iface_user",
- "url",
-]
-
-[[package]]
-name = "sharesphere_cmp_base"
-version = "0.1.0"
-dependencies = [
- "const_format",
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "log",
- "sharesphere_cmp_common",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_iface_content",
- "sharesphere_iface_user",
- "strum 0.28.0",
- "url",
-]
-
-[[package]]
-name = "sharesphere_cmp_common"
-version = "0.1.0"
-dependencies = [
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "leptos_router",
- "log",
- "serde",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "sharesphere_iface_content",
- "sharesphere_iface_sphere",
- "sharesphere_iface_user",
- "web-sys",
-]
-
-[[package]]
-name = "sharesphere_cmp_content"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "leptos_router",
- "log",
- "serde",
- "sharesphere_cmp_base",
- "sharesphere_cmp_common",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "sharesphere_iface_content",
- "sharesphere_iface_sphere",
- "sharesphere_iface_user",
- "strum 0.28.0",
- "strum_macros 0.28.0",
- "url",
-]
-
-[[package]]
-name = "sharesphere_cmp_sphere"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "leptos_router",
- "log",
- "sharesphere_cmp_base",
- "sharesphere_cmp_common",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "sharesphere_iface_content",
- "sharesphere_iface_sphere",
- "sharesphere_iface_user",
- "strum 0.28.0",
- "url",
- "web-sys",
-]
-
-[[package]]
-name = "sharesphere_cmp_ui"
-version = "0.1.0"
-dependencies = [
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "leptos_router",
- "log",
- "serde",
- "sharesphere_cmp_base",
- "sharesphere_cmp_common",
- "sharesphere_cmp_utils",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_iface_content",
- "sharesphere_iface_sphere",
- "sharesphere_iface_user",
- "strum 0.28.0",
- "strum_macros 0.28.0",
-]
-
-[[package]]
-name = "sharesphere_cmp_utils"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "const_format",
- "getrandom 0.3.4",
- "http",
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "leptos_axum",
- "leptos_router",
- "log",
- "sharesphere_core_common",
- "strum 0.28.0",
- "web-sys",
-]
-
-[[package]]
-name = "sharesphere_core_common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "const_format",
- "fluent-templates",
- "http",
- "indoc",
- "leptos",
- "leptos-fluent",
- "leptos_router",
- "log",
- "markdown",
- "openidconnect",
- "quick-xml",
- "reqwest",
- "sealed_test",
- "serde",
- "serde_json",
- "sqlx",
- "strum 0.28.0",
- "strum_macros 0.28.0",
- "thiserror 2.0.18",
- "tokio",
- "url",
- "validator",
- "web-sys",
-]
-
-[[package]]
-name = "sharesphere_core_content"
-version = "0.1.0"
-dependencies = [
- "ammonia",
- "chrono",
- "gloo-net 0.7.0",
- "http",
- "leptos",
- "leptos-fluent",
- "leptos-use",
- "log",
- "mime_guess",
- "reqwest",
- "send_wrapper",
- "serde",
- "serde_json",
- "sharesphere_core_common",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "sqlx",
- "strum 0.28.0",
- "strum_macros 0.28.0",
- "tokio",
- "url",
- "validator",
- "web-sys",
-]
-
-[[package]]
-name = "sharesphere_core_sphere"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "http",
- "image",
- "infer",
- "leptos",
- "leptos-fluent",
- "leptos_axum",
- "log",
- "object_store",
- "sealed_test",
- "serde",
- "sharesphere_core_common",
- "sharesphere_core_user",
- "sqlx",
- "strum 0.28.0",
- "strum_macros 0.28.0",
- "tokio",
- "url",
- "webp",
-]
-
-[[package]]
-name = "sharesphere_core_tests"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "chrono",
- "float-cmp",
- "fluent-templates",
- "futures-util",
- "leptos",
- "leptos-fluent",
- "multer",
- "object_store",
- "rand 0.10.1",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "sqlx",
- "tokio",
-]
-
-[[package]]
-name = "sharesphere_core_user"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum_session_auth",
- "axum_session_sqlx",
- "chrono",
- "fluent-templates",
- "leptos",
- "leptos-fluent",
- "leptos_axum",
- "leptos_router",
- "log",
- "lru",
- "openidconnect",
- "reqwest",
- "serde",
- "serde_json",
- "sharesphere_core_common",
- "sqlx",
- "strum 0.28.0",
- "strum_macros 0.28.0",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "sharesphere_iface_content"
-version = "0.1.0"
-dependencies = [
- "leptos",
- "leptos_axum",
- "log",
- "sharesphere_core_common",
- "sharesphere_core_content",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "validator",
-]
-
-[[package]]
-name = "sharesphere_iface_sphere"
-version = "0.1.0"
-dependencies = [
- "leptos",
- "leptos_axum",
- "log",
- "sharesphere_core_common",
- "sharesphere_core_sphere",
- "sharesphere_core_user",
- "url",
-]
-
-[[package]]
-name = "sharesphere_iface_user"
-version = "0.1.0"
-dependencies = [
- "leptos",
- "leptos_axum",
- "log",
- "openidconnect",
- "sharesphere_core_common",
- "sharesphere_core_user",
-]
-
-[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5385,6 +5049,342 @@ checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "sphare_app"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "const_format",
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "leptos_meta",
+ "leptos_router",
+ "log",
+ "regex",
+ "serde_json",
+ "sphare_cmp_base",
+ "sphare_cmp_common",
+ "sphare_cmp_content",
+ "sphare_cmp_sphere",
+ "sphare_cmp_ui",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_iface_content",
+ "sphare_iface_sphere",
+ "sphare_iface_user",
+ "url",
+]
+
+[[package]]
+name = "sphare_cmp_base"
+version = "0.1.0"
+dependencies = [
+ "const_format",
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "log",
+ "sphare_cmp_common",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_iface_content",
+ "sphare_iface_user",
+ "strum 0.28.0",
+ "url",
+]
+
+[[package]]
+name = "sphare_cmp_common"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "leptos_router",
+ "log",
+ "serde",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "sphare_iface_content",
+ "sphare_iface_sphere",
+ "sphare_iface_user",
+ "web-sys",
+]
+
+[[package]]
+name = "sphare_cmp_content"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "leptos_router",
+ "log",
+ "serde",
+ "sphare_cmp_base",
+ "sphare_cmp_common",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "sphare_iface_content",
+ "sphare_iface_sphere",
+ "sphare_iface_user",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+ "url",
+]
+
+[[package]]
+name = "sphare_cmp_sphere"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "leptos_router",
+ "log",
+ "sphare_cmp_base",
+ "sphare_cmp_common",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "sphare_iface_content",
+ "sphare_iface_sphere",
+ "sphare_iface_user",
+ "strum 0.28.0",
+ "url",
+ "web-sys",
+]
+
+[[package]]
+name = "sphare_cmp_ui"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "leptos_router",
+ "log",
+ "serde",
+ "sphare_cmp_base",
+ "sphare_cmp_common",
+ "sphare_cmp_utils",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_iface_content",
+ "sphare_iface_sphere",
+ "sphare_iface_user",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+]
+
+[[package]]
+name = "sphare_cmp_utils"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "const_format",
+ "getrandom 0.3.4",
+ "http",
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "leptos_axum",
+ "leptos_router",
+ "log",
+ "sphare_core_common",
+ "strum 0.28.0",
+ "web-sys",
+]
+
+[[package]]
+name = "sphare_core_common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "const_format",
+ "fluent-templates",
+ "http",
+ "indoc",
+ "leptos",
+ "leptos-fluent",
+ "leptos_router",
+ "log",
+ "markdown",
+ "openidconnect",
+ "quick-xml",
+ "reqwest",
+ "sealed_test",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+ "validator",
+ "web-sys",
+]
+
+[[package]]
+name = "sphare_core_content"
+version = "0.1.0"
+dependencies = [
+ "ammonia",
+ "chrono",
+ "gloo-net 0.7.0",
+ "http",
+ "leptos",
+ "leptos-fluent",
+ "leptos-use",
+ "log",
+ "mime_guess",
+ "reqwest",
+ "send_wrapper",
+ "serde",
+ "serde_json",
+ "sphare_core_common",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "sqlx",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+ "tokio",
+ "url",
+ "validator",
+ "web-sys",
+]
+
+[[package]]
+name = "sphare_core_sphere"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "http",
+ "image",
+ "infer",
+ "leptos",
+ "leptos-fluent",
+ "leptos_axum",
+ "log",
+ "object_store",
+ "sealed_test",
+ "serde",
+ "sphare_core_common",
+ "sphare_core_user",
+ "sqlx",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+ "tokio",
+ "url",
+ "webp",
+]
+
+[[package]]
+name = "sphare_core_tests"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "chrono",
+ "float-cmp",
+ "fluent-templates",
+ "futures-util",
+ "leptos",
+ "leptos-fluent",
+ "multer",
+ "object_store",
+ "rand 0.10.1",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
+name = "sphare_core_user"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum_session_auth",
+ "axum_session_sqlx",
+ "chrono",
+ "fluent-templates",
+ "leptos",
+ "leptos-fluent",
+ "leptos_axum",
+ "leptos_router",
+ "log",
+ "lru",
+ "openidconnect",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sphare_core_common",
+ "sqlx",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "sphare_iface_content"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "leptos_axum",
+ "log",
+ "sphare_core_common",
+ "sphare_core_content",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "validator",
+]
+
+[[package]]
+name = "sphare_iface_sphere"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "leptos_axum",
+ "log",
+ "sphare_core_common",
+ "sphare_core_sphere",
+ "sphare_core_user",
+ "url",
+]
+
+[[package]]
+name = "sphare_iface_user"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "leptos_axum",
+ "log",
+ "openidconnect",
+ "sphare_core_common",
+ "sphare_core_user",
 ]
 
 [[package]]

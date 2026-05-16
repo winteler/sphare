@@ -1,10 +1,10 @@
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_user::role::PermissionLevel;
+use sphare_core_user::role::PermissionLevel;
 
-use sharesphere_cmp_utils::form::LabeledFormCheckbox;
-use sharesphere_cmp_utils::unpack::SuspenseUnpack;
+use sphare_cmp_utils::form::LabeledFormCheckbox;
+use sphare_cmp_utils::unpack::SuspenseUnpack;
 
 use crate::state::GlobalState;
 

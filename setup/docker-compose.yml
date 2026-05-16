@@ -1,7 +1,7 @@
 services:
   postgres:
     image: docker.io/library/postgres:18.3
-    container_name: sharesphere-postgres-18
+    container_name: sphare-postgres-18
     environment:
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: <keycloak-db-password>
@@ -11,7 +11,7 @@ services:
       - "127.0.0.1:5432:5432"
   postgres-test:
     image: docker.io/library/postgres:18.3
-    container_name: sharesphere-postgres-test
+    container_name: sphare-postgres-test
     environment:
       POSTGRES_USER: <test-db-user>
       POSTGRES_PASSWORD: <test-db-password>
@@ -21,7 +21,7 @@ services:
       - "127.0.0.1:5433:5432"
   keycloak:
     image: quay.io/keycloak/keycloak:26.6.0
-    container_name: sharesphere-keycloak
+    container_name: sphare-keycloak
     environment:
       - KC_BOOTSTRAP_ADMIN_USERNAME=<keycloak-admin-username>
       - KC_BOOTSTRAP_ADMIN_PASSWORD=<keycloak-admin-password>
@@ -40,7 +40,7 @@ services:
 volumes:
   postgres_data:
     driver: local
-    name: sharesphere-pg-data
+    name: sphare-pg-data
   postgres_test_data:
     driver: local
-    name: sharesphere-pg-data-test
+    name: sphare-pg-data-test

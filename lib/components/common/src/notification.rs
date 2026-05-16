@@ -6,16 +6,16 @@ use leptos_fluent::{move_tr, tr};
 use leptos_use::{breakpoints_tailwind, storage::use_local_storage, use_breakpoints, use_interval_fn, use_timeout_fn, BreakpointsTailwind};
 use leptos_use::{use_permission, use_web_notification_with_options, ShowOptions, UseWebNotificationOptions, UseWebNotificationReturn};
 
-use sharesphere_core_common::constants::{LOGO_ICON_PATH, SITE_NAME};
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::NOTIFICATION_ROUTE;
-use sharesphere_core_user::notification::{get_notification_path, get_notification_text, on_read_notif, NotifHandler, Notification, NotificationType, NOTIF_RELOAD_INTERVAL_MS, NOTIF_STATE_STORAGE, NOTIF_TAG};
+use sphare_core_common::constants::{LOGO_ICON_PATH, SITE_NAME};
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::NOTIFICATION_ROUTE;
+use sphare_core_user::notification::{get_notification_path, get_notification_text, on_read_notif, NotifHandler, Notification, NotificationType, NOTIF_RELOAD_INTERVAL_MS, NOTIF_STATE_STORAGE, NOTIF_TAG};
 
-use sharesphere_iface_user::notification::{set_all_notifications_read, set_notification_read};
+use sphare_iface_user::notification::{set_all_notifications_read, set_notification_read};
 
-use sharesphere_cmp_utils::icons::{LoadingIcon, NotificationIcon, ReadAllIcon, ReadIcon, RefreshIcon, UnreadIcon};
-use sharesphere_cmp_utils::unpack::SuspenseUnpack;
-use sharesphere_cmp_utils::widget::{TimeSinceWidget};
+use sphare_cmp_utils::icons::{LoadingIcon, NotificationIcon, ReadAllIcon, ReadIcon, RefreshIcon, UnreadIcon};
+use sphare_cmp_utils::unpack::SuspenseUnpack;
+use sphare_cmp_utils::widget::{TimeSinceWidget};
 
 use crate::auth_widget::AuthorWidget;
 use crate::sphere::SphereHeaderLink;

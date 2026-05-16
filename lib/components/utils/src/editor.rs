@@ -3,8 +3,8 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_common::editor::{adjust_textarea_height, clear_newlines, format_textarea_content, get_styled_html_from_markdown, FormatType, TextareaData};
-use sharesphere_core_common::traits::ToLocalizedStr;
+use sphare_core_common::editor::{adjust_textarea_height, clear_newlines, format_textarea_content, get_styled_html_from_markdown, FormatType, TextareaData};
+use sphare_core_common::traits::ToLocalizedStr;
 
 use crate::errors::ErrorDisplay;
 use crate::icons::*;

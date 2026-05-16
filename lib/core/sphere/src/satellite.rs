@@ -19,12 +19,12 @@ pub struct Satellite {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
-    use sharesphere_core_common::checks::{check_satellite_name, check_sphere_name, check_string_length};
-    use sharesphere_core_common::constants::MAX_CONTENT_LENGTH;
-    use sharesphere_core_common::editor::ssr::get_html_and_markdown_strings;
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_user::role::PermissionLevel;
-    use sharesphere_core_user::user::User;
+    use sphare_core_common::checks::{check_satellite_name, check_sphere_name, check_string_length};
+    use sphare_core_common::constants::MAX_CONTENT_LENGTH;
+    use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_user::role::PermissionLevel;
+    use sphare_core_user::user::User;
 
     use crate::satellite::Satellite;
     use crate::sphere::Sphere;

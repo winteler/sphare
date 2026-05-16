@@ -5,7 +5,7 @@ use strum::IntoEnumIterator;
 #[cfg(feature = "hydrate")]
 use leptos_use::on_click_outside;
 
-use sharesphere_core_common::colors::Color;
+use sphare_core_common::colors::Color;
 
 use crate::widget::RotatingArrow;
 

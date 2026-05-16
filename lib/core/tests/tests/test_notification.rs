@@ -1,6 +1,6 @@
-use sharesphere_core_content::comment::ssr::create_comment;
-use sharesphere_core_user::notification::ssr::{create_notification, delete_stale_notifications, get_notifications, set_all_notifications_read, set_notification_read};
-use sharesphere_core_user::notification::{NotificationType, NOTIF_RETENTION_DAYS};
+use sphare_core_content::comment::ssr::create_comment;
+use sphare_core_user::notification::ssr::{create_notification, delete_stale_notifications, get_notifications, set_all_notifications_read, set_notification_read};
+use sphare_core_user::notification::{NotificationType, NOTIF_RETENTION_DAYS};
 
 use crate::common::*;
 use crate::data_factory::*;

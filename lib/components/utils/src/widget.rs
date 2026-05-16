@@ -16,9 +16,9 @@ use strum::IntoEnumIterator;
 #[cfg(feature = "hydrate")]
 use leptos_use::on_click_outside;
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::time::get_elapsed_time_string;
-use sharesphere_core_common::traits::ToLocalizedStr;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::time::get_elapsed_time_string;
+use sphare_core_common::traits::ToLocalizedStr;
 use crate::errors::ErrorDisplay;
 use crate::icons::{ArrowUpIcon, ClockIcon, CommentIcon, DotMenuIcon, EditTimeIcon, HelpIcon, LoadingIcon, MaximizeIcon, MinimizeIcon, ModeratorIcon, NotFoundIcon, NsfwIcon, PinnedIcon, RefreshIcon, ScoreIcon, ShareIcon, SphereIcon, SpoilerIcon};
 use crate::view::ToView;

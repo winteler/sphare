@@ -33,10 +33,10 @@ pub mod ssr {
     use serde_json::Value;
     use url::Url;
 
-    use sharesphere_core_common::checks::validate_redirect_url;
-    use sharesphere_core_common::db_utils::ssr::get_db_pool;
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_common::routes::{get_app_origin, AUTH_CALLBACK_ROUTE};
+    use sphare_core_common::checks::validate_redirect_url;
+    use sphare_core_common::db_utils::ssr::get_db_pool;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_common::routes::{get_app_origin, AUTH_CALLBACK_ROUTE};
 
     use crate::session::ssr::{get_session, get_user_lock_cache, AuthSession};
     use crate::user::ssr::{create_or_update_user, SqlUser};
@@ -414,8 +414,8 @@ pub mod ssr {
 
         #[test]
         fn test_get_oidc_url_from_env() {
-            let valid_url = String::from("https://login.sharesphere.space/realms/sharesphere");
-            let trimmed_url = String::from("https://login.sharesphere.space/realms/sharesphere/");
+            let valid_url = String::from("https://login.sphare.space/realms/sphare");
+            let trimmed_url = String::from("https://login.sphare.space/realms/sphare/");
             let invalid_url = String::from("invalid");
             assert_eq!(check_oidc_url(valid_url.clone()), Ok(valid_url));
             assert_eq!(check_oidc_url(trimmed_url.clone()).as_deref(), Ok(trimmed_url.trim_end_matches('/')));

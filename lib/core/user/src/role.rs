@@ -4,7 +4,7 @@ use leptos_fluent::move_tr;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 use strum_macros::{Display, EnumString, IntoStaticStr};
-use sharesphere_core_common::traits::ToLocalizedStr;
+use sphare_core_common::traits::ToLocalizedStr;
 
 #[derive(Clone, Copy, Debug, Display, EnumString, Eq, IntoStaticStr, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "ssr", derive(sqlx::Type))]
@@ -74,9 +74,9 @@ impl ToLocalizedStr for PermissionLevel {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
-    use sharesphere_core_common::checks::{check_sphere_name, check_username};
+    use sphare_core_common::checks::{check_sphere_name, check_username};
     use crate::user::{ssr::SqlUser, User};
-    use sharesphere_core_common::errors::AppError;
+    use sphare_core_common::errors::AppError;
 
     use super::*;
 

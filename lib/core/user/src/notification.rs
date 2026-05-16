@@ -6,12 +6,12 @@ use leptos_fluent::{move_tr, tr};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
-use sharesphere_core_common::common::SphereHeader;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::{get_comment_path, get_post_path};
+use sphare_core_common::common::SphereHeader;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::{get_comment_path, get_post_path};
 
 pub const NOTIF_STATE_STORAGE: &str = "notification_state";
-pub const NOTIF_TAG: &str = "sharesphere-notif";
+pub const NOTIF_TAG: &str = "sphare-notif";
 pub const NOTIF_RETENTION_DAYS: i64 = 31;
 pub const NOTIF_RELOAD_INTERVAL_MS: u64 = 900000;
 
@@ -121,7 +121,7 @@ impl NotifHandler {
 pub mod ssr {
     use sqlx::PgPool;
 
-    use sharesphere_core_common::errors::AppError;
+    use sphare_core_common::errors::AppError;
 
     use crate::notification::{Notification, NotificationType, NOTIF_RETENTION_DAYS};
 
@@ -304,8 +304,8 @@ mod tests {
     use leptos::prelude::*;
     use leptos_fluent::{tr, I18n, Language};
 
-    use sharesphere_core_common::common::SphereHeader;
-    use sharesphere_core_common::routes::{get_comment_path, get_post_path};
+    use sphare_core_common::common::SphereHeader;
+    use sphare_core_common::routes::{get_comment_path, get_post_path};
 
     use crate::notification::{get_notification_path, get_notification_text, get_web_notif_text, NotifHandler, Notification, NotificationType, NOTIF_RETENTION_DAYS};
 

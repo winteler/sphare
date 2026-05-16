@@ -1,4 +1,4 @@
-pub const SITE_NAME: &str = "ShareSphere";
+pub const SITE_NAME: &str = "Sphare";
 
 pub const SECONDS_IN_MINUTE: i64 = 60;
 pub const MINUTES_IN_HOUR: i64 = 60;

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use sharesphere_core_common::constants::{BEST_ORDER_BY_COLUMN, HOT_ORDER_BY_COLUMN, RECENT_ORDER_BY_COLUMN, TRENDING_ORDER_BY_COLUMN};
+use sphare_core_common::constants::{BEST_ORDER_BY_COLUMN, HOT_ORDER_BY_COLUMN, RECENT_ORDER_BY_COLUMN, TRENDING_ORDER_BY_COLUMN};
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum PostSortType {
@@ -84,8 +84,8 @@ impl From<i16> for VoteValue {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use crate::ranking::{Vote, VoteValue};
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_user::user::User;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_user::user::User;
     use sqlx::PgPool;
 
     pub async fn vote_on_content(
@@ -324,7 +324,7 @@ pub fn update_vote_value(vote: &mut VoteValue, is_upvote: bool) {
 #[cfg(test)]
 mod tests {
     use crate::ranking::{update_vote_value, CommentSortType, PostSortType, SortType, VoteValue};
-    use sharesphere_core_common::constants::{BEST_ORDER_BY_COLUMN, HOT_ORDER_BY_COLUMN, RECENT_ORDER_BY_COLUMN, TRENDING_ORDER_BY_COLUMN};
+    use sphare_core_common::constants::{BEST_ORDER_BY_COLUMN, HOT_ORDER_BY_COLUMN, RECENT_ORDER_BY_COLUMN, TRENDING_ORDER_BY_COLUMN};
 
     #[test]
     fn test_post_sort_type_to_order_by_code() {

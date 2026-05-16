@@ -2,14 +2,14 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_sphere::sphere_category::*,
-    sharesphere_core_user::auth::ssr::check_user,
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_sphere::sphere_category::*,
+    sphare_core_user::auth::ssr::check_user,
 };
 
-use sharesphere_core_common::colors::Color;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_sphere::sphere_category::SphereCategory;
+use sphare_core_common::colors::Color;
+use sphare_core_common::errors::AppError;
+use sphare_core_sphere::sphere_category::SphereCategory;
 
 #[server]
 pub async fn get_sphere_category_vec(

@@ -2,13 +2,13 @@ use leptos::either::Either;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_common::common::Rule;
-use sharesphere_core_sphere::rule::{get_rule_description, get_rule_title};
+use sphare_core_common::common::Rule;
+use sphare_core_sphere::rule::{get_rule_description, get_rule_title};
 
-use sharesphere_cmp_common::state::GlobalState;
-use sharesphere_cmp_utils::errors::ErrorDisplay;
-use sharesphere_cmp_utils::icons::LoadingIcon;
-use sharesphere_cmp_utils::widget::{Collapse, ContentBody, TitleCollapse};
+use sphare_cmp_common::state::GlobalState;
+use sphare_cmp_utils::errors::ErrorDisplay;
+use sphare_cmp_utils::icons::LoadingIcon;
+use sphare_cmp_utils::widget::{Collapse, ContentBody, TitleCollapse};
 
 /// List of collapsable rules
 #[component]

@@ -2,26 +2,26 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_common::checks::check_string_length;
-use sharesphere_core_common::constants::MAX_MOD_MESSAGE_LENGTH;
-use sharesphere_core_common::editor::TextareaData;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::unpack::handle_dialog_action_result;
-use sharesphere_core_content::comment::Comment;
-use sharesphere_core_content::moderation::{Content, ModerationInfo};
-use sharesphere_core_sphere::rule::get_rule_title;
-use sharesphere_core_user::role::PermissionLevel;
+use sphare_core_common::checks::check_string_length;
+use sphare_core_common::constants::MAX_MOD_MESSAGE_LENGTH;
+use sphare_core_common::editor::TextareaData;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::unpack::handle_dialog_action_result;
+use sphare_core_content::comment::Comment;
+use sphare_core_content::moderation::{Content, ModerationInfo};
+use sphare_core_sphere::rule::get_rule_title;
+use sphare_core_user::role::PermissionLevel;
 
-use sharesphere_iface_content::moderation::ModerateComment;
-use sharesphere_iface_sphere::rule::get_rule_by_id;
+use sphare_iface_content::moderation::ModerateComment;
+use sphare_iface_sphere::rule::get_rule_by_id;
 
-use sharesphere_cmp_base::moderation::ModerationInfoDialog;
-use sharesphere_cmp_common::role::AuthorizedShow;
-use sharesphere_cmp_common::state::{GlobalState, SphereState};
-use sharesphere_cmp_utils::editor::FormTextEditor;
-use sharesphere_cmp_utils::icons::{HammerIcon, MagnifierIcon};
-use sharesphere_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
-use sharesphere_cmp_utils::widget::{ModalDialog, ModalFormButtons};
+use sphare_cmp_base::moderation::ModerationInfoDialog;
+use sphare_cmp_common::role::AuthorizedShow;
+use sphare_cmp_common::state::{GlobalState, SphereState};
+use sphare_cmp_utils::editor::FormTextEditor;
+use sphare_cmp_utils::icons::{HammerIcon, MagnifierIcon};
+use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::widget::{ModalDialog, ModalFormButtons};
 
 /// Component to moderate a post
 #[component]

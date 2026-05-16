@@ -2,15 +2,15 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::constants::{COMMENT_BATCH_SIZE, POST_BATCH_SIZE},
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_content::profile::*,
+    sphare_core_common::constants::{COMMENT_BATCH_SIZE, POST_BATCH_SIZE},
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_content::profile::*,
 };
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::comment::CommentWithContext;
-use sharesphere_core_content::post::PostWithSphereInfo;
-use sharesphere_core_content::ranking::SortType;
+use sphare_core_common::errors::AppError;
+use sphare_core_content::comment::CommentWithContext;
+use sphare_core_content::post::PostWithSphereInfo;
+use sphare_core_content::ranking::SortType;
 
 #[server]
 pub async fn get_user_post_vec(

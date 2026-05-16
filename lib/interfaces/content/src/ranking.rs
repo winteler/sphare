@@ -2,13 +2,13 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_content::ranking::*,
-    sharesphere_core_user::auth::ssr::check_user,
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_content::ranking::*,
+    sphare_core_user::auth::ssr::check_user,
 };
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::ranking::{Vote, VoteValue};
+use sphare_core_common::errors::AppError;
+use sphare_core_content::ranking::{Vote, VoteValue};
 
 #[server]
 pub async fn vote_on_content(

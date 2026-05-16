@@ -4,23 +4,23 @@ use leptos_fluent::move_tr;
 use leptos_router::components::Outlet;
 use leptos_use::{signal_throttled_with_options, ThrottleOptions};
 
-use sharesphere_core_common::constants::{LOGO_ICON_PATH, POPULAR_ICON_PATH, POST_BATCH_SIZE, SCROLL_LOAD_THROTTLE_DELAY};
-use sharesphere_core_common::unpack::{handle_additional_load, reset_additional_load};
-use sharesphere_core_content::post::PostWithSphereInfo;
+use sphare_core_common::constants::{LOGO_ICON_PATH, POPULAR_ICON_PATH, POST_BATCH_SIZE, SCROLL_LOAD_THROTTLE_DELAY};
+use sphare_core_common::unpack::{handle_additional_load, reset_additional_load};
+use sphare_core_content::post::PostWithSphereInfo;
 
-use sharesphere_iface_content::post::{get_homepage_post_vec, get_sorted_post_vec};
+use sphare_iface_content::post::{get_homepage_post_vec, get_sorted_post_vec};
 
-use sharesphere_cmp_base::post::PostListWithInitLoad;
-use sharesphere_cmp_base::ranking::PostSortWidget;
-use sharesphere_cmp_common::auth_widget::LoginWindow;
-use sharesphere_cmp_common::notification::NotificationList;
-use sharesphere_cmp_common::state::GlobalState;
-use sharesphere_cmp_content::profile::UserProfile;
-use sharesphere_cmp_sphere::sphere::SphereBanner;
-use sharesphere_cmp_ui::sidebar::{HomeSidebar, SphereSidebar};
-use sharesphere_cmp_utils::node_utils::has_reached_scroll_load_threshold;
-use sharesphere_cmp_utils::unpack::SuspenseUnpack;
-use sharesphere_cmp_utils::widget::{BannerContent, RefreshButton};
+use sphare_cmp_base::post::PostListWithInitLoad;
+use sphare_cmp_base::ranking::PostSortWidget;
+use sphare_cmp_common::auth_widget::LoginWindow;
+use sphare_cmp_common::notification::NotificationList;
+use sphare_cmp_common::state::GlobalState;
+use sphare_cmp_content::profile::UserProfile;
+use sphare_cmp_sphere::sphere::SphereBanner;
+use sphare_cmp_ui::sidebar::{HomeSidebar, SphereSidebar};
+use sphare_cmp_utils::node_utils::has_reached_scroll_load_threshold;
+use sphare_cmp_utils::unpack::SuspenseUnpack;
+use sphare_cmp_utils::widget::{BannerContent, RefreshButton};
 
 /// Login guard with home sidebar
 #[component]
@@ -47,7 +47,7 @@ pub fn LoginGuard() -> impl IntoView {
     }
 }
 
-/// Renders the home page of ShareSphere.
+/// Renders the home page of Sphare.
 #[component]
 pub fn HomePage() -> impl IntoView {
     let state = expect_context::<GlobalState>();
@@ -110,7 +110,7 @@ pub fn HomePage() -> impl IntoView {
     }
 }
 
-/// Renders a page with the most popular content of ShareSphere.
+/// Renders a page with the most popular content of Sphare.
 #[component]
 pub fn HotPage() -> impl IntoView {
     let state = expect_context::<GlobalState>();

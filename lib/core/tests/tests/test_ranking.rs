@@ -1,11 +1,11 @@
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::comment::ssr::get_comment_by_id;
-use sharesphere_core_content::moderation::ssr::ban_user_from_sphere;
-use sharesphere_core_content::ranking::VoteValue;
-use sharesphere_core_content::{post, ranking};
-use sharesphere_core_sphere::rule::ssr::add_rule;
-use sharesphere_core_user::role::AdminRole;
-use sharesphere_core_user::user::{BanStatus, User};
+use sphare_core_common::errors::AppError;
+use sphare_core_content::comment::ssr::get_comment_by_id;
+use sphare_core_content::moderation::ssr::ban_user_from_sphere;
+use sphare_core_content::ranking::VoteValue;
+use sphare_core_content::{post, ranking};
+use sphare_core_sphere::rule::ssr::add_rule;
+use sphare_core_user::role::AdminRole;
+use sphare_core_user::user::{BanStatus, User};
 
 use crate::common::*;
 use crate::data_factory::{create_sphere_with_post, create_sphere_with_post_and_comment};

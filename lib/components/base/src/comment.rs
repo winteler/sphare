@@ -3,14 +3,14 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::{get_post_path, COMMENT_ID_QUERY_PARAM};
-use sharesphere_core_content::comment::{Comment, CommentWithContext};
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::{get_post_path, COMMENT_ID_QUERY_PARAM};
+use sphare_core_content::comment::{Comment, CommentWithContext};
 
-use sharesphere_cmp_common::auth_widget::AuthorWidget;
-use sharesphere_cmp_common::sphere::SphereHeader;
-use sharesphere_cmp_utils::node_utils::has_reached_scroll_load_threshold;
-use sharesphere_cmp_utils::widget::{ContentBody, IsPinnedWidget, LoadIndicators, ScoreIndicator, TimeSinceWidget};
+use sphare_cmp_common::auth_widget::AuthorWidget;
+use sphare_cmp_common::sphere::SphereHeader;
+use sphare_cmp_utils::node_utils::has_reached_scroll_load_threshold;
+use sphare_cmp_utils::widget::{ContentBody, IsPinnedWidget, LoadIndicators, ScoreIndicator, TimeSinceWidget};
 
 use crate::moderation::ModeratedBody;
 

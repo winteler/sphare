@@ -1,9 +1,9 @@
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_user::user::User;
+use sphare_core_common::errors::AppError;
+use sphare_core_user::user::User;
 
-use sharesphere_core_sphere::satellite::ssr::{activate_satellite, create_satellite, deactivate_satellite, get_satellite_sphere, update_satellite};
-use sharesphere_core_sphere::satellite::ssr::{get_satellite_vec_by_sphere_name, get_satellite_by_id};
-use sharesphere_core_sphere::sphere::ssr::create_sphere;
+use sphare_core_sphere::satellite::ssr::{activate_satellite, create_satellite, deactivate_satellite, get_satellite_sphere, update_satellite};
+use sphare_core_sphere::satellite::ssr::{get_satellite_vec_by_sphere_name, get_satellite_by_id};
+use sphare_core_sphere::sphere::ssr::create_sphere;
 
 pub use crate::common::*;
 pub use crate::data_factory::*;

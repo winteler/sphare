@@ -2,16 +2,16 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::constants::POST_BATCH_SIZE,
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_content::post::*,
-    sharesphere_core_user::auth::{ssr::check_user, ssr::get_user},
+    sphare_core_common::constants::POST_BATCH_SIZE,
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_content::post::*,
+    sphare_core_user::auth::{ssr::check_user, ssr::get_user},
 };
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::filter::SphereCategoryFilter;
-use sharesphere_core_content::post::{Post, PostDataInputs, PostInheritedAttributes, PostLocation, PostWithInfo, PostWithSphereInfo};
-use sharesphere_core_content::ranking::SortType;
+use sphare_core_common::errors::AppError;
+use sphare_core_content::filter::SphereCategoryFilter;
+use sphare_core_content::post::{Post, PostDataInputs, PostInheritedAttributes, PostLocation, PostWithInfo, PostWithSphereInfo};
+use sphare_core_content::ranking::SortType;
 
 #[server]
 pub async fn get_post_with_info_by_id(post_id: i64) -> Result<PostWithInfo, AppError> {

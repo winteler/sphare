@@ -1,11 +1,11 @@
 use leptos::prelude::*;
 use leptos_fluent::{move_tr};
 
-use sharesphere_core_content::moderation::Content;
-use sharesphere_core_sphere::rule::{get_rule_description, get_rule_title};
+use sphare_core_content::moderation::Content;
+use sphare_core_sphere::rule::{get_rule_description, get_rule_title};
 
-use sharesphere_cmp_utils::icons::HammerIcon;
-use sharesphere_cmp_utils::widget::ContentBody;
+use sphare_cmp_utils::icons::HammerIcon;
+use sphare_cmp_utils::widget::ContentBody;
 
 /// Displays the body of a moderated post or comment
 #[component]

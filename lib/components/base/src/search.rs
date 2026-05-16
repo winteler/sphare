@@ -4,17 +4,17 @@ use leptos::prelude::*;
 use leptos_fluent::move_tr;
 use leptos_use::{signal_throttled_with_options, ThrottleOptions};
 
-use sharesphere_core_common::constants::{MAX_SPHERE_NAME_LENGTH, SCROLL_LOAD_THROTTLE_DELAY};
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::unpack::{handle_additional_load, handle_initial_load};
-use sharesphere_core_content::search::{is_content_search_valid, SearchState};
+use sphare_core_common::constants::{MAX_SPHERE_NAME_LENGTH, SCROLL_LOAD_THROTTLE_DELAY};
+use sphare_core_common::errors::AppError;
+use sphare_core_common::unpack::{handle_additional_load, handle_initial_load};
+use sphare_core_content::search::{is_content_search_valid, SearchState};
 
-use sharesphere_iface_content::search::search_spheres;
+use sphare_iface_content::search::search_spheres;
 
-use sharesphere_cmp_utils::editor::LengthLimitedInput;
-use sharesphere_cmp_utils::errors::ErrorDetail;
-use sharesphere_cmp_utils::form::LabeledSignalCheckbox;
-use sharesphere_cmp_utils::widget::NotFoundWidget;
+use sphare_cmp_utils::editor::LengthLimitedInput;
+use sphare_cmp_utils::errors::ErrorDetail;
+use sphare_cmp_utils::form::LabeledSignalCheckbox;
+use sphare_cmp_utils::widget::NotFoundWidget;
 use crate::sphere::InfiniteSphereLinkList;
 
 #[component]

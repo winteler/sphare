@@ -2,13 +2,13 @@ use leptos::prelude::*;
 use leptos_fluent::move_tr;
 use leptos_router::components::Form;
 
-use sharesphere_core_common::routes::{get_create_post_path, get_current_url, get_profile_path, get_sphere_name, CREATE_POST_ROUTE, CREATE_POST_SPHERE_QUERY_PARAM, CREATE_SPHERE_ROUTE};
+use sphare_core_common::routes::{get_create_post_path, get_current_url, get_profile_path, get_sphere_name, CREATE_POST_ROUTE, CREATE_POST_SPHERE_QUERY_PARAM, CREATE_SPHERE_ROUTE};
 
-use sharesphere_cmp_common::auth_widget::LoginGuardButton;
-use sharesphere_cmp_common::notification::NotificationButton;
-use sharesphere_cmp_common::state::GlobalState;
-use sharesphere_cmp_utils::icons::*;
-use sharesphere_cmp_utils::widget::DropdownButton;
+use sphare_cmp_common::auth_widget::LoginGuardButton;
+use sphare_cmp_common::notification::NotificationButton;
+use sphare_cmp_common::state::GlobalState;
+use sphare_cmp_utils::icons::*;
+use sphare_cmp_utils::widget::DropdownButton;
 
 use crate::search::SearchButton;
 
@@ -28,7 +28,7 @@ pub fn NavigationBar() -> impl IntoView
                 </button>
                 <a href="/" class="button-ghost flex gap-1.5 items-center">
                     <LogoIcon/>
-                    <div class="lg:pt-1 lg:pb-1.5 font-semibold">"ShareSphere"</div>
+                    <div class="lg:pt-1 lg:pb-1.5 font-semibold">"Sphare"</div>
                 </a>
             </div>
             <div class="flex items-center gap-1 lg:gap-2">

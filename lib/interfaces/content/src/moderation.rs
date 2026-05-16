@@ -1,16 +1,16 @@
 use leptos::prelude::*;
-use sharesphere_core_common::errors::AppError;
+use sphare_core_common::errors::AppError;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_content::moderation::*,
-    sharesphere_core_user::auth::ssr::{check_user, reload_user},
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_content::moderation::*,
+    sphare_core_user::auth::ssr::{check_user, reload_user},
 };
 
-use sharesphere_core_content::comment::Comment;
-use sharesphere_core_content::moderation::ModerationInfo;
-use sharesphere_core_content::post::Post;
+use sphare_core_content::comment::Comment;
+use sphare_core_content::moderation::ModerationInfo;
+use sphare_core_content::post::Post;
 
 #[server]
 pub async fn get_moderation_info(

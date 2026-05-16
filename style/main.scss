@@ -4732,7 +4732,7 @@ textarea::-webkit-scrollbar {
   }
 }
 @layer base {
-  :where(:root),:root:has(input.theme-controller[value=sharesphere_dark]:checked),[data-theme="sharesphere_dark"] {
+  :where(:root),:root:has(input.theme-controller[value=sphare_dark]:checked),[data-theme="sphare_dark"] {
     color-scheme: dark;
     --color-base-100: oklch(30% 0.045 245);
     --color-base-200: oklch(22% 0.045 245);

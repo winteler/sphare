@@ -304,7 +304,7 @@ fn get_line_start_for_position(string: &str, position: usize) -> usize {
 /// Returns input `string` without any newlines.
 ///
 /// ```
-/// use sharesphere_core_common::editor::clear_newlines;
+/// use sphare_core_common::editor::clear_newlines;
 ///
 /// assert_eq!(clear_newlines(String::from("test"), false), String::from("test"));
 /// assert_eq!(clear_newlines(String::from("test\r\nsecond line\nthird line"), true), String::from("test  second line third line"));

@@ -3,11 +3,11 @@ use leptos_fluent::move_tr;
 use leptos_router::hooks::use_navigate;
 use leptos_router::NavigateOptions;
 
-use sharesphere_core_common::common::SphereHeader;
-use sharesphere_core_common::routes::get_sphere_path;
+use sphare_core_common::common::SphereHeader;
+use sphare_core_common::routes::get_sphere_path;
 
-use sharesphere_cmp_utils::icons::SphereIcon;
-use sharesphere_cmp_utils::widget::Badge;
+use sphare_cmp_utils::icons::SphereIcon;
+use sphare_cmp_utils::widget::Badge;
 
 /// Component to display a sphere's header
 #[component]

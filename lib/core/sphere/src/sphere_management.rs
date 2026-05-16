@@ -14,12 +14,12 @@ pub mod ssr {
     use url::Url;
     use webp::Encoder;
 
-    use sharesphere_core_common::checks::{check_sphere_name, check_username};
-    use sharesphere_core_common::constants::IMAGE_TYPE;
-    use sharesphere_core_common::constants::{IMAGE_FILE_PARAM, SPHERE_NAME_PARAM};
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_user::role::{AdminRole, PermissionLevel};
-    use sharesphere_core_user::user::{User, UserBan};
+    use sphare_core_common::checks::{check_sphere_name, check_username};
+    use sphare_core_common::constants::IMAGE_TYPE;
+    use sphare_core_common::constants::{IMAGE_FILE_PARAM, SPHERE_NAME_PARAM};
+    use sphare_core_common::errors::AppError;
+    use sphare_core_user::role::{AdminRole, PermissionLevel};
+    use sphare_core_user::user::{User, UserBan};
 
     use crate::sphere::ssr::get_sphere_by_name;
     use crate::sphere::Sphere;

@@ -1,12 +1,12 @@
 [package]
-name = "sharesphere_iface_user"
+name = "sphare_iface_user"
 version = "0.1.0"
 edition = "2024"
 description = "User related interfaces"
 
 [dependencies]
-sharesphere_core_common = { path = "../../core/common", default-features = false }
-sharesphere_core_user = { path = "../../core/user", default-features = false }
+sphare_core_common = { path = "../../core/common", default-features = false }
+sphare_core_user = { path = "../../core/user", default-features = false }
 
 leptos.workspace = true
 leptos_axum = { workspace = true, optional = true }
@@ -21,8 +21,8 @@ hydrate = [
 ]
 ssr = [
     "leptos/ssr",
-    "sharesphere_core_common/ssr",
-    "sharesphere_core_user/ssr",
+    "sphare_core_common/ssr",
+    "sphare_core_user/ssr",
     "dep:leptos_axum",
     "dep:openidconnect",
 ]

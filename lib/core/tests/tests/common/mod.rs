@@ -7,8 +7,8 @@ use leptos::prelude::*;
 use leptos::server_fn::const_format::formatcp;
 use leptos_fluent::{I18n, Language};
 
-use sharesphere_core_user::user::ssr::create_or_update_user;
-use sharesphere_core_user::user::User;
+use sphare_core_user::user::ssr::create_or_update_user;
+use sphare_core_user::user::User;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 

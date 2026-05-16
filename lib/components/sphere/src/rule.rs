@@ -3,17 +3,17 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_common::common::Rule;
-use sharesphere_core_common::constants::{MAX_MOD_MESSAGE_LENGTH, MAX_TITLE_LENGTH};
-use sharesphere_core_common::editor::TextareaData;
-use sharesphere_core_user::role::PermissionLevel;
+use sphare_core_common::common::Rule;
+use sphare_core_common::constants::{MAX_MOD_MESSAGE_LENGTH, MAX_TITLE_LENGTH};
+use sphare_core_common::editor::TextareaData;
+use sphare_core_user::role::PermissionLevel;
 
-use sharesphere_cmp_common::role::AuthorizedShow;
-use sharesphere_cmp_common::state::{GlobalState, SphereState};
-use sharesphere_cmp_utils::editor::{FormMarkdownEditor, FormTextEditor};
-use sharesphere_cmp_utils::icons::{CrossIcon, EditIcon, PlusIcon};
-use sharesphere_cmp_utils::unpack::TransitionUnpack;
-use sharesphere_cmp_utils::widget::{ContentBody, ModalDialog, ModalFormButtons};
+use sphare_cmp_common::role::AuthorizedShow;
+use sphare_cmp_common::state::{GlobalState, SphereState};
+use sphare_cmp_utils::editor::{FormMarkdownEditor, FormTextEditor};
+use sphare_cmp_utils::icons::{CrossIcon, EditIcon, PlusIcon};
+use sphare_cmp_utils::unpack::TransitionUnpack;
+use sphare_cmp_utils::widget::{ContentBody, ModalDialog, ModalFormButtons};
 
 /// Component to manage sphere rules
 #[component]

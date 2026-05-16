@@ -1,13 +1,13 @@
 use leptos::prelude::*;
 use leptos_fluent::tr;
-use sharesphere_core_common::editor::ssr::get_html_and_markdown_strings;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_sphere::rule::ssr::{add_rule, remove_rule, update_rule};
-use sharesphere_core_sphere::rule::ssr::{get_rule_vec, load_rule_by_id};
-use sharesphere_core_sphere::rule::{get_rule_description, get_rule_title, BaseRule};
-use sharesphere_core_sphere::sphere::ssr::create_sphere;
-use sharesphere_core_user::role::AdminRole;
-use sharesphere_core_user::user::User;
+use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
+use sphare_core_common::errors::AppError;
+use sphare_core_sphere::rule::ssr::{add_rule, remove_rule, update_rule};
+use sphare_core_sphere::rule::ssr::{get_rule_vec, load_rule_by_id};
+use sphare_core_sphere::rule::{get_rule_description, get_rule_title, BaseRule};
+use sphare_core_sphere::sphere::ssr::create_sphere;
+use sphare_core_user::role::AdminRole;
+use sphare_core_user::user::User;
 
 use crate::common::{create_user, get_db_pool, get_i18n};
 use crate::data_factory::{add_base_rule, remove_base_rule, update_base_rule};

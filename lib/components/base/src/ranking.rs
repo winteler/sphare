@@ -4,9 +4,9 @@ use leptos::server_fn::const_format::concatcp;
 use leptos::{component, view, IntoView};
 use leptos_fluent::move_tr;
 
-use sharesphere_core_content::ranking::{CommentSortType, PostSortType, SortType};
+use sphare_core_content::ranking::{CommentSortType, PostSortType, SortType};
 
-use sharesphere_cmp_utils::icons::{FlameIcon, GraphIcon, HourglassIcon, PodiumIcon};
+use sphare_cmp_utils::icons::{FlameIcon, GraphIcon, HourglassIcon, PodiumIcon};
 
 /// Component to show a sorting option
 #[component]

@@ -4,30 +4,30 @@ use leptos::either::Either;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sharesphere_core_common::routes::{CONTENT_POLICY_ROUTE, PRIVACY_POLICY_ROUTE, RULES_ROUTE};
-use sharesphere_core_sphere::rule::BaseRule;
+use sphare_core_common::routes::{CONTENT_POLICY_ROUTE, PRIVACY_POLICY_ROUTE, RULES_ROUTE};
+use sphare_core_sphere::rule::BaseRule;
 
-use sharesphere_cmp_common::state::GlobalState;
-use sharesphere_cmp_utils::errors::ErrorDisplay;
-use sharesphere_cmp_utils::icons::{LoadingIcon, NsfwIcon, SpoilerIcon};
-use sharesphere_cmp_utils::widget::{ContentBody, TitleCollapse};
+use sphare_cmp_common::state::GlobalState;
+use sphare_cmp_utils::errors::ErrorDisplay;
+use sphare_cmp_utils::icons::{LoadingIcon, NsfwIcon, SpoilerIcon};
+use sphare_cmp_utils::widget::{ContentBody, TitleCollapse};
 
 use crate::sidebar::HomeSidebar;
 
 #[component]
-pub fn AboutShareSphere() -> impl IntoView {
+pub fn AboutSphare() -> impl IntoView {
     view! {
         <div class="w-full overflow-y-auto">
             <div class="flex flex-col gap-4 w-4/5 lg:w-1/2 4xl:w-2/5 mx-auto py-4">
-                <h1 class="text-3xl font-bold text-center">{move_tr!("about-sharesphere")}</h1>
+                <h1 class="text-3xl font-bold text-center">{move_tr!("about-sphare")}</h1>
                 <p class="text-justify">
-                    {move_tr!("about-sharesphere-content")}
+                    {move_tr!("about-sphare-content")}
                 </p>
                 <h2 class="text-xl font-semibold">{move_tr!("rules-and-moderation")}</h2>
                 <p class="text-justify">
-                    {move_tr!("about-sharesphere-rules-1")}
-                    <a href=RULES_ROUTE>{move_tr!("about-sharesphere-rules-link")}</a>
-                    {move_tr!("about-sharesphere-rules-2")}
+                    {move_tr!("about-sphare-rules-1")}
+                    <a href=RULES_ROUTE>{move_tr!("about-sphare-rules-link")}</a>
+                    {move_tr!("about-sphare-rules-2")}
                 </p>
                 <PlannedImprovements/>
                 <OriginsAndGoals/>
@@ -43,7 +43,7 @@ pub fn TermsAndConditions() -> impl IntoView {
         <div class="w-full overflow-y-auto">
             <div class="flex flex-col gap-4 items-center w-4/5 lg:w-1/2 4xl:w-2/5 mx-auto py-4">
                 <h1 class="text-3xl font-bold text-center">{move_tr!("terms-and-conditions")}</h1>
-                <ShareSphereInfo/>
+                <SphareInfo/>
                 <AcceptanceOfTerms/>
                 <DescriptionOfService/>
                 <UserResponsibilities/>
@@ -65,7 +65,7 @@ pub fn PrivacyPolicy() -> impl IntoView {
         <div class="w-full overflow-y-auto">
             <div class="flex flex-col gap-4 items-center w-4/5 lg:w-1/2 4xl:w-2/5 mx-auto py-4">
                 <h1 class="text-3xl font-bold text-center">{move_tr!("privacy-policy")}</h1>
-                <ShareSphereInfo/>
+                <SphareInfo/>
                 <AboutPrivacyPolicy/>
                 <DataCollection/>
                 <DataCollectionPurpose/>
@@ -200,7 +200,7 @@ pub fn Rules() -> impl IntoView {
 }
 
 #[component]
-fn ShareSphereInfo() -> impl IntoView {
+fn SphareInfo() -> impl IntoView {
     view! {
         <div class="flex flex-col items-center gap-1">
             <p>{move_tr!("info-validity")}</p>

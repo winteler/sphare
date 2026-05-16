@@ -4,23 +4,23 @@ use leptos_fluent::{move_tr, I18n};
 #[cfg(feature = "hydrate")]
 use leptos_use::on_click_outside;
 
-use sharesphere_core_common::common::{Rule, SphereHeader};
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::{ABOUT_SHARESPHERE_ROUTE, CONTENT_POLICY_ROUTE, FAQ_ROUTE, GITHUB_REPO_URL, POPULAR_ROUTE, PRIVACY_POLICY_ROUTE, RULES_ROUTE, TERMS_AND_CONDITIONS_ROUTE};
-use sharesphere_core_common::traits::ToLocalizedStr;
-use sharesphere_core_content::search::SearchState;
+use sphare_core_common::common::{Rule, SphereHeader};
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::{ABOUT_SHARESPHERE_ROUTE, CONTENT_POLICY_ROUTE, FAQ_ROUTE, GITHUB_REPO_URL, POPULAR_ROUTE, PRIVACY_POLICY_ROUTE, RULES_ROUTE, TERMS_AND_CONDITIONS_ROUTE};
+use sphare_core_common::traits::ToLocalizedStr;
+use sphare_core_content::search::SearchState;
 
-use sharesphere_iface_sphere::sphere::{get_popular_sphere_headers, get_subscribed_sphere_headers};
+use sphare_iface_sphere::sphere::{get_popular_sphere_headers, get_subscribed_sphere_headers};
 
-use sharesphere_cmp_base::filter::{AllCategoriesToggle, OnlyCategoriesToggle};
-use sharesphere_cmp_base::rule::{BaseRuleList, RuleList};
-use sharesphere_cmp_base::search::SearchSpheres;
-use sharesphere_cmp_base::sphere::SphereLinkList;
-use sharesphere_cmp_base::sphere_category::SphereCategoryCollapseWithFilter;
-use sharesphere_cmp_common::state::{GlobalState, SphereState};
-use sharesphere_cmp_utils::icons::{GithubIcon, HomeIcon, PopularIcon};
-use sharesphere_cmp_utils::unpack::TransitionUnpack;
-use sharesphere_cmp_utils::widget::{Badge, TitleCollapse};
+use sphare_cmp_base::filter::{AllCategoriesToggle, OnlyCategoriesToggle};
+use sphare_cmp_base::rule::{BaseRuleList, RuleList};
+use sphare_cmp_base::search::SearchSpheres;
+use sphare_cmp_base::sphere::SphereLinkList;
+use sphare_cmp_base::sphere_category::SphereCategoryCollapseWithFilter;
+use sphare_cmp_common::state::{GlobalState, SphereState};
+use sphare_cmp_utils::icons::{GithubIcon, HomeIcon, PopularIcon};
+use sphare_cmp_utils::unpack::TransitionUnpack;
+use sphare_cmp_utils::widget::{Badge, TitleCollapse};
 
 /// Component to display a collapsable list of sphere links
 #[component]
@@ -185,13 +185,13 @@ pub fn HomeSidebar() -> impl IntoView {
 
     view! {
         <div class=sidebar_class node_ref=sidebar_ref>
-            <h1 class="text-xl font-semibold text-center">{move_tr!("welcome-to-sharesphere")}</h1>
+            <h1 class="text-xl font-semibold text-center">{move_tr!("welcome-to-sphare")}</h1>
             <div class="flex flex-col gap-2">
-                <p>{move_tr!("sharesphere-right-sidebar-1")}</p>
-                <p>{move_tr!("sharesphere-right-sidebar-2")}</p>
+                <p>{move_tr!("sphare-right-sidebar-1")}</p>
+                <p>{move_tr!("sphare-right-sidebar-2")}</p>
             </div>
             <ul class="list-disc list-inside">
-                <li><a href=ABOUT_SHARESPHERE_ROUTE class="link text-primary">{move_tr!("about-sharesphere")}</a></li>
+                <li><a href=ABOUT_SHARESPHERE_ROUTE class="link text-primary">{move_tr!("about-sphare")}</a></li>
                 <li><a href=TERMS_AND_CONDITIONS_ROUTE class="link text-primary">{move_tr!("terms-and-conditions")}</a></li>
                 <li><a href=PRIVACY_POLICY_ROUTE class="link text-primary">{move_tr!("privacy-policy")}</a></li>
                 <li><a href=CONTENT_POLICY_ROUTE class="link text-primary">{move_tr!("content-policy")}</a></li>

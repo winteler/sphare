@@ -6,25 +6,25 @@ use leptos_meta::{provide_meta_context, HashedStylesheet, Link, Meta, MetaTags, 
 use leptos_router::{components::{ParentRoute, Route, Router, Routes}, ParamSegment, StaticSegment};
 use regex::Regex;
 
-use sharesphere_core_common::constants::{SITE_NAME};
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::{ABOUT_SHARESPHERE_ROUTE, AUTH_CALLBACK_ROUTE, CONTENT_POLICY_ROUTE, CREATE_POST_SUFFIX, CREATE_SPHERE_SUFFIX, FAQ_ROUTE, NOTIFICATION_ROUTE, POPULAR_ROUTE, POST_ROUTE_PARAM_NAME, POST_ROUTE_PREFIX, PRIVACY_POLICY_ROUTE, PUBLISH_ROUTE, RULES_ROUTE, SATELLITE_ROUTE_PARAM_NAME, SATELLITE_ROUTE_PREFIX, SEARCH_ROUTE, SPHERE_ROUTE_PARAM_NAME, SPHERE_ROUTE_PREFIX, TERMS_AND_CONDITIONS_ROUTE, USER_ROUTE_PARAM_NAME, USER_ROUTE_PREFIX};
+use sphare_core_common::constants::{SITE_NAME};
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::{ABOUT_SHARESPHERE_ROUTE, AUTH_CALLBACK_ROUTE, CONTENT_POLICY_ROUTE, CREATE_POST_SUFFIX, CREATE_SPHERE_SUFFIX, FAQ_ROUTE, NOTIFICATION_ROUTE, POPULAR_ROUTE, POST_ROUTE_PARAM_NAME, POST_ROUTE_PREFIX, PRIVACY_POLICY_ROUTE, PUBLISH_ROUTE, RULES_ROUTE, SATELLITE_ROUTE_PARAM_NAME, SATELLITE_ROUTE_PREFIX, SEARCH_ROUTE, SPHERE_ROUTE_PARAM_NAME, SPHERE_ROUTE_PREFIX, TERMS_AND_CONDITIONS_ROUTE, USER_ROUTE_PARAM_NAME, USER_ROUTE_PREFIX};
 
-use sharesphere_iface_sphere::sphere::CreateSphere;
-use sharesphere_iface_user::auth::{get_user, EndSession};
-use sharesphere_iface_user::user::{DeleteUser, SetUserSettings};
+use sphare_iface_sphere::sphere::CreateSphere;
+use sphare_iface_user::auth::{get_user, EndSession};
+use sphare_iface_user::user::{DeleteUser, SetUserSettings};
 
-use sharesphere_cmp_common::auth_widget::AuthCallback;
-use sharesphere_cmp_common::state::GlobalState;
-use sharesphere_cmp_content::post::{CreatePost, Post};
-use sharesphere_cmp_sphere::satellite::{CreateSatellitePost, SatelliteBanner, SatelliteContent};
-use sharesphere_cmp_sphere::sphere::{CreateSphere, SphereContents};
-use sharesphere_cmp_sphere::sphere_management::{SphereCockpit, SphereCockpitGuard, MANAGE_SPHERE_ROUTE};
-use sharesphere_cmp_ui::navigation_bar::NavigationBar;
-use sharesphere_cmp_ui::policy::{AboutShareSphere, ContentPolicy, Faq, PrivacyPolicy, Rules, TermsAndConditions};
-use sharesphere_cmp_ui::search::{Search, SphereSearch};
-use sharesphere_cmp_ui::sidebar::LeftSidebar;
-use sharesphere_cmp_utils::errors::ErrorTemplate;
+use sphare_cmp_common::auth_widget::AuthCallback;
+use sphare_cmp_common::state::GlobalState;
+use sphare_cmp_content::post::{CreatePost, Post};
+use sphare_cmp_sphere::satellite::{CreateSatellitePost, SatelliteBanner, SatelliteContent};
+use sphare_cmp_sphere::sphere::{CreateSphere, SphereContents};
+use sphare_cmp_sphere::sphere_management::{SphereCockpit, SphereCockpitGuard, MANAGE_SPHERE_ROUTE};
+use sphare_cmp_ui::navigation_bar::NavigationBar;
+use sphare_cmp_ui::policy::{AboutSphare, ContentPolicy, Faq, PrivacyPolicy, Rules, TermsAndConditions};
+use sphare_cmp_ui::search::{Search, SphereSearch};
+use sphare_cmp_ui::sidebar::LeftSidebar;
+use sphare_cmp_utils::errors::ErrorTemplate;
 
 use crate::home::{HomePage, HotPage, LoginGuard, LoginGuardHome, NotificationHome, ProfileHome, SphereHome};
 
@@ -212,7 +212,7 @@ pub fn App() -> impl IntoView {
                                 </ParentRoute>
                                 <Route path=StaticSegment(NOTIFICATION_ROUTE) view=NotificationHome/>
                                 <Route path=StaticSegment(SEARCH_ROUTE) view=Search/>
-                                <Route path=StaticSegment(ABOUT_SHARESPHERE_ROUTE) view=AboutShareSphere/>
+                                <Route path=StaticSegment(ABOUT_SHARESPHERE_ROUTE) view=AboutSphare/>
                                 <Route path=StaticSegment(TERMS_AND_CONDITIONS_ROUTE) view=TermsAndConditions/>
                                 <Route path=StaticSegment(PRIVACY_POLICY_ROUTE) view=PrivacyPolicy/>
                                 <Route path=StaticSegment(CONTENT_POLICY_ROUTE) view=ContentPolicy/>

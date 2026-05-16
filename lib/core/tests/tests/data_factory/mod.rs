@@ -3,30 +3,30 @@ use std::collections::HashMap;
 
 use sqlx::PgPool;
 
-use sharesphere_core_common::colors::Color;
-use sharesphere_core_common::common::Rule;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::comment::ssr::{create_comment, delete_comment};
-use sharesphere_core_content::comment::Comment;
-use sharesphere_core_content::comment::CommentWithChildren;
-use sharesphere_core_content::embed::Link;
-use sharesphere_core_content::moderation::ssr::moderate_comment;
-use sharesphere_core_content::moderation::ssr::moderate_post;
-use sharesphere_core_content::post::ssr::{create_post, delete_post};
-use sharesphere_core_content::post::Post;
-use sharesphere_core_content::post::{PostTags, PostWithSphereInfo};
-use sharesphere_core_content::ranking::ssr::vote_on_content;
-use sharesphere_core_content::ranking::{Vote, VoteValue};
-use sharesphere_core_sphere::rule::ssr::add_rule;
-use sharesphere_core_sphere::satellite::ssr::create_satellite;
-use sharesphere_core_sphere::satellite::Satellite;
-use sharesphere_core_sphere::sphere::ssr::create_sphere;
-use sharesphere_core_sphere::sphere::Sphere;
-use sharesphere_core_sphere::sphere_category::ssr::set_sphere_category;
-use sharesphere_core_sphere::sphere_category::SphereCategory;
-use sharesphere_core_sphere::sphere_management::ssr::set_sphere_icon_url;
-use sharesphere_core_user::role::AdminRole;
-use sharesphere_core_user::user::User;
+use sphare_core_common::colors::Color;
+use sphare_core_common::common::Rule;
+use sphare_core_common::errors::AppError;
+use sphare_core_content::comment::ssr::{create_comment, delete_comment};
+use sphare_core_content::comment::Comment;
+use sphare_core_content::comment::CommentWithChildren;
+use sphare_core_content::embed::Link;
+use sphare_core_content::moderation::ssr::moderate_comment;
+use sphare_core_content::moderation::ssr::moderate_post;
+use sphare_core_content::post::ssr::{create_post, delete_post};
+use sphare_core_content::post::Post;
+use sphare_core_content::post::{PostTags, PostWithSphereInfo};
+use sphare_core_content::ranking::ssr::vote_on_content;
+use sphare_core_content::ranking::{Vote, VoteValue};
+use sphare_core_sphere::rule::ssr::add_rule;
+use sphare_core_sphere::satellite::ssr::create_satellite;
+use sphare_core_sphere::satellite::Satellite;
+use sphare_core_sphere::sphere::ssr::create_sphere;
+use sphare_core_sphere::sphere::Sphere;
+use sphare_core_sphere::sphere_category::ssr::set_sphere_category;
+use sphare_core_sphere::sphere_category::SphereCategory;
+use sphare_core_sphere::sphere_management::ssr::set_sphere_icon_url;
+use sphare_core_user::role::AdminRole;
+use sphare_core_user::user::User;
 
 pub async fn create_sphere_with_post(
     sphere_name: &str,

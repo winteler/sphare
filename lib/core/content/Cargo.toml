@@ -1,13 +1,13 @@
 [package]
-name = "sharesphere_core_content"
+name = "sphare_core_content"
 version = "0.1.0"
 edition = "2024"
 description = "Content related (posts, comments) structs and functions"
 
 [dependencies]
-sharesphere_core_common = { path = "../common", default-features = false }
-sharesphere_core_user = { path = "../user", default-features = false }
-sharesphere_core_sphere = { path = "../sphere", default-features = false }
+sphare_core_common = { path = "../common", default-features = false }
+sphare_core_user = { path = "../user", default-features = false }
+sphare_core_sphere = { path = "../sphere", default-features = false }
 
 leptos.workspace = true
 
@@ -38,9 +38,9 @@ ssr = [
     "leptos/ssr",
     "leptos-fluent/axum",
     "leptos-fluent/ssr",
-    "sharesphere_core_common/ssr",
-    "sharesphere_core_user/ssr",
-    "sharesphere_core_sphere/ssr",
+    "sphare_core_common/ssr",
+    "sphare_core_user/ssr",
+    "sphare_core_sphere/ssr",
     "dep:http",
     "dep:reqwest",
     "dep:sqlx",

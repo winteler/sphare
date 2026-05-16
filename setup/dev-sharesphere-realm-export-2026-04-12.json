@@ -1,6 +1,6 @@
 {
   "id": "565f33e8-3192-40ba-85d3-9d31ca2e7925",
-  "realm": "sharesphere",
+  "realm": "sphare",
   "displayName": "",
   "displayNameHtml": "",
   "notBefore": 0,
@@ -49,7 +49,7 @@
   "failureFactor": 30,
   "defaultRole": {
     "id": "5e697bf4-a49a-44a9-895e-8f27bf264d33",
-    "name": "default-roles-sharesphere",
+    "name": "default-roles-sphare",
     "description": "${role_default-roles}",
     "composite": true,
     "clientRole": false,
@@ -102,12 +102,12 @@
   "users": [
     {
       "id": "81fada1e-795d-41e6-94f1-ee6481cb1645",
-      "username": "service-account-sharesphere-app",
+      "username": "service-account-sphare-app",
       "emailVerified": false,
       "createdTimestamp": 1743201460829,
       "enabled": true,
       "totp": false,
-      "serviceAccountClientId": "sharesphere-app",
+      "serviceAccountClientId": "sphare-app",
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "notBefore": 0
@@ -138,13 +138,13 @@
       "clientId": "account",
       "name": "${client_account}",
       "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/sharesphere/account/",
+      "baseUrl": "/realms/sphare/account/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/realms/sharesphere/account/*"
+        "/realms/sphare/account/*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -185,13 +185,13 @@
       "clientId": "account-console",
       "name": "${client_account-console}",
       "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/sharesphere/account/",
+      "baseUrl": "/realms/sphare/account/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/realms/sharesphere/account/*"
+        "/realms/sphare/account/*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -370,13 +370,13 @@
       "clientId": "security-admin-console",
       "name": "${client_security-admin-console}",
       "rootUrl": "${authAdminUrl}",
-      "baseUrl": "/admin/sharesphere/console/",
+      "baseUrl": "/admin/sphare/console/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/admin/sharesphere/console/*"
+        "/admin/sphare/console/*"
       ],
       "webOrigins": [
         "+"
@@ -436,7 +436,7 @@
     },
     {
       "id": "359d3de4-fafc-4ebc-a686-0ab201347496",
-      "clientId": "sharesphere-app",
+      "clientId": "sphare-app",
       "name": "",
       "description": "",
       "rootUrl": "http://192.168.50.42:3000",

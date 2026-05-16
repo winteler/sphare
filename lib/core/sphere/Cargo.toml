@@ -1,12 +1,12 @@
 [package]
-name = "sharesphere_core_sphere"
+name = "sphare_core_sphere"
 version = "0.1.0"
 edition = "2024"
 description = "Sphere related structs and functions"
 
 [dependencies]
-sharesphere_core_common = { path = "../common", default-features = false }
-sharesphere_core_user = { path = "../user", default-features = false }
+sphare_core_common = { path = "../common", default-features = false }
+sphare_core_user = { path = "../user", default-features = false }
 
 leptos.workspace = true
 leptos_axum = { workspace = true, optional = true }
@@ -36,8 +36,8 @@ ssr = [
     "leptos/ssr",
     "leptos-fluent/axum",
     "leptos-fluent/ssr",
-    "sharesphere_core_common/ssr",
-    "sharesphere_core_user/ssr",
+    "sphare_core_common/ssr",
+    "sphare_core_user/ssr",
     "dep:image",
     "dep:infer",
     "dep:leptos_axum",

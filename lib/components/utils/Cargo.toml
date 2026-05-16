@@ -1,11 +1,11 @@
 [package]
-name = "sharesphere_cmp_utils"
+name = "sphare_cmp_utils"
 version = "0.1.0"
 edition = "2024"
 description = "Utility components"
 
 [dependencies]
-sharesphere_core_common = { path = "../../core/common", default-features = false }
+sphare_core_common = { path = "../../core/common", default-features = false }
 
 leptos.workspace = true
 leptos_router.workspace = true

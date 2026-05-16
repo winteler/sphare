@@ -9,8 +9,8 @@ use crate::routes::get_app_origin;
 /// # Returns whether the given string `input` is shorter or equal than the given max length and, if not `is_empty_ok` than it's not empty
 ///
 /// ```
-/// use sharesphere_core_common::checks::{check_string_length};
-/// use sharesphere_core_common::errors::AppError;
+/// use sphare_core_common::checks::{check_string_length};
+/// use sphare_core_common::errors::AppError;
 ///
 /// assert!(check_string_length("hello", "input", 5, false).is_ok());
 /// assert_eq!(check_string_length("hello", "input", 4, false), Err(AppError::new("input exceeds the maximum length: 4.")));
@@ -34,9 +34,9 @@ pub fn check_string_length(
 /// # Valid sphere names contain only ascii alphanumeric characters, '-', '_' and have a maximum length of `MAX_SPHERE_NAME_LENGTH`
 ///
 /// ```
-/// use sharesphere_core_common::checks::{check_sphere_name_with_options};
-/// use sharesphere_core_common::constants::MAX_SPHERE_NAME_LENGTH;
-/// use sharesphere_core_common::errors::AppError;
+/// use sphare_core_common::checks::{check_sphere_name_with_options};
+/// use sphare_core_common::constants::MAX_SPHERE_NAME_LENGTH;
+/// use sphare_core_common::errors::AppError;
 ///
 /// assert!(check_sphere_name_with_options("-Abc123_", true).is_ok());
 /// assert!(check_sphere_name_with_options("", true).is_err());
@@ -63,9 +63,9 @@ pub fn check_sphere_name_with_options(name: &str, check_empty: bool) -> Result<(
 /// # Valid sphere names contain only ascii alphanumeric characters, '-', '_' and have a maximum length of `MAX_SPHERE_NAME_LENGTH`
 ///
 /// ```
-/// use sharesphere_core_common::checks::{check_sphere_name};
-/// use sharesphere_core_common::constants::MAX_SPHERE_NAME_LENGTH;
-/// use sharesphere_core_common::errors::AppError;
+/// use sphare_core_common::checks::{check_sphere_name};
+/// use sphare_core_common::constants::MAX_SPHERE_NAME_LENGTH;
+/// use sphare_core_common::errors::AppError;
 ///
 /// assert!(check_sphere_name("-Abc123_").is_ok());
 /// assert!(check_sphere_name("").is_err());
@@ -83,9 +83,9 @@ pub fn check_sphere_name(name: &str) -> Result<(), ValidationError> {
 /// # Valid satellite names contain only ascii alphanumeric characters, '-', '_' and have a maximum length of `MAX_SPHERE_NAME_LENGTH`
 ///
 /// ```
-/// use sharesphere_core_common::checks::{check_satellite_name};
-/// use sharesphere_core_common::constants::{MAX_SATELLITE_NAME_LENGTH};
-/// use sharesphere_core_common::errors::AppError;
+/// use sphare_core_common::checks::{check_satellite_name};
+/// use sphare_core_common::constants::{MAX_SATELLITE_NAME_LENGTH};
+/// use sphare_core_common::errors::AppError;
 ///
 /// assert!(check_satellite_name("-Abc123_").is_ok());
 /// assert!(check_satellite_name("").is_err());
@@ -109,9 +109,9 @@ pub fn check_satellite_name(name: &str) -> Result<(), ValidationError> {
 /// # Returns whether a post's title is valid.
 ///
 /// ```
-/// use sharesphere_core_common::checks::{check_post_title};
-/// use sharesphere_core_common::constants::MAX_TITLE_LENGTH;
-/// use sharesphere_core_common::errors::AppError;
+/// use sphare_core_common::checks::{check_post_title};
+/// use sphare_core_common::constants::MAX_TITLE_LENGTH;
+/// use sphare_core_common::errors::AppError;
 ///
 /// assert!(check_post_title("title").is_ok());
 /// assert!(check_post_title("").is_err());
@@ -137,9 +137,9 @@ pub fn check_post_title(title: &str) -> Result<(), ValidationError> {
 /// # Valid usernames contain only ascii alphanumeric characters, '-', '_' and have a maximum length of `MAX_USERNAME_LENGTH`
 ///
 /// ```
-/// use sharesphere_core_common::checks::{check_username};
-/// use sharesphere_core_common::constants::MAX_USERNAME_LENGTH;
-/// use sharesphere_core_common::errors::AppError;
+/// use sphare_core_common::checks::{check_username};
+/// use sphare_core_common::constants::MAX_USERNAME_LENGTH;
+/// use sphare_core_common::errors::AppError;
 ///
 /// assert!(check_username("-Abc123_", false).is_ok());
 /// assert!(check_username(" name", false).is_err());
@@ -164,7 +164,7 @@ pub fn validate_redirect_url(redirect_url: &str) -> Result<(), AppError> {
         // absolute URL: check that scheme and domain correspond to app origin
         match url.origin() == app_origin.origin() {
             true => Ok(()),
-            false => Err(AppError::new(format!("The redirect url {redirect_url} must have ShareSphere's origin {app_origin}."))),
+            false => Err(AppError::new(format!("The redirect url {redirect_url} must have Sphare's origin {app_origin}."))),
         }
     } else if is_valid_pathname(redirect_url) {
         Ok(())
@@ -199,10 +199,10 @@ mod tests {
     #[sealed_test]
     fn test_validate_redirect_url() {
         unsafe {
-            std::env::set_var(APP_ORIGIN_ENV, "https://sharesphere.space");
+            std::env::set_var(APP_ORIGIN_ENV, "https://sphare.space");
         }
-        assert!(validate_redirect_url("https://sharesphere.space/valid/url").is_ok());
-        assert!(validate_redirect_url("http://sharesphere.space/valid/url").is_err());
+        assert!(validate_redirect_url("https://sphare.space/valid/url").is_ok());
+        assert!(validate_redirect_url("http://sphare.space/valid/url").is_err());
         assert!(validate_redirect_url("https://invalid.redirect/").is_err());
         assert!(validate_redirect_url("/a/path/is/ok/too").is_ok());
         assert!(validate_redirect_url("a/path/is/ok/too").is_err());

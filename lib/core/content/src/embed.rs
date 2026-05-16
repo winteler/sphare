@@ -17,9 +17,9 @@ use {
     reqwest::Client,
 };
 
-use sharesphere_core_common::checks::check_string_length;
-use sharesphere_core_common::constants::MAX_LINK_LENGTH;
-use sharesphere_core_common::errors::{AppError};
+use sphare_core_common::checks::check_string_length;
+use sphare_core_common::constants::MAX_LINK_LENGTH;
+use sphare_core_common::errors::{AppError};
 
 static PROVIDERS: LazyLock<Option<Vec<OEmbedProvider>>> = LazyLock::new(|| {
     let parse_providers = serde_json::from_slice(include_bytes!("../embed/oembed_providers.json"));
@@ -227,7 +227,7 @@ pub async fn get_oembed_data(url: String) -> Result<OEmbedReply, AppError> {
 /// # Check if the `scheme` matches the given `url`
 ///
 /// ```
-/// use sharesphere_core_content::embed::url_matches_scheme;
+/// use sphare_core_content::embed::url_matches_scheme;
 ///
 /// assert_eq!(url_matches_scheme("https://www.youtube.com/watch?v=test", "https://*.youtube.com/watch*"), true);
 /// assert_eq!(url_matches_scheme("https://bsky.app/profile/test/post/testpost", "https://bsky.app/profile/*/post/*"), true);
@@ -252,7 +252,7 @@ pub fn url_matches_scheme(mut url: &str, scheme: &str) -> bool {
     scheme.ends_with('*') || url.is_empty()
 }
 
-/// Find the oEmbed provider and endpoint based on the URL using ShareSphere's providers.json
+/// Find the oEmbed provider and endpoint based on the URL using Sphare's providers.json
 pub fn find_url_provider(url: &str) -> Option<(&OEmbedProvider, &OEmbedEndpoint)> {
     match &*PROVIDERS {
         Some(providers) => providers.iter().find_map(|provider| {

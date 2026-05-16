@@ -8,30 +8,30 @@ use leptos_router::hooks::use_params_map;
 use leptos_use::{signal_throttled_with_options, ThrottleOptions};
 use url::Url;
 
-use sharesphere_core_common::checks::{check_satellite_name, check_string_length};
-use sharesphere_core_common::constants::{MAX_CONTENT_LENGTH, MAX_SATELLITE_NAME_LENGTH, POST_BATCH_SIZE, SCROLL_LOAD_THROTTLE_DELAY};
-use sharesphere_core_common::editor::TextareaData;
-use sharesphere_core_common::routes::{get_satellite_id_memo, get_satellite_path};
-use sharesphere_core_common::unpack::{handle_additional_load, reset_additional_load};
-use sharesphere_core_content::embed::EmbedType;
-use sharesphere_core_content::post::{add_sphere_info_to_post_vec, PostWithSphereInfo};
-use sharesphere_core_content::ranking::{PostSortType, SortType};
-use sharesphere_core_sphere::satellite::Satellite;
-use sharesphere_core_user::role::PermissionLevel;
+use sphare_core_common::checks::{check_satellite_name, check_string_length};
+use sphare_core_common::constants::{MAX_CONTENT_LENGTH, MAX_SATELLITE_NAME_LENGTH, POST_BATCH_SIZE, SCROLL_LOAD_THROTTLE_DELAY};
+use sphare_core_common::editor::TextareaData;
+use sphare_core_common::routes::{get_satellite_id_memo, get_satellite_path};
+use sphare_core_common::unpack::{handle_additional_load, reset_additional_load};
+use sphare_core_content::embed::EmbedType;
+use sphare_core_content::post::{add_sphere_info_to_post_vec, PostWithSphereInfo};
+use sphare_core_content::ranking::{PostSortType, SortType};
+use sphare_core_sphere::satellite::Satellite;
+use sphare_core_user::role::PermissionLevel;
 
-use sharesphere_iface_content::post::{get_post_vec_by_satellite_id, CreatePost};
-use sharesphere_iface_sphere::satellite::{get_satellite_by_id, get_satellite_vec_by_sphere_name};
-use sharesphere_iface_sphere::sphere::get_sphere_with_user_info;
-use sharesphere_iface_sphere::sphere_category::get_sphere_category_vec;
+use sphare_iface_content::post::{get_post_vec_by_satellite_id, CreatePost};
+use sphare_iface_sphere::satellite::{get_satellite_by_id, get_satellite_vec_by_sphere_name};
+use sphare_iface_sphere::sphere::get_sphere_with_user_info;
+use sphare_iface_sphere::sphere_category::get_sphere_category_vec;
 
-use sharesphere_cmp_base::post::{PostForm, PostListWithInitLoad};
-use sharesphere_cmp_common::role::AuthorizedShow;
-use sharesphere_cmp_common::state::{GlobalState, SatelliteState, SphereState};
-use sharesphere_cmp_utils::editor::{FormMarkdownEditor, FormTextEditor};
-use sharesphere_cmp_utils::form::LabeledFormCheckbox;
-use sharesphere_cmp_utils::icons::{EditIcon, LinkIcon, NsfwIcon, PauseIcon, PlayIcon, PlusIcon};
-use sharesphere_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
-use sharesphere_cmp_utils::widget::{ContentBody, ModalDialog, ModalFormButtons, SpoilerBadge, TagsWidget};
+use sphare_cmp_base::post::{PostForm, PostListWithInitLoad};
+use sphare_cmp_common::role::AuthorizedShow;
+use sphare_cmp_common::state::{GlobalState, SatelliteState, SphereState};
+use sphare_cmp_utils::editor::{FormMarkdownEditor, FormTextEditor};
+use sphare_cmp_utils::form::LabeledFormCheckbox;
+use sphare_cmp_utils::icons::{EditIcon, LinkIcon, NsfwIcon, PauseIcon, PlayIcon, PlusIcon};
+use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::widget::{ContentBody, ModalDialog, ModalFormButtons, SpoilerBadge, TagsWidget};
 
 use crate::sphere::SphereToolbar;
 use crate::sphere_category::get_sphere_category_header_map;
@@ -582,7 +582,7 @@ fn are_satellite_inputs_invalid(satellite_name: Signal<String>, satellite_body: 
 mod test {
     use crate::satellite::are_satellite_inputs_invalid;
     use leptos::prelude::{GetUntracked, Owner, RwSignal, Set};
-    use sharesphere_core_common::constants::{MAX_CONTENT_LENGTH, MAX_SATELLITE_NAME_LENGTH};
+    use sphare_core_common::constants::{MAX_CONTENT_LENGTH, MAX_SATELLITE_NAME_LENGTH};
 
     #[test]
     fn test_are_satellite_inputs_invalid() {

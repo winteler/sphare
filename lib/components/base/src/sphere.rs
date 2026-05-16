@@ -1,14 +1,14 @@
 use leptos::html;
 use leptos::prelude::*;
 
-use sharesphere_core_common::common::SphereHeader;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::routes::get_sphere_path;
+use sphare_core_common::common::SphereHeader;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::get_sphere_path;
 
-use sharesphere_cmp_common::sphere::SphereHeader;
-use sharesphere_cmp_common::state::GlobalState;
-use sharesphere_cmp_utils::node_utils::has_reached_scroll_load_threshold;
-use sharesphere_cmp_utils::widget::LoadIndicators;
+use sphare_cmp_common::sphere::SphereHeader;
+use sphare_cmp_common::state::GlobalState;
+use sphare_cmp_utils::node_utils::has_reached_scroll_load_threshold;
+use sphare_cmp_utils::widget::LoadIndicators;
 
 /// Component to display a collapsable list of sphere links
 #[component]

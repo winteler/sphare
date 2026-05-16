@@ -1,4 +1,4 @@
-use sharesphere_core_content::embed::{verify_link_and_get_embed, EmbedType, Link, LinkType};
+use sphare_core_content::embed::{verify_link_and_get_embed, EmbedType, Link, LinkType};
 
 #[tokio::test]
 async fn test_verify_link_and_get_embed() {

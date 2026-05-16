@@ -1,17 +1,17 @@
 [package]
-name = "sharesphere_cmp_base"
+name = "sphare_cmp_base"
 version = "0.1.0"
 edition = "2024"
 description = "Base components for business objects (spheres, posts, etc.)"
 
 [dependencies]
-sharesphere_core_common = { path = "../../core/common", default-features = false }
-sharesphere_core_sphere = { path = "../../core/sphere", default-features = false }
-sharesphere_core_content = { path = "../../core/content", default-features = false }
-sharesphere_iface_user = { path = "../../interfaces/user", default-features = false }
-sharesphere_iface_content = { path = "../../interfaces/content", default-features = false }
-sharesphere_cmp_utils = { path = "../utils", default-features = false }
-sharesphere_cmp_common = { path = "../common", default-features = false }
+sphare_core_common = { path = "../../core/common", default-features = false }
+sphare_core_sphere = { path = "../../core/sphere", default-features = false }
+sphare_core_content = { path = "../../core/content", default-features = false }
+sphare_iface_user = { path = "../../interfaces/user", default-features = false }
+sphare_iface_content = { path = "../../interfaces/content", default-features = false }
+sphare_cmp_utils = { path = "../utils", default-features = false }
+sphare_cmp_common = { path = "../common", default-features = false }
 
 leptos.workspace = true
 
@@ -27,19 +27,19 @@ url.workspace = true
 default = []
 hydrate = [
     "leptos/hydrate",
-    "sharesphere_iface_user/hydrate",
-    "sharesphere_iface_content/hydrate",
-    "sharesphere_cmp_utils/hydrate",
-    "sharesphere_cmp_common/hydrate",
+    "sphare_iface_user/hydrate",
+    "sphare_iface_content/hydrate",
+    "sphare_cmp_utils/hydrate",
+    "sphare_cmp_common/hydrate",
 ]
 ssr = [
     "leptos/ssr",
     "leptos-fluent/axum",
     "leptos-fluent/ssr",
     "leptos-use/ssr",
-    "sharesphere_iface_user/ssr",
-    "sharesphere_iface_content/ssr",
-    "sharesphere_cmp_utils/ssr",
-    "sharesphere_cmp_common/ssr",
+    "sphare_iface_user/ssr",
+    "sphare_iface_content/ssr",
+    "sphare_cmp_utils/ssr",
+    "sphare_cmp_common/ssr",
 ]
 

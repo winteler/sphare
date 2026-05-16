@@ -1,15 +1,15 @@
 use rand::RngExt;
 
-use sharesphere_core_common::common::SphereHeader;
-use sharesphere_core_common::db_utils::ssr::create_db_pool;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::errors::AppError::InsufficientPrivileges;
-use sharesphere_core_sphere::sphere;
-use sharesphere_core_sphere::sphere::ssr::{create_sphere_and_subscribe, get_sphere_by_name, get_subscribed_sphere_headers, update_sphere_description};
-use sharesphere_core_sphere::sphere::ssr::{create_sphere, subscribe, unsubscribe};
-use sharesphere_core_user::role::PermissionLevel;
-use sharesphere_core_user::user::ssr::set_user_settings;
-use sharesphere_core_user::user::User;
+use sphare_core_common::common::SphereHeader;
+use sphare_core_common::db_utils::ssr::create_db_pool;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::errors::AppError::InsufficientPrivileges;
+use sphare_core_sphere::sphere;
+use sphare_core_sphere::sphere::ssr::{create_sphere_and_subscribe, get_sphere_by_name, get_subscribed_sphere_headers, update_sphere_description};
+use sphare_core_sphere::sphere::ssr::{create_sphere, subscribe, unsubscribe};
+use sphare_core_user::role::PermissionLevel;
+use sphare_core_user::user::ssr::set_user_settings;
+use sphare_core_user::user::User;
 
 pub use crate::common::*;
 pub use crate::data_factory::*;

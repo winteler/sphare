@@ -6,19 +6,19 @@ use openidconnect as oidc;
 #[cfg(feature = "ssr")]
 use {
     openidconnect::TokenResponse,
-    sharesphere_core_common::{
+    sphare_core_common::{
         checks::validate_redirect_url,
         constants::SITE_ROOT,
     },
-    sharesphere_core_user::{
+    sphare_core_user::{
         auth::ssr::{get_oidc_http_client, get_provider_metadata},
         auth::*,
         session::ssr::get_session,
     }
 };
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_user::user::User;
+use sphare_core_common::errors::AppError;
+use sphare_core_user::user::User;
 
 #[server]
 pub async fn login(redirect_url: String) -> Result<Option<User>, AppError> {

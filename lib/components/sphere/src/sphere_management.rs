@@ -9,27 +9,27 @@ use leptos_router::components::Outlet;
 use leptos_use::signal_debounced;
 use strum::IntoEnumIterator;
 
-use sharesphere_core_common::checks::check_username;
-use sharesphere_core_common::constants::{MAX_SPHERE_DESCRIPTION_LENGTH, MAX_USERNAME_LENGTH};
-use sharesphere_core_common::editor::TextareaData;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::traits::ToLocalizedStr;
-use sharesphere_core_user::role::PermissionLevel;
+use sphare_core_common::checks::check_username;
+use sphare_core_common::constants::{MAX_SPHERE_DESCRIPTION_LENGTH, MAX_USERNAME_LENGTH};
+use sphare_core_common::editor::TextareaData;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::traits::ToLocalizedStr;
+use sphare_core_user::role::PermissionLevel;
 
-use sharesphere_iface_content::moderation::get_moderation_info;
-use sharesphere_iface_sphere::sphere_management::{get_sphere_ban_vec, set_sphere_banner, set_sphere_icon, RemoveUserBan};
-use sharesphere_iface_user::role::SetUserSphereRole;
-use sharesphere_iface_user::user::get_matching_user_header_vec;
+use sphare_iface_content::moderation::get_moderation_info;
+use sphare_iface_sphere::sphere_management::{get_sphere_ban_vec, set_sphere_banner, set_sphere_icon, RemoveUserBan};
+use sphare_iface_user::role::SetUserSphereRole;
+use sphare_iface_user::user::get_matching_user_header_vec;
 
-use sharesphere_cmp_base::moderation::ModerationInfoDialog;
-use sharesphere_cmp_common::auth_widget::LoginWindow;
-use sharesphere_cmp_common::role::AuthorizedShow;
-use sharesphere_cmp_common::state::{GlobalState, SphereState};
-use sharesphere_cmp_utils::editor::{FormTextEditor, LengthLimitedInput};
-use sharesphere_cmp_utils::errors::ErrorDisplay;
-use sharesphere_cmp_utils::icons::{CrossIcon, LoadingIcon, MagnifierIcon, SaveIcon};
-use sharesphere_cmp_utils::unpack::{SuspenseUnpack, TransitionUnpack};
-use sharesphere_cmp_utils::widget::{LocalizedEnumDropdown, ModalDialog, IMAGE_FILE_PARAM, SPHERE_NAME_PARAM};
+use sphare_cmp_base::moderation::ModerationInfoDialog;
+use sphare_cmp_common::auth_widget::LoginWindow;
+use sphare_cmp_common::role::AuthorizedShow;
+use sphare_cmp_common::state::{GlobalState, SphereState};
+use sphare_cmp_utils::editor::{FormTextEditor, LengthLimitedInput};
+use sphare_cmp_utils::errors::ErrorDisplay;
+use sphare_cmp_utils::icons::{CrossIcon, LoadingIcon, MagnifierIcon, SaveIcon};
+use sphare_cmp_utils::unpack::{SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::widget::{LocalizedEnumDropdown, ModalDialog, IMAGE_FILE_PARAM, SPHERE_NAME_PARAM};
 
 use crate::rule::SphereRulesPanel;
 use crate::satellite::SatellitePanel;

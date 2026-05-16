@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use sharesphere_core_common::common::Rule;
+use sphare_core_common::common::Rule;
 
 use crate::comment::Comment;
 use crate::post::Post;
@@ -20,15 +20,15 @@ pub struct ModerationInfo {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
-    use sharesphere_core_common::checks::check_string_length;
-    use sharesphere_core_common::constants::MAX_MOD_MESSAGE_LENGTH;
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_sphere::rule::ssr::load_rule_by_id;
-    use sharesphere_core_user::notification::{Notification, NotificationType};
-    use sharesphere_core_user::notification::ssr::create_notification;
-    use sharesphere_core_user::role::{AdminRole, PermissionLevel};
-    use sharesphere_core_user::role::ssr::is_user_sphere_moderator;
-    use sharesphere_core_user::user::{User, UserBan};
+    use sphare_core_common::checks::check_string_length;
+    use sphare_core_common::constants::MAX_MOD_MESSAGE_LENGTH;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_sphere::rule::ssr::load_rule_by_id;
+    use sphare_core_user::notification::{Notification, NotificationType};
+    use sphare_core_user::notification::ssr::create_notification;
+    use sphare_core_user::role::{AdminRole, PermissionLevel};
+    use sphare_core_user::role::ssr::is_user_sphere_moderator;
+    use sphare_core_user::user::{User, UserBan};
 
     use crate::comment::Comment;
     use crate::comment::ssr::{get_comment_by_id, get_comment_sphere};

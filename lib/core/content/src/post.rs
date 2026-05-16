@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use sharesphere_core_common::checks::{check_post_title, check_sphere_name};
-use sharesphere_core_common::common::SphereCategoryHeader;
-use sharesphere_core_common::constants::{MAX_CONTENT_LENGTH, MAX_LINK_LENGTH};
+use sphare_core_common::checks::{check_post_title, check_sphere_name};
+use sphare_core_common::common::SphereCategoryHeader;
+use sphare_core_common::constants::{MAX_CONTENT_LENGTH, MAX_LINK_LENGTH};
 
 use crate::embed::{EmbedType, Link};
 use crate::ranking::Vote;
@@ -146,16 +146,16 @@ pub mod ssr {
     use serde::{Deserialize, Serialize};
     use sqlx::PgPool;
     use validator::Validate;
-    use sharesphere_core_common::checks::check_sphere_name;
-    use sharesphere_core_common::colors::Color;
-    use sharesphere_core_common::common::SphereCategoryHeader;
-    use sharesphere_core_common::constants::POST_BATCH_SIZE;
-    use sharesphere_core_common::editor::clear_newlines;
-    use sharesphere_core_common::editor::ssr::get_html_and_markdown_strings;
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_common::routes::get_post_path;
-    use sharesphere_core_user::role::PermissionLevel;
-    use sharesphere_core_user::user::User;
+    use sphare_core_common::checks::check_sphere_name;
+    use sphare_core_common::colors::Color;
+    use sphare_core_common::common::SphereCategoryHeader;
+    use sphare_core_common::constants::POST_BATCH_SIZE;
+    use sphare_core_common::editor::clear_newlines;
+    use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_common::routes::get_post_path;
+    use sphare_core_user::role::PermissionLevel;
+    use sphare_core_user::user::User;
 
     use crate::embed::{verify_link_and_get_embed, EmbedType, Link};
     use crate::filter::SphereCategoryFilter;
@@ -950,8 +950,8 @@ pub mod ssr {
 
     #[cfg(test)]
     mod tests {
-        use sharesphere_core_common::colors::Color;
-        use sharesphere_core_user::user::User;
+        use sphare_core_common::colors::Color;
+        use sphare_core_user::user::User;
 
         use crate::embed::{EmbedType, Link, LinkType};
         use crate::post::ssr::{process_embed_link, PostJoinInfo};
@@ -1057,8 +1057,8 @@ pub fn add_sphere_info_to_post_vec(
 mod tests {
     use std::collections::HashMap;
 
-    use sharesphere_core_common::colors::Color;
-    use sharesphere_core_common::common::SphereCategoryHeader;
+    use sphare_core_common::colors::Color;
+    use sphare_core_common::common::SphereCategoryHeader;
 
     use crate::embed::Link;
     use crate::post::{add_sphere_info_to_post_vec, Post, PostWithSphereInfo};

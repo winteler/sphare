@@ -1,5 +1,5 @@
 [package]
-name = "sharesphere_core_common"
+name = "sphare_core_common"
 version = "0.1.0"
 edition = "2024"
 description = "Utility structs and functions"

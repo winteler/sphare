@@ -1,12 +1,12 @@
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::moderation::ssr::ban_user_from_sphere;
-use sharesphere_core_content::profile::ssr::{get_user_comment_vec, get_user_post_vec};
-use sharesphere_core_content::ranking::{CommentSortType, PostSortType, SortType};
-use sharesphere_core_sphere::rule::ssr::add_rule;
-use sharesphere_core_user::role::ssr::get_user_sphere_role;
-use sharesphere_core_user::role::AdminRole;
-use sharesphere_core_user::user::ssr::{create_or_update_user, delete_user, set_user_settings};
-use sharesphere_core_user::user::User;
+use sphare_core_common::errors::AppError;
+use sphare_core_content::moderation::ssr::ban_user_from_sphere;
+use sphare_core_content::profile::ssr::{get_user_comment_vec, get_user_post_vec};
+use sphare_core_content::ranking::{CommentSortType, PostSortType, SortType};
+use sphare_core_sphere::rule::ssr::add_rule;
+use sphare_core_user::role::ssr::get_user_sphere_role;
+use sphare_core_user::role::AdminRole;
+use sphare_core_user::user::ssr::{create_or_update_user, delete_user, set_user_settings};
+use sphare_core_user::user::User;
 
 use crate::common::{create_test_user, create_user, get_db_pool};
 use crate::data_factory::{create_simple_post, create_sphere_with_post_and_comment};

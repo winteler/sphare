@@ -340,7 +340,7 @@ CREATE INDEX idx_user_ban_sphere ON user_bans (sphere_id, user_id, delete_timest
 
 -- add functional user
 INSERT INTO users (oidc_id, username, email)
-VALUES ('', 'sharesphere-function-user', '');
+VALUES ('', 'sphare-function-user', '');
 
 -- add base rules
 INSERT INTO rules (sphere_id, priority, title, description, markdown_description, user_id)
@@ -349,7 +349,7 @@ VALUES
 null, 0,'BeRespectful', '',
  $$Treat all members of the community with respect. Healthy debate and differing opinions are welcome, but personal attacks, insults, or hostile behavior will not be tolerated.
 
-Always aim to contribute constructively and make ShareSphere a space where everyone feels safe to participate.$$,
+Always aim to contribute constructively and make Sphare a space where everyone feels safe to participate.$$,
 1
 ),
 (

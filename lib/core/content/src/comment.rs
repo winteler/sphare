@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use sharesphere_core_common::common::SphereHeader;
+use sphare_core_common::common::SphereHeader;
 
 use crate::post::Post;
 use crate::ranking::Vote;
@@ -76,16 +76,16 @@ impl CommentWithContext {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
-    use sharesphere_core_common::checks::check_string_length;
-    use sharesphere_core_common::constants::{COMMENT_BATCH_SIZE, MAX_CONTENT_LENGTH};
-    use sharesphere_core_common::editor::ssr::get_html_and_markdown_strings;
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_sphere::sphere::ssr::get_post_sphere;
-    use sharesphere_core_sphere::sphere::Sphere;
-    use sharesphere_core_user::notification::NotificationType;
-    use sharesphere_core_user::notification::ssr::create_notification;
-    use sharesphere_core_user::role::PermissionLevel;
-    use sharesphere_core_user::user::User;
+    use sphare_core_common::checks::check_string_length;
+    use sphare_core_common::constants::{COMMENT_BATCH_SIZE, MAX_CONTENT_LENGTH};
+    use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_sphere::sphere::ssr::get_post_sphere;
+    use sphare_core_sphere::sphere::Sphere;
+    use sphare_core_user::notification::NotificationType;
+    use sphare_core_user::notification::ssr::create_notification;
+    use sphare_core_user::role::PermissionLevel;
+    use sphare_core_user::user::User;
 
     use crate::post::ssr::increment_post_comment_count;
     use crate::ranking::{SortType, VoteValue};
@@ -614,7 +614,7 @@ pub mod ssr {
         use crate::comment::ssr::CommentWithVote;
         use crate::comment::Comment;
         use crate::ranking::VoteValue;
-        use sharesphere_core_user::user::User;
+        use sphare_core_user::user::User;
 
         #[test]
         fn test_comment_join_vote_into_comment_with_children() {

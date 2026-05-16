@@ -2,7 +2,7 @@
 use http::StatusCode;
 use leptos::prelude::*;
 
-use sharesphere_core_common::errors::AppError;
+use sphare_core_common::errors::AppError;
 
 use crate::icons::{AuthErrorIcon, BannedIcon, InternalErrorIcon, InvalidRequestIcon, NetworkErrorIcon, NotAuthorizedIcon, NotFoundIcon, TooHeavyIcon};
 

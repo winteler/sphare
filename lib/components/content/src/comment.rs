@@ -6,28 +6,28 @@ use leptos_router::hooks::use_query_map;
 use leptos_use::BreakpointsTailwind::{Lg, Xxl};
 use leptos_use::{breakpoints_tailwind, signal_throttled_with_options, use_breakpoints, ThrottleOptions};
 
-use sharesphere_core_common::colors::Color;
-use sharesphere_core_common::constants::{MAX_CONTENT_LENGTH, SCROLL_LOAD_THROTTLE_DELAY};
-use sharesphere_core_common::editor::TextareaData;
-use sharesphere_core_common::routes::{get_comment_link, COMMENT_ID_QUERY_PARAM};
-use sharesphere_core_common::unpack::{handle_additional_load, handle_dialog_action_result, handle_initial_load};
-use sharesphere_core_content::comment::{Comment, CommentWithChildren};
-use sharesphere_core_content::moderation::Content;
-use sharesphere_core_content::ranking::Vote;
+use sphare_core_common::colors::Color;
+use sphare_core_common::constants::{MAX_CONTENT_LENGTH, SCROLL_LOAD_THROTTLE_DELAY};
+use sphare_core_common::editor::TextareaData;
+use sphare_core_common::routes::{get_comment_link, COMMENT_ID_QUERY_PARAM};
+use sphare_core_common::unpack::{handle_additional_load, handle_dialog_action_result, handle_initial_load};
+use sphare_core_content::comment::{Comment, CommentWithChildren};
+use sphare_core_content::moderation::Content;
+use sphare_core_content::ranking::Vote;
 
-use sharesphere_iface_content::comment::{get_comment_tree_by_id, get_post_comment_tree, CreateComment, DeleteComment, EditComment};
+use sphare_iface_content::comment::{get_comment_tree_by_id, get_post_comment_tree, CreateComment, DeleteComment, EditComment};
 
-use sharesphere_cmp_base::comment::{CommentBody, COMMENT_MAX_DEPTH, COMMENT_MAX_DEPTH_MOBILE, COMMENT_MAX_DEPTH_SMALL_SCREEN};
-use sharesphere_cmp_base::ranking::CommentSortWidget;
-use sharesphere_cmp_common::auth_widget::{AuthorWidget, DeleteButton, LoginGuardedOpenModalButton};
-use sharesphere_cmp_common::role::IsPinnedCheckbox;
-use sharesphere_cmp_common::state::{GlobalState, SatelliteState, SphereState};
-use sharesphere_cmp_utils::colors::ColorIndicator;
-use sharesphere_cmp_utils::editor::FormMarkdownEditor;
-use sharesphere_cmp_utils::errors::ErrorDisplay;
-use sharesphere_cmp_utils::icons::{AddCommentIcon, EditIcon, LoadingIcon};
-use sharesphere_cmp_utils::unpack::{ActionError, SuspenseUnpack};
-use sharesphere_cmp_utils::widget::{Badge, DotMenu, IsPinnedWidget, LoadIndicators, MinimizeMaximizeWidget, ModalDialog, ModalFormButtons, ModeratorWidget, ScoreIndicator, ShareButton, TimeSinceEditWidget, TimeSinceWidget};
+use sphare_cmp_base::comment::{CommentBody, COMMENT_MAX_DEPTH, COMMENT_MAX_DEPTH_MOBILE, COMMENT_MAX_DEPTH_SMALL_SCREEN};
+use sphare_cmp_base::ranking::CommentSortWidget;
+use sphare_cmp_common::auth_widget::{AuthorWidget, DeleteButton, LoginGuardedOpenModalButton};
+use sphare_cmp_common::role::IsPinnedCheckbox;
+use sphare_cmp_common::state::{GlobalState, SatelliteState, SphereState};
+use sphare_cmp_utils::colors::ColorIndicator;
+use sphare_cmp_utils::editor::FormMarkdownEditor;
+use sphare_cmp_utils::errors::ErrorDisplay;
+use sphare_cmp_utils::icons::{AddCommentIcon, EditIcon, LoadingIcon};
+use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack};
+use sphare_cmp_utils::widget::{Badge, DotMenu, IsPinnedWidget, LoadIndicators, MinimizeMaximizeWidget, ModalDialog, ModalFormButtons, ModeratorWidget, ScoreIndicator, ShareButton, TimeSinceEditWidget, TimeSinceWidget};
 
 use crate::moderation::{ModerateCommentButton, ModerationInfoButton};
 use crate::ranking::VotePanel;
@@ -719,7 +719,7 @@ fn get_max_comment_depth(
 
 #[cfg(test)]
 mod tests {
-    use sharesphere_cmp_base::comment::{COMMENT_MAX_DEPTH, COMMENT_MAX_DEPTH_MOBILE, COMMENT_MAX_DEPTH_SMALL_SCREEN};
+    use sphare_cmp_base::comment::{COMMENT_MAX_DEPTH, COMMENT_MAX_DEPTH_MOBILE, COMMENT_MAX_DEPTH_SMALL_SCREEN};
     use crate::comment::{get_max_comment_depth};
     #[test]
     fn test_permission_level_from_string() {

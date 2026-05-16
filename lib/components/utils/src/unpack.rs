@@ -1,8 +1,8 @@
 use leptos::either::EitherOf3;
 use leptos::prelude::*;
 
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_common::unpack::action_has_error;
+use sphare_core_common::errors::AppError;
+use sphare_core_common::unpack::action_has_error;
 
 use crate::errors::{ErrorDetail, ErrorDisplay};
 use crate::icons::LoadingIcon;

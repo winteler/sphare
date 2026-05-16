@@ -80,7 +80,7 @@ link-none = Aucun
 link-link = Lien
 link-embed = Intégré
 link-url = Url
-link-help = Lorsque tu entres un lien, ShareSphere va d'abord essayer de l'inscruster si son fournisseur implémente l'API OEmbed ou si le lien est un fichier avec un format reconnu. Si ce n'est pas le cas, un simple lien sera affiché à la place.
+link-help = Lorsque tu entres un lien, Sphare va d'abord essayer de l'inscruster si son fournisseur implémente l'API OEmbed ou si le lien est un fichier avec un format reconnu. Si ce n'est pas le cas, un simple lien sera affiché à la place.
 
 home = Accueil
 popular = Populaire
@@ -124,8 +124,8 @@ search-no-sphere-found = Pas de Sphère correspondante.
 search-no-post-found = Pas de poste correspondant.
 search-no-comment-found = Pas de commentaire correspondant.
 
-welcome-to-sharesphere = Bienvenue sur ShareSphere !
-about-sharesphere = À propos de ShareSphere
+welcome-to-sphare = Bienvenue sur Sphare !
+about-sphare = À propos de Sphare
 sphere-cockpit = Cockpit de la Sphère
 single-comment-tree = Vue de commentaire individuel. Retour au poste.
 
@@ -180,17 +180,17 @@ code_block = Bloc de code
 block_quote = Citation
 image = Image
 
-sharesphere-right-sidebar-1 =
-    ShareSphere est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets.
-sharesphere-right-sidebar-2 =
-    ShareSphere est un site web en source-disponible et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. Tu pourras trouver plus d'informations sur le site et ses règles ci-dessous.
-about-sharesphere-content =
-    ShareSphere est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets. ShareSphere est un site web en source-disponible et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. L'objectif de ShareSphere est de fonctionner uniquement à l'aide de donations afin de fournir une meilleure expérience utilisateur que les plateformes basées sur la publicité.
-about-sharesphere-rules-1 =
-    ShareSphere s'efforce d'être un lien d'échanges positifs et constructifs. Pour ce faire, un{" "}
-about-sharesphere-rules-link =
+sphare-right-sidebar-1 =
+    Sphare est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets.
+sphare-right-sidebar-2 =
+    Sphare est un site web en source-disponible et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. Tu pourras trouver plus d'informations sur le site et ses règles ci-dessous.
+about-sphare-content =
+    Sphare est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets. Sphare est un site web en source-disponible et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. L'objectif de Sphare est de fonctionner uniquement à l'aide de donations afin de fournir une meilleure expérience utilisateur que les plateformes basées sur la publicité.
+about-sphare-rules-1 =
+    Sphare s'efforce d'être un lien d'échanges positifs et constructifs. Pour ce faire, un{" "}
+about-sphare-rules-link =
     ensemble de règles
-about-sharesphere-rules-2 =
+about-sphare-rules-2 =
     {" "}doit être respecté sur l'ensemble du site. Les communautés peuvent également mettre en place des règles supplémentaires définissant quels contenus sont appropriés et comment les utilisateurs doivent se comporter.
 
 terms-and-conditions = Termes et Conditions
@@ -204,7 +204,7 @@ spoiler-content-title = Contenu spoiler
 rule-respectful-title = Soyez respectueux·se et bienveillant·e
 rule-respectful-description =
     <p class="mb-2.5">Traitez tous les membres de la communauté avec respect. Les débats constructifs et les opinions divergentes sont les bienvenus, mais les attaques personnelles, les insultes ou les comportements hostiles ne seront pas tolérés.</p>
-    <p class="mb-2.5">Efforcez-vous toujours de contribuer de manière positive et faites de ShareSphere un espace où chacun·e se sent en sécurité pour participer.</p>
+    <p class="mb-2.5">Efforcez-vous toujours de contribuer de manière positive et faites de Sphare un espace où chacun·e se sent en sécurité pour participer.</p>
 
 rule-respect-rules-title = Respectez les règles de la communauté et labellisez vos publications
 rule-respect-rules-description =
@@ -222,9 +222,9 @@ rule-platform-integrity-description =
     <p class="mb-2.5">Ne tentez pas de tromper les utilisateur·rice·s, de manipuler les systèmes de votes ou de réputation, ni de rendre le site difficile à utiliser via du spam, du flood ou des comportements perturbateurs. Préservez un environnement sûr, équitable et accessible pour tou·te·s.</p>
 
 content-policy-intro =
-    Pour guarantir une bonne expérience sur ShareSphere, il est vital d'exclure les contenus illégaux, malicieux et autres contenus problématiques. De plus, les contenus sensibles doivent être labellisés correctement. Cette page documente quels contenus sont interdits ou sensibles, ainsi que la manière dont les contenus sensibles doivent être labellisés.
+    Pour guarantir une bonne expérience sur Sphare, il est vital d'exclure les contenus illégaux, malicieux et autres contenus problématiques. De plus, les contenus sensibles doivent être labellisés correctement. Cette page documente quels contenus sont interdits ou sensibles, ainsi que la manière dont les contenus sensibles doivent être labellisés.
 banned-content-intro =
-    Les contenus et activités suivants sont strictement interdits sur ShareSphere. Toute violation entraînera une suppression immédiate et un bannissement définitif.
+    Les contenus et activités suivants sont strictement interdits sur Sphare. Toute violation entraînera une suppression immédiate et un bannissement définitif.
 banned-content-1 = Tout contenu ou activité à caractère sexuel, abusif ou suggestif impliquant des mineurs ou des personnes n’ayant pas donné leur consentement.
 banned-content-2 = Tout contenu ou activité lié au trafic d'êtres humains.
 banned-content-3 = La promotion ou la facilitation de contacts sexuels physiques rémunérés.
@@ -262,36 +262,36 @@ planned-improvements-5 = Communautés privés
 
 origin-goals-title = Origine & Objectifs
 origin-goals-1 =
-    J’ai commencé à réfléchir à ShareSphere durant l’été 2023, après que plusieurs réseaux sociaux que j’utilisais aient effectué des modifications ayant un impact négatif sur leurs utilisateurs. J'avais déjà une opinion assez négative de la plupart des réseaux sociaux basés sur la publicité, estimant que ce modèle est incompatible avec une bonne expérience utilisateur et favorise des dérives néfastes pour la santé mentale des utilisateurs.
+    J’ai commencé à réfléchir à Sphare durant l’été 2023, après que plusieurs réseaux sociaux que j’utilisais aient effectué des modifications ayant un impact négatif sur leurs utilisateurs. J'avais déjà une opinion assez négative de la plupart des réseaux sociaux basés sur la publicité, estimant que ce modèle est incompatible avec une bonne expérience utilisateur et favorise des dérives néfastes pour la santé mentale des utilisateurs.
 origin-goals-2 =
     Cela m’a donné l’idée d’essayer de construire une meilleure plateforme, à but non lucratif, reposant sur des dons plutôt que sur la publicité, et axée sur la transparence. Être à but non lucratif et dépendre des dons est extrêmement important car cela permet de changer l'objectif du site. Au lieu d'inciter les utilisateurs à faire défiler le contenu de manière compulsive pour générer plus de revenus publicitaires, le site doit s'efforcer de founir une excellente expérience utilisateur, qui donne envie de contribuer par des dons.
 origin-goals-3 =
-    Dans une telle structure, la transparence est fondamentale, pour démontrer aux utilisateurs que leurs donations sont utilisées correctement et efficacement. ShareSphere s'engage à toujours publier la totalité des donations reçues ainsi que la manière dont cet argent est utilisée, par exemple pour couvrir les coûts opérationels et des salaires.
-    ShareSphere est également en source-disponible, permettant à la communauté de savoir comment le site fonctionne et quelles informations sont collectées. Finalement, ShareSphere a pour but d'avoir une modération transparente, sans bannissements cachés ou suppressions de contenu inexpliquées.
+    Dans une telle structure, la transparence est fondamentale, pour démontrer aux utilisateurs que leurs donations sont utilisées correctement et efficacement. Sphare s'engage à toujours publier la totalité des donations reçues ainsi que la manière dont cet argent est utilisée, par exemple pour couvrir les coûts opérationels et des salaires.
+    Sphare est également en source-disponible, permettant à la communauté de savoir comment le site fonctionne et quelles informations sont collectées. Finalement, Sphare a pour but d'avoir une modération transparente, sans bannissements cachés ou suppressions de contenu inexpliquées.
 origin-goals-4 =
-    Un autre objectif à long terme de ShareSphere est de donner plus de contrôle aux communautés, en leur permettant de sélectionner leurs modérateurs, définir leurs règles et de contribuer à lutter contre les bots et les utilisateurs malicieux. L'implémentation exacte de ces mécanismes n'est pas encore définie mais elle reposerait sur un système de vote donnant plus d'importances aux personnes contribuant fortement et régulièrement à leur communauté, de manière à éviter le détournement de communautés par d'autres utilisateurs.
+    Un autre objectif à long terme de Sphare est de donner plus de contrôle aux communautés, en leur permettant de sélectionner leurs modérateurs, définir leurs règles et de contribuer à lutter contre les bots et les utilisateurs malicieux. L'implémentation exacte de ces mécanismes n'est pas encore définie mais elle reposerait sur un système de vote donnant plus d'importances aux personnes contribuant fortement et régulièrement à leur communauté, de manière à éviter le détournement de communautés par d'autres utilisateurs.
 origin-goals-5 =
-    ShareSphere en est encore à ses premiers pas et des fonctionnalités supplémentaires apparaîtront dans le future, tel que des messages privés, de meilleures outils de modération, des filtres et paramètres supplémentaires et encore bien d'autres choses. J'espère que vous apprécierez ShareSphere et que vous nous aiderez à en faire la meilleure plateforme possible !
+    Sphare en est encore à ses premiers pas et des fonctionnalités supplémentaires apparaîtront dans le future, tel que des messages privés, de meilleures outils de modération, des filtres et paramètres supplémentaires et encore bien d'autres choses. J'espère que vous apprécierez Sphare et que vous nous aiderez à en faire la meilleure plateforme possible !
 
 rules-intro =
-    ShareSphere est une plateforme collaborative qui repose sur des contributions de qualité de la part de ses utilisateurs pour prospérer. Chaque communauté peut déterminer ses propres règles mais un mais un socle de règles de base est appliqué à l’ensemble du site pour garantir que toutes les communautés restent sûres, accueillantes et conformes aux valeurs de ShareSphere.
+    Sphare est une plateforme collaborative qui repose sur des contributions de qualité de la part de ses utilisateurs pour prospérer. Chaque communauté peut déterminer ses propres règles mais un mais un socle de règles de base est appliqué à l’ensemble du site pour garantir que toutes les communautés restent sûres, accueillantes et conformes aux valeurs de Sphare.
 
 info-validity = Date d'entrée en vigueur: 01.06.2025
-info-operator = Opérateur: ShareSphere
+info-operator = Opérateur: Sphare
 
 acceptance-of-terms-content =
-    En accédant ou en utilisant ShareSphere (« nous », « notre » ou « le Site »), vous acceptez d’être lié par ces Conditions Générales d’Utilisation. Si vous n’êtes pas d’accord, veuillez ne pas utiliser le Site.
+    En accédant ou en utilisant Sphare (« nous », « notre » ou « le Site »), vous acceptez d’être lié par ces Conditions Générales d’Utilisation. Si vous n’êtes pas d’accord, veuillez ne pas utiliser le Site.
 
 description-of-service-title = 1. Description du service
 description-of-service-content =
-    ShareSphere fournit une plateforme en ligne permettant aux utilisateurs de créer, rejoindre et participer à des forums de discussion.
+    Sphare fournit une plateforme en ligne permettant aux utilisateurs de créer, rejoindre et participer à des forums de discussion.
 
 user-responsibilities-title = 2. Responsabilités des utilisateurs
 user-responsibilities-1 = Vous vous engagez à ne pas :
 user-responsibilities-bullet-1 = Publier du contenu illégal, nuisible, offensant ou trompeur.
 user-responsibilities-bullet-2-1 = Enfreindre les{" "}
 user-responsibilities-bullet-2-2 = {" "} et la{" "}
-user-responsibilities-bullet-2-3 = {" "} de ShareSphere ainsi que les règles spécifiques à chaque communauté.
+user-responsibilities-bullet-2-3 = {" "} de Sphare ainsi que les règles spécifiques à chaque communauté.
 user-responsibilities-bullet-3 = Porter atteinte aux droits de tiers, y compris les lois sur le droit d’auteur et la protection des données.
 user-responsibilities-bullet-4 = Utiliser le site pour diffuser du spam, des logiciels malveillants ou des liens de phishing.
 user-responsibilities-bullet-5 = Usurper l’identité d’autrui ou créer plusieurs comptes à des fins malicieuses ou abusives.
@@ -303,7 +303,7 @@ moderation-content =
 
 intellectual-property-title = 4. Propriété intellectuelle
 intellectual-property-content-1 =
-    Tout le contenu sur ShareSphere, à l’exception des contributions des utilisateurs, est la propriété de ShareSphere et ne peut être utilisé sans autorisation.
+    Tout le contenu sur Sphare, à l’exception des contributions des utilisateurs, est la propriété de Sphare et ne peut être utilisé sans autorisation.
 intellectual-property-content-2 =
     En publiant du contenu, vous nous accordez une licence non exclusive, libre de droits, mondiale, permettant d'utiliser, d'afficher et de distribuer votre contenu sur la plateforme.
 
@@ -325,41 +325,41 @@ governing-law-title = 8. Loi applicable
 governing-law-content = Ces Conditions sont régies par le droit suisse. Juridiction : Zurich.
 
 about-privacy-policy-content =
-    Cette Politique de Confidentialité explique comment nous collectons, utilisons et protégeons vos données personnelles lorsque vous utilisez ShareSphere.
+    Cette Politique de Confidentialité explique comment nous collectons, utilisons et protégeons vos données personnelles lorsque vous utilisez Sphare.
 
-data-collection-title = 1. Données collectées par ShareSphere
-data-collection-content = ShareSphere collecte les informations suivantes :
+data-collection-title = 1. Données collectées par Sphare
+data-collection-content = Sphare collecte les informations suivantes :
 data-collection-bullet-1 = Données de compte : nom d’utilisateur, adresse e-mail, mot de passe (chiffré).
 data-collection-bullet-2 = Adresse IP (à des fins de sécurité).
 data-collection-bullet-3 = Tout contenu que vous publiez.
 data-collection-bullet-4 = Cookies pour le fonctionnement du site.
 
 data-collect-purpose-title = 2. Finalité de la collecte de données
-data-collect-purpose-content = ShareSphere utilise vos données pour :
+data-collect-purpose-content = Sphare utilise vos données pour :
 data-collect-purpose-bullet-1 = Fournir les services de forum.
 data-collect-purpose-bullet-2 = Assurer la sécurité et prévenir les abus.
 data-collect-purpose-bullet-3 = Communiquer avec les utilisateurs.
 data-collect-purpose-bullet-4 = Analyser l’utilisation du site et l'améliorer.
 
 legal-basis-title = 3. Base légale
-legal-basis-content = ShareSphere traite les données personnelles sur la base de :
+legal-basis-content = Sphare traite les données personnelles sur la base de :
 legal-basis-bullet-1 = Votre consentement (par exemple, lors de l’inscription).
 legal-basis-bullet-2 = Notre intérêt légitime à gérer un forum sécurisé.
 legal-basis-bullet-3 = La communication avec les utilisateurs.
 legal-basis-bullet-4 = Le respect d'obligations légales.
 
 cookies-title = 4. Cookies
-cookies-content = ShareSphere utilise des cookies pour :
+cookies-content = Sphare utilise des cookies pour :
 cookies-bullet-1 = Les informations liées à votre session.
 cookies-bullet-2 = Vos préférences linguistiques.
 
 data-sharing-title = 5. Partage des données
-data-sharing-content = ShareSphere s'engage à ne jamais vendre vos données. Si nécessaire, ShareSphere pourrait partager vos données avec :
+data-sharing-content = Sphare s'engage à ne jamais vendre vos données. Si nécessaire, Sphare pourrait partager vos données avec :
 data-sharing-bullet-1 = Les autorités.
 data-sharing-bullet-2 =  Les fournisseurs d’hébergement.
 
 data-storage-title = 6. Stockage des données
-data-storage-content = ShareSphere stocke ses données sur des serveurs situés en Suisse, conformément aux pratiques standards de chiffrement et de sécurité.
+data-storage-content = Sphare stocke ses données sur des serveurs situés en Suisse, conformément aux pratiques standards de chiffrement et de sécurité.
 
 user-rights-title = 7. Vos droits
 user-rights-content = Vous avez le droit de :
@@ -367,7 +367,7 @@ user-rights-bullet-1 = Accéder à vos données personnelles.
 user-rights-bullet-2 = Demander une correction ou une suppression.
 user-rights-bullet-3 = Révoquer votre consentement à tout moment.
 user-rights-bullet-4 = Déposer une plainte auprès du Préposé fédéral à la protection des données et à la transparence (PFPDT).
-user-rights-contact = Pour exercer ces droits, envoyez-nous un e-mail à l’adresse help@sharesphere.space.
+user-rights-contact = Pour exercer ces droits, envoyez-nous un e-mail à l’adresse help@sphare.space.
 
 policy-change-title = 8. Modifications de cette politique
 policy-change-content = Nous pouvons mettre à jour cette Politique de Confidentialité. Nous vous informerons des modifications significatives.
@@ -389,11 +389,11 @@ faq-registration-error-answer =
 
 faq-registration-missing-email-question = Pourquoi n'ai-je pas reçu mon email de confirmation d'inscription ?
 faq-registration-missing-email-answer =
-    Vérifie ton dossier "spam" et tout autre dossier avec catégorisation automatique. Si tu n'as toujours pas reçu l'email de confirmation après 10 minutes, contacte nous à l'adresse admin@sharesphere.space.
+    Vérifie ton dossier "spam" et tout autre dossier avec catégorisation automatique. Si tu n'as toujours pas reçu l'email de confirmation après 10 minutes, contacte nous à l'adresse admin@sphare.space.
 
 faq-image-question = Pourquoi ne puis-je pas poster d'images ?
 faq-image-answer =
-    Stocker et distribuer des images est coûteux, à la fois en terme de mémoire et de bande passante. Étant donné que ShareSphere n'a pour le moment pas de financement, j'ai décidé de renoncer au stockage d'images pour le moment. Cela pourrait changer dans le futur mais pour le moment, merci d'utiliser d'autre fournisseur pour stocker vos images et de partager le lien dans vos postes.
+    Stocker et distribuer des images est coûteux, à la fois en terme de mémoire et de bande passante. Étant donné que Sphare n'a pour le moment pas de financement, j'ai décidé de renoncer au stockage d'images pour le moment. Cela pourrait changer dans le futur mais pour le moment, merci d'utiliser d'autre fournisseur pour stocker vos images et de partager le lien dans vos postes.
 
 
 invalid-link = Lien invalide
@@ -411,8 +411,8 @@ authentication-failed-message = Désolé, nous avons des difficultés à vous au
 not-authorized-message = Vous êtes dans une zone restreinte, ne résistez pas.
 sphere-ban-until-message = Vous êtes banni de cette Sphère jusqu'au {$timestamp}
 permanent-sphere-ban-message = Vous êtes définitivement banni de cette sphere.
-global-ban-until-message = Vous êtes banni de ShareSphere jusqu'au {$timestamp}
-permanent-global-ban-message = Vous êtes définitivement banni de ShareSphere.
+global-ban-until-message = Vous êtes banni de Sphare jusqu'au {$timestamp}
+permanent-global-ban-message = Vous êtes définitivement banni de Sphare.
 bad-request-message = Désolé, nous n'avons pas compris votre requête.
 unavailable-message = Désolé, il y a du bruit sur la ligne.
 payload-too-large-message = Le fichier dépasse la limite de {$mb_limit} MB.

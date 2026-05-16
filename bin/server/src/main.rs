@@ -15,15 +15,15 @@ use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRou
 use sqlx::PgPool;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
-use sharesphere_core_common::db_utils::ssr::create_db_pool;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::post::ssr::update_post_scores;
-use sharesphere_core_user::notification::ssr::delete_stale_notifications;
-use sharesphere_core_user::session::ssr::{AuthSession, LEPTOS_ENV};
-use sharesphere_core_user::user::ssr::UserLockCache;
-use sharesphere_core_user::user::User;
+use sphare_core_common::db_utils::ssr::create_db_pool;
+use sphare_core_common::errors::AppError;
+use sphare_core_content::post::ssr::update_post_scores;
+use sphare_core_user::notification::ssr::delete_stale_notifications;
+use sphare_core_user::session::ssr::{AuthSession, LEPTOS_ENV};
+use sphare_core_user::user::ssr::UserLockCache;
+use sphare_core_user::user::User;
 
-use sharesphere_app::app::*;
+use sphare_app::app::*;
 
 use crate::fallback::file_and_error_handler;
 use crate::state::AppState;

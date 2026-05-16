@@ -26,13 +26,13 @@ pub const COMMENT_ID_QUERY_PARAM: &str = "comment_id";
 pub const SEARCH_ROUTE: &str = "/search";
 pub const NOTIFICATION_ROUTE: &str = "/notification";
 pub const SEARCH_TAB_QUERY_PARAM: &str = "type";
-pub const ABOUT_SHARESPHERE_ROUTE: &str = "/about_sharesphere";
+pub const ABOUT_SHARESPHERE_ROUTE: &str = "/about_sphare";
 pub const TERMS_AND_CONDITIONS_ROUTE: &str = "/terms_and_conditions";
 pub const PRIVACY_POLICY_ROUTE: &str = "/privacy_policy";
 pub const CONTENT_POLICY_ROUTE: &str = "/content_policy";
 pub const RULES_ROUTE: &str = "/rules";
 pub const FAQ_ROUTE: &str = "/faq";
-pub const GITHUB_REPO_URL: &str = "https://github.com/winteler/sharesphere";
+pub const GITHUB_REPO_URL: &str = "https://github.com/winteler/sphare";
 
 #[cfg(feature = "ssr")]
 pub fn get_app_origin() -> Result<String, AppError> {
@@ -71,7 +71,7 @@ pub fn get_username_memo(params: Memo<ParamsMap>) -> Memo<String> {
 /// # Returns the path to a sphere given its name
 ///
 /// ```
-/// use sharesphere_core_common::routes::get_sphere_path;
+/// use sphare_core_common::routes::get_sphere_path;
 ///
 /// assert_eq!(get_sphere_path("test"), "/spheres/test");
 /// ```
@@ -84,7 +84,7 @@ pub fn get_sphere_path(
 /// # Extract the sphere name from the current path, if it exists
 ///
 /// ```
-/// use sharesphere_core_common::routes::get_sphere_from_path;
+/// use sphare_core_common::routes::get_sphere_from_path;
 ///
 /// assert_eq!(get_sphere_from_path("test"), None);
 /// assert_eq!(get_sphere_from_path("/spheres/test"), Some(String::from("test")));
@@ -119,7 +119,7 @@ pub fn get_sphere_name_memo(params: Memo<ParamsMap>) -> Memo<String> {
 /// # Returns the path to a satellite given its id and sphere name
 ///
 /// ```
-/// use sharesphere_core_common::routes::get_satellite_path;
+/// use sphare_core_common::routes::get_satellite_path;
 /// use leptos::prelude::*;
 /// let owner = Owner::new();
 /// owner.set();
@@ -164,7 +164,7 @@ pub fn get_create_post_path() -> Signal<String> {
 /// # Returns the path to a post given its id, sphere and optional satellite
 ///
 /// ```
-/// use sharesphere_core_common::routes::get_post_path;
+/// use sphare_core_common::routes::get_post_path;
 ///
 /// assert_eq!(get_post_path("test", None, 1), "/spheres/test/posts/1");
 /// assert_eq!(get_post_path("test", Some(1), 2), "/spheres/test/satellites/1/posts/2");
@@ -198,7 +198,7 @@ pub fn get_post_link(
 /// Returns the path to a comment given its id, post_id, sphere and optional satellite
 ///
 /// ```
-/// use sharesphere_core_common::routes::get_comment_path;
+/// use sphare_core_common::routes::get_comment_path;
 ///
 /// assert_eq!(get_comment_path("test", None, 1, 2), "/spheres/test/posts/1?comment_id=2");
 /// assert_eq!(get_comment_path("test", Some(1), 2, 3), "/spheres/test/satellites/1/posts/2?comment_id=3");
@@ -257,7 +257,7 @@ mod tests {
     #[sealed_test]
     fn test_get_post_link() {
         unsafe {
-            std::env::set_var(APP_ORIGIN_ENV, "https://sharesphere.space");
+            std::env::set_var(APP_ORIGIN_ENV, "https://sphare.space");
         }
         let origin = get_app_origin().expect("Should get origin");
         assert_eq!(get_post_link("test", None, 1), Ok(format!("{origin}/spheres/test/posts/1")));
@@ -267,7 +267,7 @@ mod tests {
     #[sealed_test]
     fn test_get_comment_link() {
         unsafe {
-            std::env::set_var(APP_ORIGIN_ENV, "https://sharesphere.space");
+            std::env::set_var(APP_ORIGIN_ENV, "https://sphare.space");
         }
         let origin = get_app_origin().expect("Should get origin");
         assert_eq!(get_comment_link("test", None, 1, 2), Ok(format!("{origin}/spheres/test/posts/1?comment_id=2")));

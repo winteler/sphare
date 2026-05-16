@@ -36,13 +36,13 @@ impl BaseRule {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
-    use sharesphere_core_common::checks::{check_sphere_name, check_string_length};
-    use sharesphere_core_common::common::Rule;
-    use sharesphere_core_common::constants::{MAX_MOD_MESSAGE_LENGTH, MAX_TITLE_LENGTH};
-    use sharesphere_core_common::editor::ssr::get_html_and_markdown_strings;
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_user::role::PermissionLevel;
-    use sharesphere_core_user::user::User;
+    use sphare_core_common::checks::{check_sphere_name, check_string_length};
+    use sphare_core_common::common::Rule;
+    use sphare_core_common::constants::{MAX_MOD_MESSAGE_LENGTH, MAX_TITLE_LENGTH};
+    use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_user::role::PermissionLevel;
+    use sphare_core_user::user::User;
 
     pub async fn load_rule_by_id(
         rule_id: i64,

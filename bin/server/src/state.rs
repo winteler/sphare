@@ -5,7 +5,7 @@ use leptos::prelude::LeptosOptions;
 use leptos_axum::AxumRouteListing;
 use sqlx::PgPool;
 
-use sharesphere_core_user::user::ssr::UserLockCache;
+use sphare_core_user::user::ssr::UserLockCache;
 
 /// This takes advantage of Axum's SubStates feature by deriving FromRef. This is the only way to have more than one
 /// item in Axum's State. Leptos requires you to have leptos Options in your State struct for the leptos route handlers

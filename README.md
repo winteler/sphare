@@ -1,9 +1,9 @@
-# ShareSphere
+# Sphare
 
-[ShareSphere](https://sharesphere.space) is a web application providing community created and managed forums to exchange with other people about your hobbies, news, art, jokes and many more topics.
+[Sphare](https://sphare.space) is a web application providing community created and managed forums to exchange with other people about your hobbies, news, art, jokes and many more topics.
 
-ShareSphere is an ad-free, source-available website with a focus on transparency, privacy and community empowerment.
-ShareSphere is built in Rust using [Leptos](https://github.com/leptos-rs). 
+Sphare is an ad-free, source-available website with a focus on transparency, privacy and community empowerment.
+Sphare is built in Rust using [Leptos](https://github.com/leptos-rs). 
 
 ## License ![License: Polyform Shield](https://img.shields.io/badge/license-Polyform%20Shield-blue)
 
@@ -15,12 +15,12 @@ are strictly prohibited.
 
 ## Why source-available?
 
-ShareSphere is **source-available** to give full transparency on how the application functions and what data it collects, but it's not fully open-source. Here is why:
+Sphare is **source-available** to give full transparency on how the application functions and what data it collects, but it's not fully open-source. Here is why:
 
 ### Centralized Platform
 
 A single, centralized platform has a much higher chance of success than multiple fragmented instances. Reaching a critical mass of users is essential for a community-driven platform 
-like ShareSphere. Fragmentation could dilute the user base, create confusion for less technical users, and make it harder to maintain a cohesive experience.
+like Sphare. Fragmentation could dilute the user base, create confusion for less technical users, and make it harder to maintain a cohesive experience.
 
 ### Preventing Misuse
 
@@ -34,7 +34,7 @@ If you find a part of this project particularly useful, feel free to open an iss
 ---
 We welcome contributions! Whether you have ideas for features, improvements, or components that could be open-sourced, feel free to open an issue or start a discussion!
 
-## Setting up ShareSphere
+## Setting up Sphare
 
 ### Installing the Rust toolchain
 
@@ -51,17 +51,17 @@ We welcome contributions! Whether you have ideas for features, improvements, or 
 
 ### Setup Postgres DB and Keycloak
 
-To build and run ShareSphere, you will need a Postgres database and a Keycloak realm with a client for ShareSphere. You can find a docker-compose file to start them in the `setup` folder. Please note that the docker-compose file creates a database for Keycloak but you should create a separate one for ShareSphere itself.
+To build and run Sphare, you will need a Postgres database and a Keycloak realm with a client for Sphare. You can find a docker-compose file to start them in the `setup` folder. Please note that the docker-compose file creates a database for Keycloak but you should create a separate one for Sphare itself.
 
 1. Create a Postgres DB and Keycloak instance, for instance using `setup/docker-compose.yml` with `podman-compose up` inside the `setup` folder.
-2. Create a ShareSphere realm in Keycloak, you can import the `dev-sharesphere-realm-export-2026-04-12.json` for a quicker setup.
-   * Don't forget to reset the password of the `sharesphere-app` client in the `sharesphere` realm.
+2. Create a Sphare realm in Keycloak, you can import the `dev-sphare-realm-export-2026-04-12.json` for a quicker setup.
+   * Don't forget to reset the password of the `sphare-app` client in the `sphare` realm.
 3. Add a `.env` file in the repo's root folder with your Postgres connection, e.g. `DATABASE_URL=postgres://<user>:<password>@<postgres_url>/<schema_name>`
 4. Run `sqlx migrate run` - perform migrations on the DB 
 5. Set the following environment variables:
     * OIDC_ISSUER_ADDR - url of the keycloak instance
-    * AUTH_CLIENT_ID - ID of the ShareSphere client in Keycloak
-    * AUTH_CLIENT_SECRET - Secret of the ShareSphere client in Keycloak
+    * AUTH_CLIENT_ID - ID of the Sphare client in Keycloak
+    * AUTH_CLIENT_SECRET - Secret of the Sphare client in Keycloak
     * DATABASE_URL - Postgres database url
     * TEST_DATABASE_URL - Prefix of the test database url for the integration tests in the form of postgres://(user):(pwd)@(ip address):(port)/ 
     * TEST_DATABASE_NAME - Name of the root test database (will be appended to TEST_DATABASE_URL), the integration tests will connect to this database and create new databases to run each test in isolation.
@@ -82,7 +82,7 @@ If you want to store icons and banners for Spheres, you can configure an S3 stor
 * ICON_BUCKET
 * BANNER_BUCKET
 
-## Running ShareSphere
+## Running Sphare
 
 ```bash
 cargo leptos watch

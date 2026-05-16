@@ -2,13 +2,13 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_sphere::rule::*,
-    sharesphere_core_user::auth::ssr::check_user,
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_sphere::rule::*,
+    sphare_core_user::auth::ssr::check_user,
 };
 
-use sharesphere_core_common::common::Rule;
-use sharesphere_core_common::errors::AppError;
+use sphare_core_common::common::Rule;
+use sphare_core_common::errors::AppError;
 
 #[server]
 pub async fn get_rule_by_id(

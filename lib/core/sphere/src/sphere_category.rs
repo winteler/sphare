@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use sharesphere_core_common::colors::Color;
-use sharesphere_core_common::common::SphereCategoryHeader;
+use sphare_core_common::colors::Color;
+use sphare_core_common::common::SphereCategoryHeader;
 
 #[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -38,12 +38,12 @@ impl From<&SphereCategory> for SphereCategoryHeader {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
-    use sharesphere_core_common::checks::{check_sphere_name, check_string_length};
-    use sharesphere_core_common::colors::Color;
-    use sharesphere_core_common::constants::{MAX_CATEGORY_DESCRIPTION_LENGTH, MAX_CATEGORY_NAME_LENGTH};
-    use sharesphere_core_common::errors::AppError;
-    use sharesphere_core_user::role::PermissionLevel;
-    use sharesphere_core_user::user::User;
+    use sphare_core_common::checks::{check_sphere_name, check_string_length};
+    use sphare_core_common::colors::Color;
+    use sphare_core_common::constants::{MAX_CATEGORY_DESCRIPTION_LENGTH, MAX_CATEGORY_NAME_LENGTH};
+    use sphare_core_common::errors::AppError;
+    use sphare_core_user::role::PermissionLevel;
+    use sphare_core_user::user::User;
 
     use crate::sphere_category::SphereCategory;
 

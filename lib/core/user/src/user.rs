@@ -4,7 +4,7 @@ use std::default::Default;
 
 use serde::{Deserialize, Serialize};
 
-use sharesphere_core_common::errors::AppError;
+use sphare_core_common::errors::AppError;
 
 use crate::role::{AdminRole, PermissionLevel};
 
@@ -185,9 +185,9 @@ pub mod ssr {
     use sqlx::PgPool;
     use tokio::sync::Mutex;
 
-    use sharesphere_core_common::checks::check_username;
-    use sharesphere_core_common::constants::USER_FETCH_LIMIT;
-    use sharesphere_core_common::errors::AppError;
+    use sphare_core_common::checks::check_username;
+    use sphare_core_common::constants::USER_FETCH_LIMIT;
+    use sphare_core_common::errors::AppError;
 
     use crate::role::ssr::get_user_sphere_role;
     use crate::role::UserSphereRole;

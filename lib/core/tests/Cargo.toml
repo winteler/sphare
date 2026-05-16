@@ -1,16 +1,16 @@
 [package]
-name = "sharesphere_core_tests"
+name = "sphare_core_tests"
 version = "0.1.0"
 edition = "2024"
-description = "Test crate for the sharesphere_core"
+description = "Test crate for the sphare_core"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sharesphere_core_common = { path = "../common", default-features = false, features = ["ssr"] }
-sharesphere_core_user = { path = "../user", default-features = false, features = ["ssr"] }
-sharesphere_core_sphere = { path = "../sphere", default-features = false, features = ["ssr"] }
-sharesphere_core_content = { path = "../content", default-features = false, features = ["ssr"] }
+sphare_core_common = { path = "../common", default-features = false, features = ["ssr"] }
+sphare_core_user = { path = "../user", default-features = false, features = ["ssr"] }
+sphare_core_sphere = { path = "../sphere", default-features = false, features = ["ssr"] }
+sphare_core_content = { path = "../content", default-features = false, features = ["ssr"] }
 
 leptos.workspace = true
 leptos-fluent.workspace = true

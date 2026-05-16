@@ -1,16 +1,16 @@
 use rand::RngExt;
 
-use sharesphere_core_common::constants::COMMENT_BATCH_SIZE;
-use sharesphere_core_common::editor::get_styled_html_from_markdown;
-use sharesphere_core_common::editor::ssr::get_html_and_markdown_strings;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_content::comment::ssr::{create_comment, create_comment_with_notif, delete_comment, edit_comment, get_comment_by_id, get_comment_sphere, get_comment_tree_by_id, get_post_comment_tree, update_comment};
-use sharesphere_core_content::comment::CommentWithChildren;
-use sharesphere_core_content::post::ssr::get_post_by_id;
-use sharesphere_core_content::ranking::{CommentSortType, SortType, VoteValue};
-use sharesphere_core_user::notification::NotificationType;
-use sharesphere_core_user::notification::ssr::get_notifications;
-use sharesphere_core_user::user::User;
+use sphare_core_common::constants::COMMENT_BATCH_SIZE;
+use sphare_core_common::editor::get_styled_html_from_markdown;
+use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
+use sphare_core_common::errors::AppError;
+use sphare_core_content::comment::ssr::{create_comment, create_comment_with_notif, delete_comment, edit_comment, get_comment_by_id, get_comment_sphere, get_comment_tree_by_id, get_post_comment_tree, update_comment};
+use sphare_core_content::comment::CommentWithChildren;
+use sphare_core_content::post::ssr::get_post_by_id;
+use sphare_core_content::ranking::{CommentSortType, SortType, VoteValue};
+use sphare_core_user::notification::NotificationType;
+use sphare_core_user::notification::ssr::get_notifications;
+use sphare_core_user::user::User;
 
 use crate::common::*;
 use crate::data_factory::*;
@@ -54,7 +54,7 @@ async fn test_get_post_comment_tree() -> Result<(), AppError> {
     let user = create_test_user(&db_pool).await;
 
     let sphere_name = "sphere";
-    sharesphere_core_sphere::sphere::ssr::create_sphere(
+    sphare_core_sphere::sphere::ssr::create_sphere(
         sphere_name,
         "sphere",
         false,

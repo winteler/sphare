@@ -8,24 +8,24 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
-use sharesphere_core_common::checks::check_username;
-use sharesphere_core_common::constants::{MAX_SEARCH_QUERY_LENGTH, MAX_USERNAME_LENGTH, SCROLL_LOAD_THROTTLE_DELAY};
-use sharesphere_core_common::routes::{SEARCH_ROUTE, SEARCH_TAB_QUERY_PARAM};
-use sharesphere_core_common::unpack::{handle_additional_load, handle_initial_load};
-use sharesphere_core_content::search::{is_content_search_valid, SearchState};
+use sphare_core_common::checks::check_username;
+use sphare_core_common::constants::{MAX_SEARCH_QUERY_LENGTH, MAX_USERNAME_LENGTH, SCROLL_LOAD_THROTTLE_DELAY};
+use sphare_core_common::routes::{SEARCH_ROUTE, SEARCH_TAB_QUERY_PARAM};
+use sphare_core_common::unpack::{handle_additional_load, handle_initial_load};
+use sphare_core_content::search::{is_content_search_valid, SearchState};
 
-use sharesphere_iface_content::search::{search_comments, search_posts};
-use sharesphere_iface_user::user::get_matching_user_header_vec;
+use sphare_iface_content::search::{search_comments, search_posts};
+use sphare_iface_user::user::get_matching_user_header_vec;
 
-use sharesphere_cmp_base::comment::CommentMiniatureList;
-use sharesphere_cmp_base::post::PostListWithIndicators;
-use sharesphere_cmp_base::search::{SearchForm, SearchSpheres};
-use sharesphere_cmp_common::state::SphereState;
-use sharesphere_cmp_common::user::UserHeaderLink;
-use sharesphere_cmp_utils::icons::MagnifierIcon;
-use sharesphere_cmp_utils::unpack::TransitionUnpack;
-use sharesphere_cmp_utils::view::ToView;
-use sharesphere_cmp_utils::widget::{EnumQueryTabs, NotFoundWidget};
+use sphare_cmp_base::comment::CommentMiniatureList;
+use sphare_cmp_base::post::PostListWithIndicators;
+use sphare_cmp_base::search::{SearchForm, SearchSpheres};
+use sphare_cmp_common::state::SphereState;
+use sphare_cmp_common::user::UserHeaderLink;
+use sphare_cmp_utils::icons::MagnifierIcon;
+use sphare_cmp_utils::unpack::TransitionUnpack;
+use sphare_cmp_utils::view::ToView;
+use sphare_cmp_utils::widget::{EnumQueryTabs, NotFoundWidget};
 
 use crate::sidebar::HomeSidebar;
 

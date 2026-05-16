@@ -2,14 +2,14 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sharesphere_core_common::db_utils::ssr::get_db_pool,
-    sharesphere_core_sphere::sphere::*,
-    sharesphere_core_user::auth::ssr::{check_user, get_user, reload_user},
+    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_sphere::sphere::*,
+    sphare_core_user::auth::ssr::{check_user, get_user, reload_user},
 };
 
-use sharesphere_core_common::common::SphereHeader;
-use sharesphere_core_common::errors::AppError;
-use sharesphere_core_sphere::sphere::{Sphere, SphereWithUserInfo};
+use sphare_core_common::common::SphereHeader;
+use sphare_core_common::errors::AppError;
+use sphare_core_sphere::sphere::{Sphere, SphereWithUserInfo};
 
 #[server]
 pub async fn is_sphere_available(sphere_name: String) -> Result<bool, AppError> {

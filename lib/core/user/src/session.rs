@@ -7,7 +7,7 @@ pub mod ssr {
     use leptos::prelude::use_context;
     use sqlx::PgPool;
 
-    use sharesphere_core_common::errors::AppError;
+    use sphare_core_common::errors::AppError;
 
     use crate::user::ssr::UserLockCache;
     use crate::user::User;
