@@ -3,7 +3,13 @@
 [Sphare](https://sphare.space) is a web application providing community created and managed forums to exchange with other people about your hobbies, news, art, jokes and many more topics.
 
 Sphare is an ad-free, source-available website with a focus on transparency, privacy and community empowerment.
-Sphare is built in Rust using [Leptos](https://github.com/leptos-rs). 
+Sphare is built in Rust using [Leptos](https://github.com/leptos-rs).
+
+## Why "Sphare"?
+
+Sphare, pronounced like S-fair ([sfɛr]) or "Sphère" in French, is the combination of Sphere, the communities on Sphare, and Share.
+
+The name symbolizes this project's goals: to enable people to discuss their interests and share knowledge. At the same time, it still acknowledges the "bubbles" we often build for ourselves and lets you access other viewpoints without control from an algorithm. By adhering to these principles and relying on donations rather than ads, Sphare aims to provide a healthier alternative to Big Tech social media.
 
 ## License ![License: Polyform Shield](https://img.shields.io/badge/license-Polyform%20Shield-blue)
 

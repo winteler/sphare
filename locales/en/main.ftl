@@ -28,7 +28,7 @@ sphere-categories = Sphere categories
 categories = Categories
 moderators = Moderators
 rules = Rules
-rules-and-moderation = Rules & Moderation
+rules-and-moderation = Rules & moderation
 image-preview = Image Preview
 
 notifications = Notifications
@@ -252,14 +252,17 @@ spoiler-content-label-3 = Results of competitions (sports, e-sport, games, etc.)
 spoiler-content-label-4 =
     In addition, the title must make it clear spoilers will be contained in the body of the post. Spoilers in comments should be hidden using markdown formatting. Communities can also set stricter rules for spoilers.
 
-planned-improvements-title = Planned Improvements
+planned-improvements-title = Planned improvements
 planned-improvements-1 = Time filters
 planned-improvements-2 = Additional moderation tools
 planned-improvements-3 = Memberships - users can become contributors and get access to additional features
-planned-improvements-4 = Private messages
-planned-improvements-5 = Private communities
+planned-improvements-4 = What the community wishes for!
 
-origin-goals-title = Origin & Goals
+name-explanation-title = Why "Sphare"?
+name-explanation-content-1 = Sphare, pronounced like S-fair ([sfɛr]) or "Sphère" in French, is the combination of Sphere, the communities on Sphare, and Share.
+name-explanation-content-2 = The name symbolizes this project's goals: to enable people to discuss their interests and share knowledge. At the same time, it still acknowledges the "bubbles" we often build for ourselves and lets you access other viewpoints without control from an algorithm. By adhering to these principles and relying on donations rather than ads, Sphare aims to provide a healthier alternative to Big Tech social media.
+
+origin-goals-title = Origin & goals
 origin-goals-1 =
     I started thinking about Sphare around summer 2023 after several social media platforms I used made changes with a negative impacts on their user base. I already had quite a low opinion of most social networks, thinking they were pretty terrible for the mental health of many of their users and that their ad-based profit model is fundamentally incompatible with a good user experience.
 origin-goals-2 =

@@ -28,7 +28,7 @@ sphere-categories = Catégories de Sphères
 categories = Catégories
 moderators = Modérateurs
 rules = Règles
-rules-and-moderation = Règles & Modération
+rules-and-moderation = Règles & modération
 image-preview = Aperçu de l'image
 
 notifications = Notifications
@@ -193,7 +193,7 @@ about-sphare-rules-link =
 about-sphare-rules-2 =
     {" "}doit être respecté sur l'ensemble du site. Les communautés peuvent également mettre en place des règles supplémentaires définissant quels contenus sont appropriés et comment les utilisateurs doivent se comporter.
 
-terms-and-conditions = Termes et Conditions
+terms-and-conditions = Termes et conditions
 privacy-policy = Politique de confidentialité
 content-policy = Politique de contenu
 banned-content-title = Contenu interdit
@@ -254,13 +254,16 @@ spoiler-content-label-4 =
 
 planned-improvements-title = Améliorations prévues
 planned-improvements-1 = Filtres temporelles
-planned-improvements-2 = Message prévus
-planned-improvements-3 = Outils de modération supplémentaires
-planned-improvements-4 =
+planned-improvements-2 = Outils de modération supplémentaires
+planned-improvements-3 =
     Adhésions - les utilisateurs peuvent devenir contributeurs et gagner accès à des fonctionalités supplémentaires
-planned-improvements-5 = Communautés privés
+planned-improvements-4 = Ce que la communauté choisit !
 
-origin-goals-title = Origine & Objectifs
+name-explanation-title = Pourquoi "Sphare" ?
+name-explanation-content-1 = Sphare, prononcé comme "Sphère", est la combinaison de sphere, les communautés sur Sphare, et de share (partage).
+name-explanation-content-2 = Ce nom symbolize les objectifs de ce projet: de permettre aux gens de discuter de leurs intérêts et de partager des connaissances. Il reconnaît également l'existences des "bulles" que nous nous construisons souvent et permet l'accès à d'autres points de vue sans contrôle d'un algorithme. En adhérant à ces principes et en s'appuyant sur des dons plutôt que sur la publicité, Sphare s'engage à offrir une alternative plus saine aux réseaux sociaux des géants de la tech.
+
+origin-goals-title = Origine & objectifs
 origin-goals-1 =
     J’ai commencé à réfléchir à Sphare durant l’été 2023, après que plusieurs réseaux sociaux que j’utilisais aient effectué des modifications ayant un impact négatif sur leurs utilisateurs. J'avais déjà une opinion assez négative de la plupart des réseaux sociaux basés sur la publicité, estimant que ce modèle est incompatible avec une bonne expérience utilisateur et favorise des dérives néfastes pour la santé mentale des utilisateurs.
 origin-goals-2 =

@@ -30,6 +30,7 @@ pub fn AboutSphare() -> impl IntoView {
                     {move_tr!("about-sphare-rules-2")}
                 </p>
                 <PlannedImprovements/>
+                <NameExplanation/>
                 <OriginsAndGoals/>
             </div>
         </div>
@@ -144,10 +145,19 @@ pub fn PlannedImprovements() -> impl IntoView {
             <li>{move_tr!("planned-improvements-2")}</li>
             <li>{move_tr!("planned-improvements-3")}</li>
             <li>{move_tr!("planned-improvements-4")}</li>
-            <li>{move_tr!("planned-improvements-5")}</li>
         </ul>
     }
 }
+
+#[component]
+pub fn NameExplanation() -> impl IntoView {
+    view! {
+        <h2 class="text-xl font-semibold">{move_tr!("name-explanation-title")}</h2>
+        <p class="text-justify">{move_tr!("name-explanation-content-1")}</p>
+        <p class="text-justify">{move_tr!("name-explanation-content-2")}</p>
+    }
+}
+
 #[component]
 pub fn OriginsAndGoals() -> impl IntoView {
     view! {
