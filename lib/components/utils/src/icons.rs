@@ -10,6 +10,68 @@ pub fn AddCommentIcon(#[prop(default = "content-toolbar-icon-size")] class: &'st
 }
 
 #[component]
+pub fn AppIcon1(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_text5.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIcon2(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_text6.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIcon5(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_text_custom_5.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIcon6(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_text_custom_6.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIconRoboto(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_roboto_semibold.svg" class=class/>
+    }
+}
+#[component]
+pub fn AppIconRobotoGradient(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_roboto_semibold_gradient.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIconNotoSans(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_noto_sans_semibold.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIconNotoSansGradient(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_noto_sans_semibold_gradient2.svg" class=class/>
+    }
+}
+
+#[component]
+pub fn AppIconNotoSansGradient2(#[prop(default = "h-9 lg:h-11")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/sphare_logo_noto_sans_semibold_gradient4.svg" class=class/>
+    }
+}
+
+#[component]
 pub fn ArrowUpIcon(
     #[prop(into)]
     class: Signal<String>,

@@ -18,7 +18,7 @@ pub fn NavigationBar() -> impl IntoView
 {
     let state = expect_context::<GlobalState>();
     view! {
-        <div class="flex-none flex justify-between items-center w-full p-2 bg-blue-500">
+        <div class="flex-none flex justify-between items-center w-full p-1 bg-blue-500">
             <div class="flex items-center gap-1 lg:gap-2">
                 <button
                     class="drawer-button lg:hidden button-rounded-ghost"
@@ -26,9 +26,30 @@ pub fn NavigationBar() -> impl IntoView
                 >
                     <SideBarIcon/>
                 </button>
-                <a href="/" class="button-ghost flex gap-1.5 items-center">
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center max-lg:hidden">
                     <LogoIcon/>
-                    <div class="lg:pt-1 lg:pb-1.5 font-semibold">"Sphare"</div>
+                    <div class="lg:pt-1 lg:pb-1.5 text-xl font-semibold">"Sphare"</div>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center max-lg:hidden">
+                    <AppIcon1/>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center max-lg:hidden">
+                    <AppIcon2/>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center">
+                    <AppIconRoboto/>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center max-lg:hidden">
+                    <AppIconRobotoGradient/>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center">
+                    <AppIconNotoSans/>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center max-lg:hidden">
+                    <AppIconNotoSansGradient/>
+                </a>
+                <a href="/" class="button-ghost p-0 lg:p-1 flex gap-1.5 items-center max-lg:hidden">
+                    <AppIconNotoSansGradient2/>
                 </a>
             </div>
             <div class="flex items-center gap-1 lg:gap-2">
