@@ -252,11 +252,16 @@ spoiler-content-label-3 = Results of competitions (sports, e-sport, games, etc.)
 spoiler-content-label-4 =
     In addition, the title must make it clear spoilers will be contained in the body of the post. Spoilers in comments should be hidden using markdown formatting. Communities can also set stricter rules for spoilers.
 
-planned-improvements-title = Planned improvements
-planned-improvements-1 = Time filters
-planned-improvements-2 = Additional moderation tools
-planned-improvements-3 = Memberships - users can become contributors and get access to additional features
-planned-improvements-4 = What the community wishes for!
+future-improvements-title = Future improvements
+future-improvements-intro =
+    Many functionalities could still be added to Sphare. My goal is to focus on the wishes of the community and providing the tools needed by moderators. In the long term, I'd like to make Sphare a non-profit and setup a membership system to at least cover the operational costs and, if possible, be able to work more on Sphare. Here is a list of the topics I have in mind at the moment.
+future-improvements-1 = What the community wishes for!
+future-improvements-2 = Additional moderation tools
+future-improvements-3 = Memberships - users can become contributors and get access to additional features
+future-improvements-4 = Time filters
+future-improvements-5 = Bot detection
+future-improvements-6 = Moderator elections
+future-improvements-7 = Private messages
 
 name-explanation-title = Why "Sphare"?
 name-explanation-content-1 = Sphare, pronounced like S-fair ([sfɛr]) or "Sphère" in French, is the combination of Sphere, the communities on Sphare, and Share.

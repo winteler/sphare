@@ -252,12 +252,16 @@ spoiler-content-label-3 =
 spoiler-content-label-4 =
     De plus, le titre doit indiquer explicitement que des spoilers sont inclus dans le contenu du poste. Les commentaires contenant des spoilers doivent être masqué grâce au formatage Markdown. Les communautés peuvent également définir des règles plus strictes concernant les spoilers.
 
-planned-improvements-title = Améliorations prévues
-planned-improvements-1 = Filtres temporelles
-planned-improvements-2 = Outils de modération supplémentaires
-planned-improvements-3 =
-    Adhésions - les utilisateurs peuvent devenir contributeurs et gagner accès à des fonctionalités supplémentaires
-planned-improvements-4 = Ce que la communauté choisit !
+future-improvements-title = Futures améliorations
+future-improvements-intro =
+    De nombreuses fonctionnalités pourraient encore être ajoutées à Sphare. Ma objectif est d'implémenter en priorité les fonctionnalités demandées par la communauté, ainsi que les outils nécessaire pour la modération. À plus long terme, je souhaite faire de Sphare une entité à but non-lucratif et mettre en place un système d'adhésion pour couvrir les coûts opérationnels et, si possible, pouvoir augmenter mon temps de travail sur le projet. Voici une liste des sujets que je considère pour le moment.
+future-improvements-1 = Ce que la communauté désire !
+future-improvements-2 = Outils de modération supplémentaires
+future-improvements-3 = Adhésions - les utilisateurs peuvent devenir contributeurs et gagner accès à des fonctionalités supplémentaires
+future-improvements-4 = Filtres temporelles
+future-improvements-5 = Détection de bots
+future-improvements-6 = Élection des modérateurs
+future-improvements-7 = Messages privés
 
 name-explanation-title = Pourquoi "Sphare" ?
 name-explanation-content-1 = Sphare, prononcé comme "Sphère", est la combinaison de sphere, les communautés sur Sphare, et de share (partage).

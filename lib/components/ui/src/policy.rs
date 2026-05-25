@@ -29,7 +29,7 @@ pub fn AboutSphare() -> impl IntoView {
                     <a href=RULES_ROUTE>{move_tr!("about-sphare-rules-link")}</a>
                     {move_tr!("about-sphare-rules-2")}
                 </p>
-                <PlannedImprovements/>
+                <FutureImprovements/>
                 <NameExplanation/>
                 <OriginsAndGoals/>
             </div>
@@ -137,14 +137,18 @@ pub fn ContentPolicy() -> impl IntoView {
 }
 
 #[component]
-pub fn PlannedImprovements() -> impl IntoView {
+pub fn FutureImprovements() -> impl IntoView {
     view! {
-        <h2 class="text-xl font-semibold">{move_tr!("planned-improvements-title")}</h2>
+        <h2 class="text-xl font-semibold">{move_tr!("future-improvements-title")}</h2>
+        <p>{move_tr!("future-improvements-intro")}</p>
         <ul class="list-disc list-inside text-justify">
-            <li>{move_tr!("planned-improvements-1")}</li>
-            <li>{move_tr!("planned-improvements-2")}</li>
-            <li>{move_tr!("planned-improvements-3")}</li>
-            <li>{move_tr!("planned-improvements-4")}</li>
+            <li>{move_tr!("future-improvements-1")}</li>
+            <li>{move_tr!("future-improvements-2")}</li>
+            <li>{move_tr!("future-improvements-3")}</li>
+            <li>{move_tr!("future-improvements-4")}</li>
+            <li>{move_tr!("future-improvements-5")}</li>
+            <li>{move_tr!("future-improvements-6")}</li>
+            <li>{move_tr!("future-improvements-7")}</li>
         </ul>
     }
 }
