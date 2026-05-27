@@ -10,6 +10,13 @@ pub fn AddCommentIcon(#[prop(default = "content-toolbar-icon-size")] class: &'st
 }
 
 #[component]
+pub fn AppLogo(#[prop(default = "h-8 lg:h-10")] class: &'static str) -> impl IntoView {
+    view! {
+        <img src="/logo.svg" class=class/>
+    }
+}
+
+#[component]
 pub fn ArrowUpIcon(
     #[prop(into)]
     class: Signal<String>,

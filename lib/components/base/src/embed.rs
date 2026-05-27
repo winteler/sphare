@@ -113,7 +113,10 @@ pub fn LinkEmbed(
             };
             view! {
                 <div class=class>
-                    <a href=url.to_string() class="w-fit flex items-center gap-2 px-2 py-1 bg-primary rounded-sm hover:bg-base-content/50">
+                    <a
+                        href=url.to_string()
+                        target="_blank"
+                        class="w-fit flex items-center gap-2 px-2 py-1 bg-primary rounded-sm hover:bg-base-content/50">
                         { match thumbnail_url {
                             Some(thumbnail_url) => view! { <img src=thumbnail_url class=THUMBNAIL_CLASS/> }.into_any(),
                             None => view! { <LinkIcon/> }.into_any(),
