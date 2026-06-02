@@ -483,6 +483,10 @@ pub fn Faq() -> impl IntoView {
                     content=move_tr!("faq-post-not-visible-answer")
                 />
                 <FaqItem
+                    title=move_tr!("faq-mobile-app-question")
+                    content=move_tr!("faq-mobile-app-answer")
+                />
+                <FaqItem
                     title=move_tr!("faq-image-question")
                     content=move_tr!("faq-image-answer")
                 />

@@ -398,6 +398,10 @@ faq-registration-missing-email-question = Pourquoi n'ai-je pas reçu mon email d
 faq-registration-missing-email-answer =
     Vérifie ton dossier "spam" et tout autre dossier avec catégorisation automatique. Si tu n'as toujours pas reçu l'email de confirmation après 10 minutes, contacte nous à l'adresse admin@sphare.space.
 
+faq-mobile-app-question = Est-ce qu'il y a une application mobile (Android, iOS) pour Sphare?
+faq-mobile-app-answer =
+    Pour le moment non. Cependant, tu peux avoir une expérience pratiquement identique en ajoutant le site à ton écran d'acceuil. Sur Android, tu peux trouver cette option directement dans les paramètres du navigateur et sur iOS, tu peux la trouver en cliquant sur "Partager" et en sélectionnant "Sur l’écran d’accueil".
+
 faq-image-question = Pourquoi ne puis-je pas poster d'images ?
 faq-image-answer =
     Stocker et distribuer des images est coûteux, à la fois en terme de mémoire et de bande passante. Étant donné que Sphare n'a pour le moment pas de financement, j'ai décidé de renoncer au stockage d'images pour le moment. Cela pourrait changer dans le futur mais pour le moment, merci d'utiliser d'autre fournisseur pour stocker vos images et de partager le lien dans vos postes.
