@@ -28,7 +28,7 @@ pub const IMAGE_TYPE: &str = "image/";
 pub const SCROLL_LOAD_THROTTLE_DELAY: f64 = 3000.0;
 
 
-pub const LOGO_ICON_PATH: &str = "/svg/planet.svg";
+pub const LOGO_ICON_PATH: &str = "/icon.svg";
 pub const POPULAR_ICON_PATH: &str = "/svg/shooting_star.svg";
 
 

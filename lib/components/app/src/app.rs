@@ -65,11 +65,15 @@ pub fn AppMeta() -> impl IntoView {
                         media-src 'self' https:;
                         {frame_src_csp}
                         style-src 'self' 'nonce-{nonce}';
+                        manifest-src 'self';
                         {connect_src_csp}"
                     )
                 }).unwrap_or_default()
             }
         />
+        <meta name="mobile-web-app-capable" content="yes"/>
+        <meta name="apple-mobile-web-app-capable" content="yes"/>
+        <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
     }
 }
 
@@ -91,7 +95,10 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 // id=leptos means cargo-leptos will hot-reload this stylesheet
                 <HashedStylesheet id="leptos" options/>
                 <MetaTags/>
+                <Link rel="manifest" href="/manifest_v1.json"/>
                 <Link rel="icon" href="/favicon.ico" />
+                <Link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+                <Link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
             </head>
             <body>
                 <App/>
