@@ -4,6 +4,7 @@ pub mod common;
 pub mod constants;
 pub mod db_utils;
 pub mod editor;
+pub mod env;
 pub mod errors;
 pub mod routes;
 pub mod time;

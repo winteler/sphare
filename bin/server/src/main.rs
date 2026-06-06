@@ -17,9 +17,10 @@ use tokio_cron_scheduler::{Job, JobScheduler};
 
 use sphare_core_common::db_utils::ssr::create_db_pool;
 use sphare_core_common::errors::AppError;
+use sphare_core_common::env::ssr::LEPTOS_ENV;
 use sphare_core_content::post::ssr::update_post_scores;
 use sphare_core_user::notification::ssr::delete_stale_notifications;
-use sphare_core_user::session::ssr::{AuthSession, LEPTOS_ENV};
+use sphare_core_user::session::ssr::{AuthSession};
 use sphare_core_user::user::ssr::UserLockCache;
 use sphare_core_user::user::User;
 

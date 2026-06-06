@@ -11,7 +11,7 @@ use tower::util::ServiceExt;
 use tower_http::services::ServeDir;
 
 use sphare_core_common::errors::AppError;
-use sphare_core_user::session::ssr::LEPTOS_ENV;
+use sphare_core_common::env::ssr::LEPTOS_ENV;
 
 use sphare_cmp_utils::errors::ErrorTemplate;
 

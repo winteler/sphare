@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use leptos::ev::TouchEvent;
 use leptos::prelude::*;
 use const_format::formatcp;
@@ -28,9 +29,13 @@ use sphare_cmp_utils::errors::ErrorTemplate;
 
 use crate::home::{HomePage, HotPage, LoginGuard, LoginGuardHome, NotificationHome, ProfileHome, SphereHome};
 
-const IS_TEST_SITE_ENV: &str = "IS_TEST_SITE";
 const OEMBED_CONNECT_SRC: &str = env!("OEMBED_CONNECT_SRC");
 const OEMBED_FRAME_SRC: &str = env!("OEMBED_FRAME_SRC");
+
+const IS_TEST_SITE_ENV: &str = "IS_TEST_SITE";
+static IS_TEST_SITE: LazyLock<bool> = LazyLock::new(|| {
+    std::env::var(IS_TEST_SITE_ENV).is_ok_and(|is_test_site_str| is_test_site_str.to_lowercase() == "true")
+});
 
 #[derive(Clone, Debug)]
 pub struct UserAgentHeader {
@@ -78,14 +83,17 @@ pub fn AppMeta() -> impl IntoView {
 }
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
-    let is_test_site = std::env::var(IS_TEST_SITE_ENV).is_ok_and(|is_test_site_str| is_test_site_str.to_lowercase() == "true");
+    let manifest_path = match *IS_TEST_SITE {
+        true => "/manifest_test_v1.json",
+        false => "/manifest_v1.json",
+    };
     view! {
         <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                { match is_test_site {
+                { match *IS_TEST_SITE {
                     true => Some(view! { <meta name="robots" content="noindex, nofollow"/> }),
                     false => None,
                 }}
@@ -95,7 +103,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 // id=leptos means cargo-leptos will hot-reload this stylesheet
                 <HashedStylesheet id="leptos" options/>
                 <MetaTags/>
-                <Link rel="manifest" href="/manifest_v1.json"/>
+                <Link rel="manifest" href=manifest_path/>
                 <Link rel="icon" href="/favicon.ico" />
                 <Link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
                 <Link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
