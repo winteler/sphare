@@ -398,9 +398,9 @@ faq-registration-missing-email-question = Pourquoi n'ai-je pas reçu mon email d
 faq-registration-missing-email-answer =
     Vérifie ton dossier "spam" et tout autre dossier avec catégorisation automatique. Si tu n'as toujours pas reçu l'email de confirmation après 10 minutes, contacte nous à l'adresse admin@sphare.space.
 
-faq-mobile-app-question = Est-ce qu'il y a une application mobile (Android, iOS) pour Sphare?
+faq-mobile-app-question = Comment puis-je installer Sphare comme application mobile Android/iOS ?
 faq-mobile-app-answer =
-    Pour le moment non. Cependant, tu peux avoir une expérience pratiquement identique en ajoutant le site à ton écran d'acceuil. Sur Android, tu peux trouver cette option directement dans les paramètres du navigateur et sur iOS, tu peux la trouver en cliquant sur "Partager" et en sélectionnant "Sur l’écran d’accueil".
+    Tu peux installer Sphare comme une application mobile en l'ajoutant à ton écran d'accueil. Sur Android, une popup apparaît quand tu ouvres le site sur Chrome ou tu peux trouver cette option directement dans les paramètres du navigateur. Sur iOS, tu peux la trouver en cliquant sur "Partager" et en sélectionnant "Sur l’écran d’accueil".
 
 faq-image-question = Pourquoi ne puis-je pas poster d'images ?
 faq-image-answer =

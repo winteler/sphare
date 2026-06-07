@@ -396,9 +396,9 @@ faq-post-not-visible-question = Why am I unable to see some posts?
 faq-post-not-visible-answer =
     Make sure you don't have filters activated that could remove the post. NSFW posts are hidden by default and spoilers can be filtered for a set number of days. Both can be configured in your profile. The post might also have been moderated or deleted.
 
-faq-mobile-app-question = Is there a mobile app (Android, iOS) for Sphare?
+faq-mobile-app-question = How can I install Sphare as an Android/iOS mobile app?
 faq-mobile-app-answer =
-    At the moment there isn't. However, you can get an app-like experience by adding the website to your Home screen. On Android, you can find this option in the browser settings and on iOS devices, you can do it by clicking on "Share" and selecting "Add to Home Screen".
+    You can get Sphare as a mobile application by adding the website to your Home screen. On Android, you will get a popup if you open the app in Chrome or you can find this option in the browser settings. On iOS devices, you can do it by clicking on "Share" and selecting "Add to Home Screen".
 
 faq-image-question = Why can't I post images?
 faq-image-answer =
