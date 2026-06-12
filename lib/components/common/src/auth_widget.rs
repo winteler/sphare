@@ -4,6 +4,7 @@ use leptos::server_fn::codec::PostUrl;
 use leptos::server_fn::request::ClientReq;
 use leptos::server_fn::Http;
 use leptos::server_fn::ServerFn;
+use leptos::task::spawn_local;
 use leptos_fluent::move_tr;
 use leptos_router::hooks::{use_location, use_navigate, use_query_map};
 use leptos_router::NavigateOptions;
@@ -14,7 +15,7 @@ use sphare_core_common::errors::AppError;
 use sphare_core_common::routes::get_profile_path;
 use sphare_core_user::user::User;
 
-use sphare_iface_user::auth::authenticate_user;
+use sphare_iface_user::auth::{authenticate_user, get_oidc_login_redirect_url};
 
 use sphare_cmp_utils::form::LabeledSignalCheckbox;
 use sphare_cmp_utils::icons::{AuthErrorIcon, AuthorIcon, DeleteIcon, LoadingIcon, ModeratorIcon, SelfAuthorIcon, SelfModeratorIcon};
@@ -73,7 +74,7 @@ pub fn LoginGuardedButton<A, IV>(
     loading_icon_class: &'static str,
 ) -> impl IntoView
 where
-    A: Fn(MouseEvent) -> () + Clone + Send + Sync + 'static,
+    A: Fn(MouseEvent) + Clone + Send + Sync + 'static,
     IV: IntoView + 'static
 {
     let state = expect_context::<GlobalState>();
@@ -133,15 +134,24 @@ fn LoginButton(
     redirect_path: Signal<String>,
     children: Children,
 ) -> impl IntoView {
-    let state = expect_context::<GlobalState>();
-
     view! {
-        <ActionForm action=state.login_action attr:class="flex items-center">
-            <input type="text" name="redirect_url" class="hidden" value=redirect_path/>
-            <button type="submit" class=class>
-                {children()}
-            </button>
-        </ActionForm>
+        <button
+            type="button"
+            class=class
+            on:click=move |_| {
+                spawn_local(async move {
+                    match get_oidc_login_redirect_url(redirect_path.get_untracked()).await {
+                        Ok(Some(oidc_redirect_url)) => if let Err(e) = window().location().set_href(&oidc_redirect_url) {
+                            log::error!("Failed to redirect to auth provider: {}", e.as_string().unwrap_or_default());
+                        },
+                        Ok(None) => log::info!("Already logged in"),
+                        Err(e) => log::error!("{e}"),
+                    }
+                })
+            }
+        >
+            {children()}
+        </button>
     }.into_any()
 }
 
@@ -163,9 +173,7 @@ pub fn AuthCallback() -> impl IntoView {
             resource=auth_resource
             let:_auth_result
         >
-            {
-                log::debug!("Authenticated successfully");
-            }
+            {log::debug!("Authenticated successfully");}
         </SuspenseUnpack>
     }.into_any()
 }
@@ -173,8 +181,6 @@ pub fn AuthCallback() -> impl IntoView {
 /// Renders a page requesting a login
 #[component]
 pub fn LoginWindow() -> impl IntoView {
-    let state = expect_context::<GlobalState>();
-
     view! {
         <div class="hero">
             <div class="hero-content flex text-center">
@@ -183,12 +189,12 @@ pub fn LoginWindow() -> impl IntoView {
                     <h1 class="text-5xl font-bold">"Not authenticated"</h1>
                     <p class="pt-4">"Sorry, we had some trouble identifying you."</p>
                     <p class="pb-4">"Please login to access this page."</p>
-                    <ActionForm action=state.login_action>
-                        <input type="text" name="redirect_url" class="hidden" value=use_location().pathname/>
-                        <button type="submit" class="button-primary w-full">
-                            {move_tr!("login")}
-                        </button>
-                    </ActionForm>
+                    <LoginButton
+                        class="button-primary w-full"
+                        redirect_path=use_location().pathname
+                    >
+                        {move_tr!("login")}
+                    </LoginButton>
                 </div>
             </div>
         </div>

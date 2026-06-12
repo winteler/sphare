@@ -74,7 +74,13 @@ pub async fn create_sphere(
     reload_user(user.user_id)?;
 
     // Redirect to the new sphere
-    leptos_axum::redirect(&new_sphere_path);
+    let response = expect_context::<leptos_axum::ResponseOptions>();
+    response.set_status(http::StatusCode::FOUND);
+    response.insert_header(
+        http::header::LOCATION,
+        http::HeaderValue::from_str(&new_sphere_path).map_err(AppError::new)?,
+    );
+
     Ok(())
 }
 

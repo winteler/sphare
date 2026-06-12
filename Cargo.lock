@@ -5330,6 +5330,7 @@ dependencies = [
  "axum_session_sqlx",
  "chrono",
  "fluent-templates",
+ "http",
  "leptos",
  "leptos-fluent",
  "leptos_axum",
@@ -5352,6 +5353,7 @@ dependencies = [
 name = "sphare_iface_content"
 version = "0.1.0"
 dependencies = [
+ "http",
  "leptos",
  "leptos_axum",
  "log",
@@ -5366,6 +5368,7 @@ dependencies = [
 name = "sphare_iface_sphere"
 version = "0.1.0"
 dependencies = [
+ "http",
  "leptos",
  "leptos_axum",
  "log",
@@ -5379,6 +5382,7 @@ dependencies = [
 name = "sphare_iface_user"
 version = "0.1.0"
 dependencies = [
+ "http",
  "leptos",
  "leptos_axum",
  "log",

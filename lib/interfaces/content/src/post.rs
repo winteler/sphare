@@ -104,7 +104,13 @@ pub async fn create_post(
 
     let (_, _, new_post_path) = ssr::create_post_and_vote(post_location, post_inputs, &user, &db_pool).await?;
 
-    leptos_axum::redirect(new_post_path.as_str());
+    let response = expect_context::<leptos_axum::ResponseOptions>();
+    response.set_status(http::StatusCode::FOUND);
+    response.insert_header(
+        http::header::LOCATION,
+        http::HeaderValue::from_str(&new_post_path).map_err(AppError::new)?,
+    );
+
     Ok(())
 }
 

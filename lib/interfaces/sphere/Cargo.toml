@@ -12,6 +12,7 @@ sphare_core_sphere = { path = "../../core/sphere", default-features = false }
 leptos.workspace = true
 leptos_axum = { workspace = true, optional = true }
 
+http = { workspace = true, optional = true }
 log.workspace = true
 url = { workspace = true, optional = true }
 
@@ -25,6 +26,7 @@ ssr = [
     "sphare_core_common/ssr",
     "sphare_core_user/ssr",
     "sphare_core_sphere/ssr",
+    "dep:http",
     "dep:leptos_axum",
     "dep:url",
 ]

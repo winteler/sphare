@@ -13,6 +13,7 @@ sphare_core_content = { path = "../../core/content", default-features = false }
 leptos.workspace = true
 leptos_axum = { workspace = true, optional = true }
 
+http = { workspace = true, optional = true }
 log.workspace = true
 validator = { workspace = true, optional = true }
 
@@ -27,6 +28,7 @@ ssr = [
     "sphare_core_user/ssr",
     "sphare_core_sphere/ssr",
     "sphare_core_content/ssr",
+    "dep:http",
     "dep:leptos_axum",
     "dep:validator",
 

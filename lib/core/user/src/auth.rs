@@ -29,7 +29,7 @@ pub mod ssr {
 
     use openidconnect::core::CoreTokenResponse;
     use openidconnect::{EndpointMaybeSet, EndpointNotSet, EndpointSet, NonceVerifier, ProviderMetadataWithLogout, RequestTokenError};
-    use reqwest::Client;
+    use reqwest::{Client};
     use serde_json::Value;
     use url::Url;
 
@@ -343,7 +343,7 @@ pub mod ssr {
         Ok(user)
     }
 
-    pub async fn redirect_to_oidc_provider(redirect_url: String) -> Result<(), AppError> {
+    pub async fn get_oidc_login_redirect_url(redirect_url: String) -> Result<Url, AppError> {
         validate_redirect_url(&redirect_url)?;
         let client = get_oidc_client(&get_oidc_http_client()?).await?;
         // Generate the full authorization URL.
@@ -359,12 +359,10 @@ pub mod ssr {
         auth_session.session.set(NONCE_KEY, nonce);
         auth_session.session.set(REDIRECT_URL_KEY, redirect_url);
 
-        // Redirect to the auth page
-        leptos_axum::redirect(auth_url.as_ref());
-        Ok(())
+        Ok(auth_url)
     }
 
-    pub async fn navigate_to_user_account() -> Result<(), AppError> {
+    pub async fn get_user_account_url() -> Result<String, AppError> {
         let issuer_url = get_oidc_issuer_url()?;
         let client = Client::new();
         // Fetch the discovery endpoint data
@@ -373,9 +371,7 @@ pub mod ssr {
         // Obtain the account service url from it
         let account_service_url = response.get("account-service").and_then(|v| v.as_str()).ok_or(AppError::new("Account-service missing from provider"))?;
 
-        // Redirect to the user account page
-        leptos_axum::redirect(account_service_url);
-        Ok(())
+        Ok(account_service_url.to_string())
     }
 
     pub async fn delete_user_in_oidc_provider(user: &User) -> Result<(), AppError> {

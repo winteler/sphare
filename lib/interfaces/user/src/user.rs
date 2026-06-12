@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-
 #[cfg(feature = "ssr")]
 use {
     sphare_core_common::db_utils::ssr::get_db_pool,
@@ -33,7 +32,13 @@ pub async fn delete_user() -> Result<(), AppError> {
         log::error!("Failed to delete user ({}, {}): {e}", user.user_id, user.oidc_id);
     }
 
-    leptos_axum::redirect("/");
+    let response = expect_context::<leptos_axum::ResponseOptions>();
+    response.set_status(http::StatusCode::FOUND);
+    response.insert_header(
+        http::header::LOCATION,
+        http::HeaderValue::from_str("/").map_err(AppError::new)?,
+    );
+    
     Ok(())
 }
 
