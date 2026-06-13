@@ -5379,6 +5379,7 @@ dependencies = [
 name = "sphare_iface_user"
 version = "0.1.0"
 dependencies = [
+ "http",
  "leptos",
  "leptos_axum",
  "log",

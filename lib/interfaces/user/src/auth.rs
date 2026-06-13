@@ -21,23 +21,23 @@ use sphare_core_common::errors::AppError;
 use sphare_core_user::user::User;
 
 #[server]
-pub async fn login(redirect_url: String) -> Result<Option<User>, AppError> {
+pub async fn get_oidc_login_redirect_url(redirect_url: String) -> Result<Option<String>, AppError> {
     let current_user = get_user().await;
 
-    if let Ok(Some(current_user)) = current_user
+    if let Ok(Some(_)) = current_user
     {
-        return Ok(Some(current_user));
+        return Ok(None);
     }
 
-    ssr::redirect_to_oidc_provider(redirect_url).await?;
+    let oidc_redirect_url = ssr::get_oidc_login_redirect_url(redirect_url).await?;
 
-    Ok(None)
+    Ok(Some(oidc_redirect_url.to_string()))
 }
 
 #[server]
-pub async fn navigate_to_user_account() -> Result<(), AppError> {
-    ssr::navigate_to_user_account().await?;
-    Ok(())
+pub async fn get_user_account_url() -> Result<String, AppError> {
+    let user_account_url = ssr::get_user_account_url().await?;
+    Ok(user_account_url)
 }
 
 #[server]

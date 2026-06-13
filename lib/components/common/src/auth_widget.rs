@@ -19,7 +19,7 @@ use sphare_iface_user::auth::authenticate_user;
 use sphare_cmp_utils::form::LabeledSignalCheckbox;
 use sphare_cmp_utils::icons::{AuthErrorIcon, AuthorIcon, DeleteIcon, LoadingIcon, ModeratorIcon, SelfAuthorIcon, SelfModeratorIcon};
 use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack};
-use sphare_cmp_utils::widget::{ModalDialog, ModalFormButtons};
+use sphare_cmp_utils::widget::{ModalDialog, ModalFormButtons, RedirectActionForm};
 
 use crate::state::GlobalState;
 
@@ -73,7 +73,7 @@ pub fn LoginGuardedButton<A, IV>(
     loading_icon_class: &'static str,
 ) -> impl IntoView
 where
-    A: Fn(MouseEvent) -> () + Clone + Send + Sync + 'static,
+    A: Fn(MouseEvent) + Clone + Send + Sync + 'static,
     IV: IntoView + 'static
 {
     let state = expect_context::<GlobalState>();
@@ -134,14 +134,19 @@ fn LoginButton(
     children: Children,
 ) -> impl IntoView {
     let state = expect_context::<GlobalState>();
+    let redirect_fn = move |redirect_url: &Option<String>| {
+        if let Some(redirect_url) = redirect_url && let Err(e) = window().location().set_href(redirect_url) {
+            log::error!("Failed to redirect to auth provider: {}", e.as_string().unwrap_or_default());
+        }
+    };
 
     view! {
-        <ActionForm action=state.login_action attr:class="flex items-center">
+        <RedirectActionForm action=state.login_action redirect_fn attr:class="flex items-center">
             <input type="text" name="redirect_url" class="hidden" value=redirect_path/>
             <button type="submit" class=class>
                 {children()}
             </button>
-        </ActionForm>
+        </RedirectActionForm>
     }.into_any()
 }
 
@@ -163,9 +168,7 @@ pub fn AuthCallback() -> impl IntoView {
             resource=auth_resource
             let:_auth_result
         >
-            {
-                log::debug!("Authenticated successfully");
-            }
+            {log::debug!("Authenticated successfully");}
         </SuspenseUnpack>
     }.into_any()
 }
@@ -173,8 +176,6 @@ pub fn AuthCallback() -> impl IntoView {
 /// Renders a page requesting a login
 #[component]
 pub fn LoginWindow() -> impl IntoView {
-    let state = expect_context::<GlobalState>();
-
     view! {
         <div class="hero">
             <div class="hero-content flex text-center">
@@ -183,12 +184,12 @@ pub fn LoginWindow() -> impl IntoView {
                     <h1 class="text-5xl font-bold">"Not authenticated"</h1>
                     <p class="pt-4">"Sorry, we had some trouble identifying you."</p>
                     <p class="pb-4">"Please login to access this page."</p>
-                    <ActionForm action=state.login_action>
-                        <input type="text" name="redirect_url" class="hidden" value=use_location().pathname/>
-                        <button type="submit" class="button-primary w-full">
-                            {move_tr!("login")}
-                        </button>
-                    </ActionForm>
+                    <LoginButton
+                        class="button-primary w-full"
+                        redirect_path=use_location().pathname
+                    >
+                        {move_tr!("login")}
+                    </LoginButton>
                 </div>
             </div>
         </div>

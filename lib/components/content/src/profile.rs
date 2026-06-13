@@ -1,5 +1,6 @@
 use leptos::html;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_fluent::move_tr;
 use leptos_router::hooks::use_params_map;
 use leptos_use::{signal_throttled_with_options, ThrottleOptions};
@@ -12,8 +13,8 @@ use sphare_core_common::routes::get_username_memo;
 use sphare_core_common::unpack::{handle_additional_load, handle_initial_load, reset_additional_load};
 use sphare_core_content::ranking::{CommentSortType, PostSortType, SortType};
 
+use sphare_iface_user::auth::get_user_account_url;
 use sphare_iface_content::profile::{get_user_comment_vec, get_user_post_vec};
-use sphare_iface_user::auth::NavigateToUserAccount;
 
 use sphare_cmp_base::comment::CommentMiniatureList;
 use sphare_cmp_base::post::PostListWithInitLoad;
@@ -309,13 +310,23 @@ pub fn DeleteUserButton() -> impl IntoView {
 /// Button to navigate to the user's account on the OIDC provider
 #[component]
 pub fn UserAccountButton() -> impl IntoView {
-    let navigate_to_account_action = ServerAction::<NavigateToUserAccount>::new();
     view! {
-        <ActionForm action=navigate_to_account_action attr:class="flex justify-center items-center">
-            <button type="submit" class="button-primary flex items-center gap-2">
-                <UserSettingsIcon/>
-                {move_tr!("account")}
-            </button>
-        </ActionForm>
+        <button
+            type="button"
+            class="button-primary flex items-center gap-2"
+            on:click=move |_| {
+                spawn_local(async move {
+                    match get_user_account_url().await {
+                        Ok(user_account_url) => if let Err(e) = window().location().set_href(&user_account_url) {
+                            log::error!("Failed to redirect to auth provider: {}", e.as_string().unwrap_or_default());
+                        },
+                        Err(e) => log::error!("{e}"),
+                    }
+                })
+            }
+        >
+            <UserSettingsIcon/>
+            {move_tr!("account")}
+        </button>
     }
 }

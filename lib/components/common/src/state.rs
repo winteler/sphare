@@ -19,14 +19,14 @@ use sphare_iface_sphere::rule::{get_rule_vec, AddRule, RemoveRule, UpdateRule};
 use sphare_iface_sphere::satellite::{get_satellite_vec_by_sphere_name, ActivateSatellite, CreateSatellite, DeactivateSatellite, UpdateSatellite};
 use sphare_iface_sphere::sphere::{get_sphere_with_user_info, CreateSphere, Subscribe, Unsubscribe, UpdateSphereDescription};
 use sphare_iface_sphere::sphere_category::{get_sphere_category_vec, DeleteSphereCategory, SetSphereCategory};
-use sphare_iface_user::auth::{EndSession, Login};
+use sphare_iface_user::auth::{EndSession, GetOidcLoginRedirectUrl};
 use sphare_iface_user::notification::get_notifications;
 use sphare_iface_user::role::{get_sphere_role_vec, SetUserSphereRole};
 use sphare_iface_user::user::{DeleteUser, SetUserSettings};
 
 #[derive(Copy, Clone)]
 pub struct GlobalState {
-    pub login_action: ServerAction<Login>,
+    pub login_action: ServerAction<GetOidcLoginRedirectUrl>,
     pub logout_action: ServerAction<EndSession>,
     pub delete_user_action: ServerAction<DeleteUser>,
     pub set_settings_action: ServerAction<SetUserSettings>,
@@ -90,7 +90,7 @@ impl GlobalState {
     ) -> Self {
         let is_notif_read_map = StoredValue::new(HashMap::new());
         Self {
-            login_action: ServerAction::<Login>::new(),
+            login_action: ServerAction::<GetOidcLoginRedirectUrl>::new(),
             logout_action,
             delete_user_action,
             set_settings_action,

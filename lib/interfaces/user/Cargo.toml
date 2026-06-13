@@ -11,6 +11,7 @@ sphare_core_user = { path = "../../core/user", default-features = false }
 leptos.workspace = true
 leptos_axum = { workspace = true, optional = true }
 
+http = { workspace = true, optional = true }
 log.workspace = true
 openidconnect = { workspace = true, optional = true }
 
@@ -23,6 +24,7 @@ ssr = [
     "leptos/ssr",
     "sphare_core_common/ssr",
     "sphare_core_user/ssr",
+    "dep:http",
     "dep:leptos_axum",
     "dep:openidconnect",
 ]

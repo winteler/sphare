@@ -6,6 +6,11 @@ use const_format::concatcp;
 use leptos::html;
 use leptos::prelude::codee::{Decoder, Encoder};
 use leptos::prelude::*;
+use leptos::server_fn::codec::PostUrl;
+use leptos::server_fn::{Http, ServerFn};
+use leptos::server_fn::client::Client;
+use leptos::server_fn::request::ClientReq;
+use leptos::server_fn::serde::de::DeserializeOwned;
 use leptos_fluent::move_tr;
 use leptos_router::components::Form;
 use leptos_router::hooks::use_query_map;
@@ -15,7 +20,7 @@ use strum::IntoEnumIterator;
 
 #[cfg(feature = "hydrate")]
 use leptos_use::on_click_outside;
-
+use web_sys::FormData;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::time::get_elapsed_time_string;
 use sphare_core_common::traits::ToLocalizedStr;
@@ -841,4 +846,40 @@ pub fn BannerContent(
             </div>
         </div>
     }.into_any()
+}
+
+/// Button to execute a server function and perform a redirect based on the result
+#[component]
+pub fn RedirectActionForm<A, O>(
+    action: ServerAction<A>,
+    redirect_fn: impl Fn(&A::Output) + Clone + Send + 'static,
+    children: Children,
+) -> impl IntoView
+where
+    A: DeserializeOwned
+    + ServerFn<Protocol = Http<PostUrl, O>, Error = AppError>
+    + Clone
+    + Send
+    + Sync
+    + 'static,
+    <<A::Client as Client<A::Error>>::Request as ClientReq<
+        A::Error,
+    >>::FormData: From<FormData>,
+    A: Send + Sync + 'static,
+    A::Output: Send + Sync + 'static,
+    <A as ServerFn>::Client: Client<AppError>,
+    O: 'static,
+{
+    Effect::new(move || {
+        match &*action.value().read() {
+            Some(Ok(value)) => redirect_fn(value),
+            Some(Err(e)) => log::error!("Error in redirect server action: {e}"),
+            None => (),
+        }
+    });
+    view! {
+        <ActionForm action=action>
+            {children()}
+        </ActionForm>
+    }
 }
