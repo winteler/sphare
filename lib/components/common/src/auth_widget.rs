@@ -15,12 +15,12 @@ use sphare_core_common::routes::get_profile_path;
 use sphare_core_user::user::User;
 
 use sphare_iface_user::auth::authenticate_user;
+use sphare_iface_user::auth::get_oidc_login_redirect_url;
 
 use sphare_cmp_utils::form::LabeledSignalCheckbox;
 use sphare_cmp_utils::icons::{AuthErrorIcon, AuthorIcon, DeleteIcon, LoadingIcon, ModeratorIcon, SelfAuthorIcon, SelfModeratorIcon};
 use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack};
-use sphare_cmp_utils::widget::{ModalDialog, ModalFormButtons, RedirectActionForm};
-
+use sphare_cmp_utils::widget::{AsyncRedirectButton, ModalDialog, ModalFormButtons};
 use crate::state::GlobalState;
 
 /// Guard for a component requiring a login. If the user is logged in, the children of this component will be rendered
@@ -133,20 +133,20 @@ fn LoginButton(
     redirect_path: Signal<String>,
     children: Children,
 ) -> impl IntoView {
-    let state = expect_context::<GlobalState>();
-    let redirect_fn = move |redirect_url: &Option<String>| {
-        if let Some(redirect_url) = redirect_url && let Err(e) = window().location().set_href(redirect_url) {
-            log::error!("Failed to redirect to auth provider: {}", e.as_string().unwrap_or_default());
+    let get_redirect_fn = move || {
+        let redirect_path = redirect_path.get_untracked();
+        async move {
+            get_oidc_login_redirect_url(redirect_path).await
         }
     };
 
     view! {
-        <RedirectActionForm action=state.login_action redirect_fn attr:class="flex items-center">
-            <input type="text" name="redirect_url" class="hidden" value=redirect_path/>
-            <button type="submit" class=class>
-                {children()}
-            </button>
-        </RedirectActionForm>
+        <AsyncRedirectButton
+            class=class
+            get_redirect_fn
+        >
+            {children()}
+        </AsyncRedirectButton>
     }.into_any()
 }
 

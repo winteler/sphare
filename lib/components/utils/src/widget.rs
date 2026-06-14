@@ -11,6 +11,7 @@ use leptos::server_fn::{Http, ServerFn};
 use leptos::server_fn::client::Client;
 use leptos::server_fn::request::ClientReq;
 use leptos::server_fn::serde::de::DeserializeOwned;
+use leptos::task::spawn_local;
 use leptos_fluent::move_tr;
 use leptos_router::components::Form;
 use leptos_router::hooks::use_query_map;
@@ -848,7 +849,7 @@ pub fn BannerContent(
     }.into_any()
 }
 
-/// Button to execute a server function and perform a redirect based on the result
+/// Action form performing a redirect based on the result
 #[component]
 pub fn RedirectActionForm<A, O>(
     action: ServerAction<A>,
@@ -881,5 +882,41 @@ where
         <ActionForm action=action>
             {children()}
         </ActionForm>
+    }
+}
+
+/// Button to execute an async function and perform a redirect based on the result
+#[component]
+pub fn AsyncRedirectButton<F, Fut>(
+    get_redirect_fn: F,
+    #[prop(into)]
+    class: Signal<&'static str>,
+    children: Children,
+) -> impl IntoView
+where
+    F: Fn() -> Fut + Clone + Send + 'static,
+    Fut: Future<Output = Result<Option<String>, AppError>> + Send + 'static,
+{
+    view! {
+        <button
+            type="button"
+            class=class
+            on:click=move |_| {
+                spawn_local({
+                    let get_redirect_fn = get_redirect_fn.clone();
+                    async move {
+                        match get_redirect_fn().await {
+                            Ok(Some(redirect_url)) => if let Err(e) = window().location().set_href(&redirect_url) {
+                                log::error!("Failed to redirect: {}", e.as_string().unwrap_or_default());
+                            },
+                            Ok(None) => log::debug!("No redirect given."),
+                            Err(e) => log::error!("{e}"),
+                        }
+                    }
+                })
+            }
+        >
+            {children()}
+        </button>
     }
 }
