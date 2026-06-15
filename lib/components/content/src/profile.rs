@@ -21,9 +21,10 @@ use sphare_cmp_base::ranking::{CommentSortWidget, PostSortWidget};
 use sphare_cmp_common::state::GlobalState;
 use sphare_cmp_utils::form::LabeledFormCheckbox;
 use sphare_cmp_utils::icons::{LoadingIcon, UserIcon, UserSettingsIcon};
-use sphare_cmp_utils::unpack::ActionError;
+use sphare_cmp_utils::navigate::browser_redirect;
+use sphare_cmp_utils::unpack::ActionState;
 use sphare_cmp_utils::view::ToView;
-use sphare_cmp_utils::widget::{EnumQueryTabs, ModalDialog, ModalFormButtons};
+use sphare_cmp_utils::widget::{EnumQueryTabs, ModalDialog, ModalFormButtons, RedirectActionForm};
 
 pub const PROFILE_TAB_QUERY_PARAM: &str = "tab";
 
@@ -262,7 +263,7 @@ pub fn UserSettings() -> impl IntoView {
                                 {move_tr!("save")}
                             </button>
                         </ActionForm>
-                        <ActionError action=state.set_settings_action.into()/>
+                        <ActionState action=state.set_settings_action.into()/>
                     }
                 })
             }
@@ -300,7 +301,7 @@ pub fn DeleteUserButton() -> impl IntoView {
                         show_form=show_dialog
                     />
                 </ActionForm>
-                <ActionError action=state.delete_user_action.into()/>
+                <ActionState action=state.delete_user_action.into()/>
             </div>
         </ModalDialog>
     }
@@ -310,12 +311,21 @@ pub fn DeleteUserButton() -> impl IntoView {
 #[component]
 pub fn UserAccountButton() -> impl IntoView {
     let navigate_to_account_action = ServerAction::<NavigateToUserAccount>::new();
+
     view! {
-        <ActionForm action=navigate_to_account_action attr:class="flex justify-center items-center">
-            <button type="submit" class="button-primary flex items-center gap-2">
+        <RedirectActionForm
+            action=navigate_to_account_action
+            redirect_fn=move |account_url| browser_redirect(account_url.as_ref())
+            attr:class="flex justify-center items-center"
+        >
+            <button
+                type="submit"
+                class="button-primary flex items-center gap-2"
+                disabled=move || navigate_to_account_action.pending()
+            >
                 <UserSettingsIcon/>
                 {move_tr!("account")}
             </button>
-        </ActionForm>
+        </RedirectActionForm>
     }
 }

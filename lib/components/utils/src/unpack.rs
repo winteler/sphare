@@ -9,13 +9,16 @@ use crate::icons::LoadingIcon;
 
 /// Component to render a server action's error
 #[component]
-pub fn ActionError<
+pub fn ActionState<
     T: Send + Sync + 'static,
     A: Send + Sync + 'static,
 >(
     action: Action<A, Result<T, AppError>>
 ) -> impl IntoView {
     view! {
+        <Show when=move || action.pending().get()>
+            <div class="flex justify-center"><LoadingIcon/></div>
+        </Show>
         <Show when=action_has_error(action)>
         {
             match &*action.value().read() {

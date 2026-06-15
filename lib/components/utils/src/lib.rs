@@ -4,8 +4,8 @@ pub mod editor;
 pub mod errors;
 pub mod form;
 pub mod icons;
+pub mod navigate;
 pub mod node_utils;
 pub mod unpack;
 pub mod view;
 pub mod widget;
-

@@ -26,9 +26,10 @@ use sphare_cmp_common::auth_widget::{AuthorWidget, DeleteButton};
 use sphare_cmp_common::sphere::SphereHeader;
 use sphare_cmp_common::state::{GlobalState, SphereState};
 use sphare_cmp_utils::icons::EditIcon;
+use sphare_cmp_utils::navigate::router_redirect;
 use sphare_cmp_utils::node_utils::has_reached_scroll_load_threshold;
-use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
-use sphare_cmp_utils::widget::{ContentBody, DotMenu, ModalDialog, ModalFormButtons, ModeratorWidget, ScoreIndicator, ShareButton, TimeSinceEditWidget, TimeSinceWidget};
+use sphare_cmp_utils::unpack::{ActionState, SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::widget::{ContentBody, DotMenu, ModalDialog, ModalFormButtons, ModeratorWidget, RedirectActionForm, ScoreIndicator, ShareButton, TimeSinceEditWidget, TimeSinceWidget};
 
 use crate::comment::{CommentButtonWithCount, CommentSection};
 use crate::moderation::{ModeratePostButton, ModerationInfoButton};
@@ -344,7 +345,7 @@ pub fn CreatePost() -> impl IntoView {
 
     view! {
         <div class="w-full xl:w-3/5 4xl:w-2/5 p-2 mx-auto flex flex-col gap-2 overflow-auto">
-            <ActionForm action=create_post_action>
+            <RedirectActionForm action=create_post_action redirect_fn=move |post_path| router_redirect(post_path.as_ref())>
                 <div class="flex flex-col gap-2 w-full">
                     <h2 class="py-4 text-4xl text-center">{move_tr!("share-post")}</h2>
                     <div
@@ -422,13 +423,13 @@ pub fn CreatePost() -> impl IntoView {
                         ) || (
                             *embed_type_input.read() != EmbedType::None &&
                             link_input.with(|link| link.is_empty() || Url::parse(link).is_err())
-                        )
+                        ) || create_post_action.pending().get()
                     }>
                         {move_tr!("publish")}
                     </button>
                 </div>
-            </ActionForm>
-            <ActionError action=create_post_action.into()/>
+            </RedirectActionForm>
+            <ActionState action=create_post_action.into()/>
         </div>
     }
 }
@@ -539,7 +540,7 @@ pub fn EditPostForm(
                     />
                 </div>
             </ActionForm>
-            <ActionError action=state.edit_post_action.into()/>
+            <ActionState action=state.edit_post_action.into()/>
         </div>
     }
 }

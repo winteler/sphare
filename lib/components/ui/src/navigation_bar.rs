@@ -8,7 +8,8 @@ use sphare_cmp_common::auth_widget::LoginGuardButton;
 use sphare_cmp_common::notification::NotificationButton;
 use sphare_cmp_common::state::GlobalState;
 use sphare_cmp_utils::icons::*;
-use sphare_cmp_utils::widget::DropdownButton;
+use sphare_cmp_utils::navigate::browser_redirect;
+use sphare_cmp_utils::widget::{DropdownButton, RedirectActionForm};
 
 use crate::search::SearchButton;
 
@@ -72,12 +73,12 @@ pub fn LoggedInMenu(
                     <a href=get_profile_path(&username) class="button-ghost-sm block w-full">{move_tr!("profile")}</a>
                 </li>
                 <li>
-                    <ActionForm action=state.logout_action attr:class="flex">
+                    <RedirectActionForm action=state.logout_action redirect_fn=move |oidc_redirect_url| browser_redirect(oidc_redirect_url.as_ref()) attr:class="flex">
                         <input type="text" name="redirect_url" class="hidden" value=get_current_url()/>
                         <button type="submit" class="button-ghost-sm text-left w-full">
                             {move_tr!("logout")}
                         </button>
-                    </ActionForm>
+                    </RedirectActionForm>
                 </li>
                 <li class="button-ghost-sm"><span>{format!("Logged in as: {}", username)}</span></li>
             </ul>

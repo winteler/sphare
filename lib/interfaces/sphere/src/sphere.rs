@@ -59,7 +59,7 @@ pub async fn create_sphere(
     sphere_name: String,
     description: String,
     is_nsfw: bool,
-) -> Result<(), AppError> {
+) -> Result<String, AppError> {
     let user = check_user().await?;
     let db_pool = get_db_pool()?;
 
@@ -75,7 +75,7 @@ pub async fn create_sphere(
 
     // Redirect to the new sphere
     leptos_axum::redirect(&new_sphere_path);
-    Ok(())
+    Ok(new_sphere_path)
 }
 
 #[server]

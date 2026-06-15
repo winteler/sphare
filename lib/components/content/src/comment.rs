@@ -26,7 +26,7 @@ use sphare_cmp_utils::colors::ColorIndicator;
 use sphare_cmp_utils::editor::FormMarkdownEditor;
 use sphare_cmp_utils::errors::ErrorDisplay;
 use sphare_cmp_utils::icons::{AddCommentIcon, EditIcon, LoadingIcon};
-use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack};
+use sphare_cmp_utils::unpack::{ActionState, SuspenseUnpack};
 use sphare_cmp_utils::widget::{Badge, DotMenu, IsPinnedWidget, LoadIndicators, MinimizeMaximizeWidget, ModalDialog, ModalFormButtons, ModeratorWidget, ScoreIndicator, ShareButton, TimeSinceEditWidget, TimeSinceWidget};
 
 use crate::moderation::{ModerateCommentButton, ModerationInfoButton};
@@ -510,9 +510,9 @@ pub fn CommentForm(
         textarea_ref,
     };
 
-    let is_comment_empty = Signal::derive(move || comment_data.content.read().is_empty());
-
     let create_comment_action = ServerAction::<CreateComment>::new();
+
+    let disable_publish = Signal::derive(move || comment_data.content.read().is_empty() || create_comment_action.pending().get());
 
     Effect::new(move |_| {
         if let Some(Ok(comment)) = create_comment_action.value().get() {
@@ -547,12 +547,12 @@ pub fn CommentForm(
                     />
                     <IsPinnedCheckbox sphere_name=sphere_name/>
                     <ModalFormButtons
-                        disable_publish=is_comment_empty
+                        disable_publish
                         show_form
                     />
                 </div>
             </ActionForm>
-            <ActionError action=create_comment_action.into()/>
+            <ActionState action=create_comment_action.into()/>
         </div>
     }
 }
@@ -700,7 +700,7 @@ pub fn EditCommentForm(
                     />
                 </div>
             </ActionForm>
-            <ActionError action=edit_comment_action.into()/>
+            <ActionState action=edit_comment_action.into()/>
         </div>
     }
 }

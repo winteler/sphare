@@ -31,8 +31,9 @@ use sphare_cmp_utils::editor::{FormTextEditor, LengthLimitedInput};
 use sphare_cmp_utils::errors::ErrorDisplay;
 use sphare_cmp_utils::form::LabeledFormCheckbox;
 use sphare_cmp_utils::icons::{LoadingIcon, MagnifierIcon, NsfwIcon, PlusIcon, ReturnIcon, SettingsIcon, SubscribedIcon};
-use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
-use sphare_cmp_utils::widget::{BannerContent, RefreshButton};
+use sphare_cmp_utils::navigate::router_redirect;
+use sphare_cmp_utils::unpack::{ActionState, SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::widget::{BannerContent, RedirectActionForm, RefreshButton};
 
 use crate::satellite::ActiveSatelliteList;
 use crate::sphere_category::get_sphere_category_header_map;
@@ -138,7 +139,7 @@ pub fn SphereContents() -> impl IntoView {
             ).await.map(|post_vec| add_sphere_info_to_post_vec(
                 post_vec,
                 sphere_name,
-                &*sphere_category_header_map.read_untracked(),
+                &sphere_category_header_map.read_untracked(),
                 None)
             );
             #[cfg(feature = "hydrate")]
@@ -158,7 +159,7 @@ pub fn SphereContents() -> impl IntoView {
             if additional_load_count_throttled.get() > 0 {
                 is_loading.set(true);
                 if !is_category_map_loaded.get_untracked() {
-                    sphere_category_header_map.set(get_sphere_category_header_map(sphere_state.sphere_categories_resource.clone().await));
+                    sphere_category_header_map.set(get_sphere_category_header_map(sphere_state.sphere_categories_resource.await));
                     is_category_map_loaded.set(true);
                 }
                 let num_post = (POST_BATCH_SIZE as usize) + additional_post_vec.read_untracked().len();
@@ -170,7 +171,7 @@ pub fn SphereContents() -> impl IntoView {
                 ).await.map(|post_vec| add_sphere_info_to_post_vec(
                     post_vec,
                     sphere_name.get_untracked(),
-                    &*sphere_category_header_map.read_untracked(),
+                    &sphere_category_header_map.read_untracked(),
                     None)
                 );
                 handle_additional_load(additional_load, additional_post_vec, load_error);
@@ -327,10 +328,11 @@ pub fn CreateSphere() -> impl IntoView {
             || is_name_taken.get()
             || description_data.content.read().is_empty()
     });
+    let is_publish_disabled = move || are_inputs_invalid.get() || state.create_sphere_action.pending().get();
 
     view! {
         <div class="w-full 2xl:w-3/5 4xl:w-2/5 p-2 mx-auto flex flex-col gap-2 overflow-auto">
-            <ActionForm action=state.create_sphere_action>
+            <RedirectActionForm action=state.create_sphere_action redirect_fn=move |sphere_path| router_redirect(sphere_path.as_ref())>
                 <div class="flex flex-col gap-2 w-full">
                     <h2 class="py-4 text-4xl text-center">{move_tr!("create-sphere")}</h2>
                     <div class="h-full flex gap-2 items-center">
@@ -384,11 +386,11 @@ pub fn CreateSphere() -> impl IntoView {
                     />
                     <LabeledFormCheckbox name="is_nsfw" label=move_tr!("nsfw-content") label_icon_view=move || view! { <NsfwIcon/> }/>
                     <Suspense fallback=move || view! { <LoadingIcon/> }>
-                        <button type="submit" class="button-secondary" disabled=are_inputs_invalid>{move_tr!("create")}</button>
+                        <button type="submit" class="button-secondary" disabled=is_publish_disabled>{move_tr!("create")}</button>
                     </Suspense>
                 </div>
-            </ActionForm>
-            <ActionError action=state.create_sphere_action.into()/>
+            </RedirectActionForm>
+            <ActionState action=state.create_sphere_action.into()/>
         </div>
     }
 }

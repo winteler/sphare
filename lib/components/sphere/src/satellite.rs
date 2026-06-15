@@ -30,7 +30,7 @@ use sphare_cmp_common::state::{GlobalState, SatelliteState, SphereState};
 use sphare_cmp_utils::editor::{FormMarkdownEditor, FormTextEditor};
 use sphare_cmp_utils::form::LabeledFormCheckbox;
 use sphare_cmp_utils::icons::{EditIcon, LinkIcon, NsfwIcon, PauseIcon, PlayIcon, PlusIcon};
-use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::unpack::{ActionState, SuspenseUnpack, TransitionUnpack};
 use sphare_cmp_utils::widget::{ContentBody, ModalDialog, ModalFormButtons, SpoilerBadge, TagsWidget};
 
 use crate::sphere::SphereToolbar;
@@ -268,7 +268,7 @@ pub fn CreateSatellitePost() -> impl IntoView {
                     </button>
                 </div>
             </ActionForm>
-            <ActionError action=create_post_action.into()/>
+            <ActionState action=create_post_action.into()/>
         </div>
     }
 }

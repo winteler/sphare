@@ -20,7 +20,7 @@ use sphare_cmp_common::role::AuthorizedShow;
 use sphare_cmp_common::state::{GlobalState, SphereState};
 use sphare_cmp_utils::editor::FormTextEditor;
 use sphare_cmp_utils::icons::{HammerIcon, MagnifierIcon};
-use sphare_cmp_utils::unpack::{ActionError, SuspenseUnpack, TransitionUnpack};
+use sphare_cmp_utils::unpack::{ActionState, SuspenseUnpack, TransitionUnpack};
 use sphare_cmp_utils::widget::{ModalDialog, ModalFormButtons};
 
 /// Component to moderate a post
@@ -123,7 +123,7 @@ pub fn ModeratePostDialog(
                         />
                     </div>
                 </ActionForm>
-                <ActionError action=state.moderate_post_action.into()/>
+                <ActionState action=state.moderate_post_action.into()/>
             </div>
         </ModalDialog>
     }.into_any()
@@ -180,7 +180,7 @@ pub fn ModerateCommentDialog(
                         />
                     </div>
                 </ActionForm>
-                <ActionError action=moderate_comment_action.into()/>
+                <ActionState action=moderate_comment_action.into()/>
             </div>
         </ModalDialog>
     }.into_any()

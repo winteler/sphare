@@ -17,13 +17,13 @@ use sphare_core_content::ranking::SortType;
 pub async fn get_post_with_info_by_id(post_id: i64) -> Result<PostWithInfo, AppError> {
     let db_pool = get_db_pool()?;
     let user = get_user().await?;
-    Ok(ssr::get_post_with_info_by_id(post_id, user.as_ref(), &db_pool).await?)
+    ssr::get_post_with_info_by_id(post_id, user.as_ref(), &db_pool).await
 }
 
 #[server]
 pub async fn get_post_inherited_attributes(post_id: i64) -> Result<PostInheritedAttributes, AppError> {
     let db_pool = get_db_pool()?;
-    Ok(ssr::get_post_inherited_attributes(post_id, &db_pool).await?)
+    ssr::get_post_inherited_attributes(post_id, &db_pool).await
 }
 
 #[server]
@@ -98,14 +98,14 @@ pub async fn get_post_vec_by_satellite_id(
 pub async fn create_post(
     post_location: PostLocation,
     post_inputs: PostDataInputs
-) -> Result<(), AppError> {
+) -> Result<String, AppError> {
     let user = check_user().await?;
     let db_pool = get_db_pool()?;
 
     let (_, _, new_post_path) = ssr::create_post_and_vote(post_location, post_inputs, &user, &db_pool).await?;
 
     leptos_axum::redirect(new_post_path.as_str());
-    Ok(())
+    Ok(new_post_path)
 }
 
 #[server]

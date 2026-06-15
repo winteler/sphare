@@ -21,23 +21,24 @@ use sphare_core_common::errors::AppError;
 use sphare_core_user::user::User;
 
 #[server]
-pub async fn login(redirect_url: String) -> Result<Option<User>, AppError> {
+pub async fn login(redirect_url: String) -> Result<Option<String>, AppError> {
     let current_user = get_user().await;
 
-    if let Ok(Some(current_user)) = current_user
+    if let Ok(Some(_)) = current_user
     {
-        return Ok(Some(current_user));
+        return Ok(None);
     }
 
-    ssr::redirect_to_oidc_provider(redirect_url).await?;
-
-    Ok(None)
+    let oidc_redirect_url = ssr::get_oidc_login_redirect_url(redirect_url).await?;
+    leptos_axum::redirect(oidc_redirect_url.as_str());
+    Ok(Some(oidc_redirect_url.to_string()))
 }
 
 #[server]
-pub async fn navigate_to_user_account() -> Result<(), AppError> {
-    ssr::navigate_to_user_account().await?;
-    Ok(())
+pub async fn navigate_to_user_account() -> Result<String, AppError> {
+    let user_account_url = ssr::get_user_account_url().await?;
+    leptos_axum::redirect(&user_account_url);
+    Ok(user_account_url)
 }
 
 #[server]
@@ -83,7 +84,7 @@ pub async fn get_user() -> Result<Option<User>, AppError> {
 }
 
 #[server]
-pub async fn end_session(redirect_url: String) -> Result<(), AppError> {
+pub async fn end_session(redirect_url: String) -> Result<String, AppError> {
     log::debug!("Logout, redirect_url: {redirect_url}");
     validate_redirect_url(&redirect_url)?;
     let http_client = get_oidc_http_client()?;
@@ -108,7 +109,8 @@ pub async fn end_session(redirect_url: String) -> Result<(), AppError> {
         .set_id_token_hint(id_token)
         .set_post_logout_redirect_uri(oidc::PostLogoutRedirectUrl::new(redirect_url).map_err(AppError::from)?);
 
-    leptos_axum::redirect(logout_request.http_get_url().to_string().as_str());
+    let oidc_redirect_url = logout_request.http_get_url().to_string();
+    leptos_axum::redirect(&oidc_redirect_url);
 
     auth_session.session.remove(OIDC_TOKEN_KEY);
     if let Some(user) = user {
@@ -116,5 +118,5 @@ pub async fn end_session(redirect_url: String) -> Result<(), AppError> {
     }
     auth_session.logout_user();
 
-    Ok(())
+    Ok(oidc_redirect_url)
 }
