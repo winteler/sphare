@@ -254,7 +254,7 @@ spoiler-content-label-4 =
 
 future-improvements-title = Futures améliorations
 future-improvements-intro =
-    De nombreuses fonctionnalités pourraient encore être ajoutées à Sphare. Ma objectif est d'implémenter en priorité les fonctionnalités demandées par la communauté, ainsi que les outils nécessaire pour la modération. À plus long terme, je souhaite faire de Sphare une entité à but non-lucratif et mettre en place un système d'adhésion pour couvrir les coûts opérationnels et, si possible, pouvoir augmenter mon temps de travail sur le projet. Voici une liste des sujets que je considère pour le moment.
+    De nombreuses fonctionnalités pourraient encore être ajoutées à Sphare. Mon objectif est d'implémenter en priorité les fonctionnalités demandées par la communauté, ainsi que les outils nécessaire pour la modération. À plus long terme, je souhaite faire de Sphare une entité à but non lucratif et mettre en place un système d'adhésion pour couvrir les coûts opérationnels et, si possible, pouvoir augmenter mon temps de travail sur le projet. Voici une liste des sujets que je considère pour le moment.
 future-improvements-1 = Ce que la communauté désire !
 future-improvements-2 = Outils de modération supplémentaires
 future-improvements-3 = Adhésions - les utilisateurs peuvent devenir contributeurs et gagner accès à des fonctionalités supplémentaires
