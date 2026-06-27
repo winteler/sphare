@@ -1,6 +1,6 @@
 # Sphare
 
-[Sphare](https://sphare.space) is a web application providing community created and managed forums to exchange with other people about your hobbies, news, art, jokes and many more topics.
+[Sphare](https://www.sphare.space) is a web application providing community created and managed forums to exchange with other people about your hobbies, news, art, jokes and many more topics.
 
 Sphare is an ad-free, source-available website with a focus on transparency, privacy and community empowerment.
 Sphare is built in Rust using [Leptos](https://github.com/leptos-rs).
