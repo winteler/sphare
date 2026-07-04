@@ -144,7 +144,7 @@ impl PostWithSphereInfo {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use serde::{Deserialize, Serialize};
-    use sqlx::PgPool;
+    use sqlx::{AssertSqlSafe, PgPool};
     use validator::Validate;
     use sphare_core_common::checks::check_sphere_name;
     use sphare_core_common::colors::Color;
@@ -348,7 +348,7 @@ pub mod ssr {
         check_sphere_name(sphere_name)?;
         let posts_filters = user.map(|user| user.get_posts_filter()).unwrap_or_default();
         let post_vec = sqlx::query_as::<_, Post>(
-            format!(
+            AssertSqlSafe(format!(
                 "WITH base_posts AS NOT MATERIALIZED (
                     SELECT p.*, u.username as creator_name
                     FROM posts p
@@ -383,7 +383,7 @@ pub mod ssr {
                 LIMIT $7
                 OFFSET $8",
                 order_by=sort_type.to_order_by_code(),
-            ).as_str(),
+            )),
         )
             .bind(sphere_name)
             .bind(sphere_category_filter == SphereCategoryFilter::All)
@@ -416,7 +416,7 @@ pub mod ssr {
     ) -> Result<Vec<Post>, AppError> {
         let posts_filters = user.map(|user| user.get_posts_filter()).unwrap_or_default();
         let post_vec = sqlx::query_as::<_, Post>(
-            format!(
+            AssertSqlSafe(format!(
                 "WITH base_posts AS NOT MATERIALIZED (
                     SELECT p.*, u.username as creator_name
                     FROM posts p
@@ -444,7 +444,7 @@ pub mod ssr {
                 LIMIT $5
                 OFFSET $6",
                 order_by=sort_type.to_order_by_code(),
-            ).as_str(),
+            )),
         )
             .bind(satellite_id)
             .bind(sphere_category_id)
@@ -496,7 +496,7 @@ pub mod ssr {
             None => (None, false),
         };
         let post_vec = sqlx::query_as::<_, PostJoinSphereInfo>(
-            format!(
+            AssertSqlSafe(format!(
                 "SELECT
                     p.*,
                     u.username as creator_name,
@@ -522,7 +522,7 @@ pub mod ssr {
                 LIMIT $3
                 OFFSET $4",
                 sort_type.to_order_by_code(),
-            ).as_str()
+            ))
         )
             .bind(days_hide_spoiler)
             .bind(show_nsfw)
@@ -546,7 +546,7 @@ pub mod ssr {
         let posts_filters = user.get_posts_filter();
         let order_by = sort_type.to_order_by_code();
         let mut post_vec = sqlx::query_as::<_, PostJoinSphereInfo>(
-            format!(
+            AssertSqlSafe(format!(
                 "SELECT
                     p.*,
                     u.username AS creator_name,
@@ -572,7 +572,7 @@ pub mod ssr {
                 ORDER BY {order_by} DESC
                 LIMIT $4
                 OFFSET $5"
-            ).as_str(),
+            )),
         )
             .bind(user.user_id)
             .bind(posts_filters.days_hide_spoiler)
@@ -586,7 +586,7 @@ pub mod ssr {
         // If no posts are returned, fetch posts from not subscribed spheres
         if loaded_post_count < limit as usize {
             let mut additional_posts = sqlx::query_as::<_, PostJoinSphereInfo>(
-                format!(
+                AssertSqlSafe(format!(
                     "WITH subscribed_post_count AS (
                         SELECT COUNT(*) AS total
                         FROM posts p
@@ -630,7 +630,7 @@ pub mod ssr {
                     ORDER BY {order_by} DESC
                     LIMIT $4
                     OFFSET GREATEST(0, $5 - (SELECT total FROM subscribed_post_count))"
-                    ).as_str(),
+                    ))
                 )
                     .bind(user.user_id)
                     .bind(posts_filters.days_hide_spoiler)

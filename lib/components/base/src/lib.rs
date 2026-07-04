@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 pub mod comment;
 pub mod embed;
 pub mod filter;

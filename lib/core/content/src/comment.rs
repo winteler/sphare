@@ -75,7 +75,7 @@ impl CommentWithContext {
 
 #[cfg(feature = "ssr")]
 pub mod ssr {
-    use sqlx::PgPool;
+    use sqlx::{AssertSqlSafe, PgPool};
     use sphare_core_common::checks::check_string_length;
     use sphare_core_common::constants::{COMMENT_BATCH_SIZE, MAX_CONTENT_LENGTH};
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
@@ -230,7 +230,7 @@ pub mod ssr {
         let sort_column = sort_type.to_order_by_code();
 
         let comment_with_vote_vec = sqlx::query_as::<_, CommentWithVote>(
-            format!(
+            AssertSqlSafe(format!(
                 "WITH RECURSIVE comment_tree AS (
                     (
                         SELECT
@@ -273,8 +273,7 @@ pub mod ssr {
                 LEFT JOIN rules r ON r.rule_id = c.infringed_rule_id AND c.delete_timestamp IS NULL
                 LEFT JOIN votes v ON v.comment_id = c.comment_id AND v.user_id = $1
                 ORDER BY c.path DESC"
-            )
-                .as_str(),
+            ))
         )
             .bind(user_id)
             .bind(post_id)
@@ -304,7 +303,7 @@ pub mod ssr {
         let sort_column = sort_type.to_order_by_code();
 
         let comment_with_vote_vec = sqlx::query_as::<_, CommentWithVote>(
-            format!(
+            AssertSqlSafe(format!(
                 "WITH RECURSIVE comment_tree AS (
                     (
                         SELECT
@@ -362,7 +361,7 @@ pub mod ssr {
                 LEFT JOIN rules r ON r.rule_id = c.infringed_rule_id AND c.delete_timestamp IS NULL
                 LEFT JOIN votes v ON v.comment_id = c.comment_id AND v.user_id = $1
                 ORDER BY depth DESC, c.path DESC"
-            ).as_str(),
+            ))
         )
             .bind(user_id)
             .bind(comment_id)

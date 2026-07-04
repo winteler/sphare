@@ -1,6 +1,6 @@
 #[cfg(feature = "ssr")]
 pub mod ssr {
-    use sqlx::PgPool;
+    use sqlx::{AssertSqlSafe, PgPool};
     use sphare_core_common::checks::check_username;
     use sphare_core_common::errors::AppError;
 
@@ -18,7 +18,7 @@ pub mod ssr {
     ) -> Result<Vec<PostWithSphereInfo>, AppError> {
         check_username(username, false)?;
         let post_vec = sqlx::query_as::<_, PostJoinSphereInfo>(
-            format!(
+            AssertSqlSafe(format!(
                 "SELECT
                     p.*,
                     u.username as creator_name,
@@ -38,7 +38,7 @@ pub mod ssr {
                 LIMIT $2
                 OFFSET $3",
                 sort_type.to_order_by_code(),
-            ).as_str()
+            ))
         )
             .bind(username)
             .bind(limit)
@@ -60,7 +60,7 @@ pub mod ssr {
     ) -> Result<Vec<CommentWithContext>, AppError> {
         check_username(username, false)?;
         let comment_vec = sqlx::query_as::<_, CommentWithContext>(
-            format!(
+            AssertSqlSafe(format!(
                 "SELECT
                     c.*,
                     u.username as creator_name,
@@ -81,7 +81,7 @@ pub mod ssr {
                 LIMIT $2
                 OFFSET $3",
                 sort_type.to_order_by_code(),
-            ).as_str()
+            ))
         )
             .bind(username)
             .bind(limit)

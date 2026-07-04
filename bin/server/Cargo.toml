@@ -15,6 +15,7 @@ leptos = { workspace = true, features = [ "ssr" ]}
 leptos_meta = { workspace = true, features = [ "ssr" ] }
 leptos_axum.workspace = true
 
+activitypub_federation.workspace = true
 axum.workspace = true
 axum_session.workspace = true
 axum_session_auth.workspace = true
@@ -29,5 +30,5 @@ tower-http.workspace = true
 base64 = "0.22.1"
 backoff = { version = "0.4.0", features = ["tokio"] }
 tokio-cron-scheduler = "0.15.1"
-tracing-subscriber = "0.3.22"
+tracing-subscriber = "0.3.23"
 tracing = "0.1.44"

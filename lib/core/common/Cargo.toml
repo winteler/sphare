@@ -31,7 +31,7 @@ validator.workspace = true
 web-sys.workspace = true
 
 [dev-dependencies]
-fluent-templates = "0.13.3"
+fluent-templates = "0.14.0"
 indoc = "2.0.7"
 sealed_test = "1.1.0"
 

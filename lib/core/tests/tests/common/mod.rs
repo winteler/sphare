@@ -10,7 +10,7 @@ use leptos_fluent::{I18n, Language};
 use sphare_core_user::user::ssr::create_or_update_user;
 use sphare_core_user::user::User;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
+use sqlx::{AssertSqlSafe, PgPool};
 
 pub const TEST_DB_NAME_ENV: &str = "TEST_DATABASE_NAME";
 pub const TEST_DB_URL_ENV: &str = "TEST_DATABASE_URL";
@@ -59,12 +59,12 @@ pub async fn get_db_pool() -> PgPool {
     let main_db_pool = get_main_db_pool().await;
     println!("Setup database: {db_name}");
 
-    sqlx::query(format!("DROP DATABASE IF EXISTS {db_name} WITH (FORCE)").as_str())
+    sqlx::query(AssertSqlSafe(format!("DROP DATABASE IF EXISTS {db_name} WITH (FORCE)")))
         .execute(&main_db_pool)
         .await
         .unwrap_or_else(|_| panic!("Should be able to delete database: {db_name}"));
 
-    sqlx::query(format!("CREATE DATABASE {db_name}").as_str())
+    sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {db_name}")))
         .execute(&main_db_pool)
         .await
         .unwrap_or_else(|_| panic!("Should be able to create database {db_name}"));

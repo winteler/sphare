@@ -24,7 +24,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/winteler/sphare-builder:v0.0.7-wasm-bindgen-0-2-120
+      image: ghcr.io/winteler/sphare-builder:v0.0.8-wasm-bindgen-0-2-126
       env:
         LEPTOS_ENV: PROD
         LEPTOS_HASH_FILES: true
@@ -78,10 +78,7 @@ jobs:
         run: sqlx migrate run --connect-timeout 60
 
       - name: Test Sphare
-        run: cargo test -F ssr --release
-
-      - name: npm
-        run: npm install && npm run build
+        run: cargo test --release
 
       - name: Build Sphare
         run: cargo leptos build --release --precompress

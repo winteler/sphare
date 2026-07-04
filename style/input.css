@@ -1,6 +1,9 @@
 @import 'tailwindcss';
-@plugin "daisyui";
-@plugin "daisyui/theme" {
+/* Do not scan daisyui mjs files */
+@source not "./daisyui{,*}.mjs";
+
+@plugin "./daisyui-v5.6.13.mjs";
+@plugin "./daisyui-theme-v5.6.13.mjs" {
     name: "sphare_dark";
     default: true;
     prefersdark: true;
