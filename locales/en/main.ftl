@@ -186,9 +186,9 @@ image = Image
 sphare-right-sidebar-1 =
     Sphare is the place to exchange with other people about your hobbies, news, art, jokes and many more topics.
 sphare-right-sidebar-2 =
-    Sphare is an ad-free, source-available website with a focus on transparency, privacy and community empowerment. You can find more information on the website and its rules below.
+    Sphare is an ad-free, open source website with a focus on transparency, privacy and community empowerment. You can find more information on the website and its rules below.
 about-sphare-content =
-    Sphare is the place to exchange with other people about your hobbies, art, news, jokes and many more topics. Sphare is an ad-free, source-available website with a focus on transparency, privacy and community empowerment. Sphare's goal is to run by relying solely on donations and to provide a better user experience than ad-based platforms.
+    Sphare is the place to exchange with other people about your hobbies, art, news, jokes and many more topics. Sphare is an ad-free, open source website with a focus on transparency, privacy and community empowerment. Sphare's goal is to run by relying solely on donations and to provide a better user experience than ad-based platforms.
 about-sphare-rules-1 =
     Sphare aims to be a place for positive and constructive exchanges. In order to make it so, a{" "}
 about-sphare-rules-link =
@@ -273,7 +273,7 @@ origin-goals-1 =
 origin-goals-2 =
     This gave me the idea to try building a better platform, one that would be non-profit, rely on donations instead of ads and would be focus on transparency. Being non-profit and relying on donations is extremely important, as it switches the company's focus from making users mindlessly scroll through content to generate more ad-revenue to providing a great user experience that want to contribute to with donations. Furthermore, not relying on ads means there is a much greater incentive to deal with bots, as inflating the number of users and generated content becomes less relevant.
 origin-goals-3 =
-    In such a structure, transparency is key, to show users that their donations are not misused. Sphare will always report how much donations it received and how this money is used, for instance for operating costs and salaries. Sphare is also source-available, enabling the community to know how the site functions and which information is collected. Finally, Sphare aims to have transparent moderation, without shadow bans or unexplained content removal.
+    In such a structure, transparency is key, to show users that their donations are not misused. Sphare will always report how much donations it received and how this money is used, for instance for operating costs and salaries. Sphare is also open source, enabling the community to know how the site functions and which information is collected. Finally, Sphare aims to have transparent moderation, without shadow bans or unexplained content removal.
 origin-goals-4 =
     Another long term goal of Sphare is to give more control to the communities, by enabling them to select their moderators, define their rules and leverage their help to deal with bots and bad actors. The exact implementation of these mechanisms is not yet defined but the general idea is to have a vote based system that gives more weight to strong and regular contributors of each community to avoid communities being hijacked.
 origin-goals-5 =

@@ -183,9 +183,9 @@ image = Image
 sphare-right-sidebar-1 =
     Sphare est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets.
 sphare-right-sidebar-2 =
-    Sphare est un site web en source-disponible et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. Tu pourras trouver plus d'informations sur le site et ses règles ci-dessous.
+    Sphare est un site web open source et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. Tu pourras trouver plus d'informations sur le site et ses règles ci-dessous.
 about-sphare-content =
-    Sphare est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets. Sphare est un site web en source-disponible et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. L'objectif de Sphare est de fonctionner uniquement à l'aide de donations afin de fournir une meilleure expérience utilisateur que les plateformes basées sur la publicité.
+    Sphare est l'endroit pour échanger avec d'autres personnes à propos de tes loisirs, l'actualité, l'art, l'humour et bien d'autres sujets. Sphare est un site web open source et sans publicité focalisé sur la transparence, le respect de la vie privée et l'autonomie de ses communautés. L'objectif de Sphare est de fonctionner uniquement à l'aide de donations afin de fournir une meilleure expérience utilisateur que les plateformes basées sur la publicité.
 about-sphare-rules-1 =
     Sphare s'efforce d'être un lien d'échanges positifs et constructifs. Pour ce faire, un{" "}
 about-sphare-rules-link =
@@ -274,7 +274,7 @@ origin-goals-2 =
     Cela m’a donné l’idée d’essayer de construire une meilleure plateforme, à but non lucratif, reposant sur des dons plutôt que sur la publicité, et axée sur la transparence. Être à but non lucratif et dépendre des dons est extrêmement important car cela permet de changer l'objectif du site. Au lieu d'inciter les utilisateurs à faire défiler le contenu de manière compulsive pour générer plus de revenus publicitaires, le site doit s'efforcer de founir une excellente expérience utilisateur, qui donne envie de contribuer par des dons.
 origin-goals-3 =
     Dans une telle structure, la transparence est fondamentale, pour démontrer aux utilisateurs que leurs donations sont utilisées correctement et efficacement. Sphare s'engage à toujours publier la totalité des donations reçues ainsi que la manière dont cet argent est utilisée, par exemple pour couvrir les coûts opérationels et des salaires.
-    Sphare est également en source-disponible, permettant à la communauté de savoir comment le site fonctionne et quelles informations sont collectées. Finalement, Sphare a pour but d'avoir une modération transparente, sans bannissements cachés ou suppressions de contenu inexpliquées.
+    Sphare est également open source, permettant à la communauté de savoir comment le site fonctionne et quelles informations sont collectées. Finalement, Sphare a pour but d'avoir une modération transparente, sans bannissements cachés ou suppressions de contenu inexpliquées.
 origin-goals-4 =
     Un autre objectif à long terme de Sphare est de donner plus de contrôle aux communautés, en leur permettant de sélectionner leurs modérateurs, définir leurs règles et de contribuer à lutter contre les bots et les utilisateurs malicieux. L'implémentation exacte de ces mécanismes n'est pas encore définie mais elle reposerait sur un système de vote donnant plus d'importances aux personnes contribuant fortement et régulièrement à leur communauté, de manière à éviter le détournement de communautés par d'autres utilisateurs.
 origin-goals-5 =

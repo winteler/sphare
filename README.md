@@ -2,7 +2,7 @@
 
 [Sphare](https://www.sphare.space) is a web application providing community created and managed forums to exchange with other people about your hobbies, news, art, jokes and many more topics.
 
-Sphare is an ad-free, source-available website with a focus on transparency, privacy and community empowerment.
+Sphare is an ad-free, open source website with a focus on transparency, privacy and community empowerment.
 Sphare is built in Rust using [Leptos](https://github.com/leptos-rs).
 
 ## Why "Sphare"?
@@ -11,34 +11,11 @@ Sphare, pronounced like S-fair ([sfɛr]) or "Sphère" in French, is the combinat
 
 The name symbolizes this project's goals: to enable people to discuss their interests and share knowledge. At the same time, it still acknowledges the "bubbles" we often build for ourselves and lets you access other viewpoints without control from an algorithm. By adhering to these principles and relying on donations rather than ads, Sphare aims to provide a healthier alternative to Big Tech social media.
 
-## License ![License: Polyform Shield](https://img.shields.io/badge/license-Polyform%20Shield-blue)
+## License
 
-This project is licensed under the [PolyForm Shield License 1.0.0](LICENSE).
-You may use, copy, modify, and run the software only for
-non-production purposes such as development, testing, and evaluation.
-Production use, hosting, and providing the software as a service
-are strictly prohibited.
+This project is licensed under the terms of the GNU Affero General Public License version 3 (AGPLv3).  
 
-## Why source-available?
-
-Sphare is **source-available** to give full transparency on how the application functions and what data it collects, but it's not fully open-source. Here is why:
-
-### Centralized Platform
-
-A single, centralized platform has a much higher chance of success than multiple fragmented instances. Reaching a critical mass of users is essential for a community-driven platform 
-like Sphare. Fragmentation could dilute the user base, create confusion for less technical users, and make it harder to maintain a cohesive experience.
-
-### Preventing Misuse
-
-The PolyForm Shield License ensures that the project cannot be deployed as a separate service. . This protects the project from being taken over or used in ways that could harm the community.
-
-### Open sourcing components
-
-While the core platform will remain centralized, we’d be happy to extract specific components, modules or utilities into a separate open-source library if they make sense outside of this project.
-If you find a part of this project particularly useful, feel free to open an issue!
-
----
-We welcome contributions! Whether you have ideas for features, improvements, or components that could be open-sourced, feel free to open an issue or start a discussion!
+See [`LICENSE`](./LICENSE) for the full text.
 
 ## Setting up Sphare
 
