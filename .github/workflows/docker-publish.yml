@@ -83,6 +83,9 @@ jobs:
       - name: Build Sphare
         run: cargo leptos build --release --precompress
 
+      - name: Build Sphare jobs
+        run: cargo build --package=jobs --release --no-default-features
+
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign

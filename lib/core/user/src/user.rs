@@ -208,6 +208,21 @@ pub mod ssr {
         pub delete_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
 
+    #[derive(sqlx::FromRow, Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub struct Person {
+        pub person_id: i64,
+        pub username: String,
+        pub display_name: String,
+        pub is_nsfw: bool,
+        pub federation_id: String,
+        pub inbox: String,
+        pub outbox: String,
+        pub is_local: bool,
+        pub public_key: String,
+        pub last_refreshed_at: chrono::DateTime<chrono::Utc>,
+        pub delete_timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    }
+
     impl SqlUser {
         pub async fn get_by_username(
             username: &str,
@@ -412,6 +427,22 @@ pub mod ssr {
             .await?;
 
         Ok(sql_user)
+    }
+
+    pub async fn get_person_by_username(
+        username: &str,
+        db_pool: &PgPool,
+    ) -> Result<Person, AppError> {
+        let person = sqlx::query_as!(
+            Person,
+            "SELECT FROM persons
+            WHERE username = $1",
+            username,
+        )
+            .fetch_one(db_pool)
+            .await?;
+
+        Ok(person)
     }
 
     async fn load_user_sphere_role_vec(

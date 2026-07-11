@@ -1,31 +1,28 @@
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::Arc;
-
+use activitypub_federation::config::{Data, FederationConfig, FederationMiddleware};
 use axum::body::Body;
 use axum::http::HeaderValue;
 use axum::{body::Body as AxumBody, extract::{Path, State}, http::Request, response::{IntoResponse, Response}, routing::get, Router};
 use axum_session::{Key, SessionConfig, SessionLayer, SessionStore};
 use axum_session_auth::{AuthConfig, AuthSessionLayer};
 use axum_session_sqlx::SessionPgPool;
-use backoff::ExponentialBackoff;
 use base64::{engine::general_purpose, Engine};
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
 use sqlx::PgPool;
-use tokio_cron_scheduler::{Job, JobScheduler};
 
 use sphare_core_common::db_utils::ssr::create_db_pool;
-use sphare_core_common::errors::AppError;
 use sphare_core_common::env::ssr::LEPTOS_ENV;
-use sphare_core_content::post::ssr::update_post_scores;
-use sphare_core_user::notification::ssr::delete_stale_notifications;
 use sphare_core_user::session::ssr::{AuthSession};
 use sphare_core_user::user::ssr::UserLockCache;
 use sphare_core_user::user::User;
 
-use sphare_app::app::*;
+use sphare_iface_user::user::ssr::http_get_user;
 
+use sphare_app::app::*;
+use sphare_core_common::routes::get_app_origin;
 use crate::fallback::file_and_error_handler;
 use crate::state::AppState;
 
@@ -86,6 +83,7 @@ pub fn get_user_lock_cache_size() -> NonZeroUsize {
 async fn server_fn_handler(
     State(app_state): State<AppState>,
     auth_session: AuthSession,
+    federation_data: Data<PgPool>,
     path: Path<String>,
     request: Request<AxumBody>,
 ) -> impl IntoResponse {
@@ -96,6 +94,7 @@ async fn server_fn_handler(
             provide_context(auth_session.clone());
             provide_context(app_state.db_pool.clone());
             provide_context(app_state.user_lock_cache.clone());
+            provide_context(federation_data.clone());
         },
         request,
     ).await
@@ -103,6 +102,7 @@ async fn server_fn_handler(
 
 async fn leptos_routes_handler(
  auth_session: AuthSession,
+ federation_data: Data<PgPool>,
  app_state: State<AppState>,
  req: Request<AxumBody>,
 ) -> Response {
@@ -118,6 +118,7 @@ async fn leptos_routes_handler(
         app_state.routes.clone(),
         move || {
             provide_context(auth_session.clone());
+            provide_context(federation_data.clone());
             provide_context(db_pool.clone());
             provide_context(user_lock_cache.clone());
             provide_context(user_agent.clone());
@@ -145,60 +146,19 @@ fn add_security_headers(response: &mut Response<Body>) {
     );
 }
 
-async fn update_post_scores_with_backoff(
-    retry_duration: std::time::Duration,
-    db_pool: PgPool,
-) -> Result<(), AppError> {
-    let backoff_params = ExponentialBackoff {
-        max_elapsed_time: Some(retry_duration),
-        ..Default::default()
-    };
-    backoff::future::retry(backoff_params, || async {
-        Ok(update_post_scores(&db_pool).await?)
-    }).await
+async fn get_federation_config(db_pool: PgPool) -> Result<FederationConfig<PgPool>, Error> {
+    let config = FederationConfig::builder()
+        .domain(get_app_origin()?)
+        .app_data(db_pool)
+        .build()
+        .await?;
+    Ok(config)
 }
 
-async fn delete_stale_notifications_with_backoff(
-    retry_duration: std::time::Duration,
-    db_pool: PgPool
-) -> Result<(), AppError> {
-    let backoff_params = ExponentialBackoff {
-        max_elapsed_time: Some(retry_duration),
-        ..Default::default()
-    };
-    backoff::future::retry(backoff_params, || async {
-        Ok(delete_stale_notifications(&db_pool).await?)
-    }).await
-}
-
-async fn schedule_update_post_score_job(scheduler: &mut JobScheduler, db_pool: PgPool) {
-    scheduler.add(
-        Job::new_async("0 */5 * * * *", move |_uuid, _l| {
-            let pool = db_pool.clone();
-            let retry_duration = std::time::Duration::from_mins(3);
-            Box::pin(async move {
-                match update_post_scores_with_backoff(retry_duration, pool).await {
-                    Ok(()) => log::debug!("Successfully updated posts' ranking timestamps"),
-                    Err(e) => log::error!("Failed to update posts' ranking timestamps after {} seconds with error: {e}", retry_duration.as_secs()),
-                }
-            })
-        }).expect("Should create post scores update job")
-    ).await.expect("Should schedule post scores update job");
-}
-
-async fn schedule_delete_stale_notif_job(scheduler: &mut JobScheduler, db_pool: PgPool) {
-    scheduler.add(
-        Job::new_async("0 0 0 * * *", move |_uuid, _l| {
-            let retry_duration = std::time::Duration::from_mins(15);
-            let pool = db_pool.clone();
-            Box::pin(async move {
-                match delete_stale_notifications_with_backoff(retry_duration, pool).await {
-                    Ok(()) => log::debug!("Successfully deleted stale notifications"),
-                    Err(e) => log::error!("Failed to deleted stale notifications after {} seconds with error: {e}", retry_duration.as_secs()),
-                }
-            })
-        }).expect("Should create delete stale notification job")
-    ).await.expect("Should schedule delete stale notification job");
+fn activitypub_router(app_state: AppState) -> Router {
+    Router::new()
+        .route("/users/:name", get(http_get_user))
+        .with_state(app_state)
 }
 
 #[tokio::main]
@@ -215,11 +175,6 @@ async fn main() {
         .await
         .expect("Should be able to run SQLx migrations.");
 
-    let mut scheduler = JobScheduler::new().await.expect("Should create Job Scheduler.");
-    schedule_update_post_score_job(&mut scheduler, pool.clone()).await;
-    schedule_delete_stale_notif_job(&mut scheduler, pool.clone()).await;
-    scheduler.start().await.expect("Scheduler should start");
-
     let session_config = SessionConfig::default()
         .with_table_name("sessions")
         // 'Key::generate()' will generate a new key each restart of the server.
@@ -235,6 +190,8 @@ async fn main() {
     let session_store = SessionStore::<SessionPgPool>::new(
         Some(pool.clone().into()), session_config
     ).await.unwrap();
+
+    let federation_config = get_federation_config(pool.clone()).await.expect("Should be able to get federation config");
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
@@ -263,10 +220,11 @@ async fn main() {
         .fallback(file_and_error_handler)
         .layer(
             AuthSessionLayer::<User, i64, SessionPgPool, PgPool>::new(
-                Some(pool)
+                Some(pool.clone())
             ).with_config(auth_config)
         )
         .layer(SessionLayer::new(session_store))
+        .layer(FederationMiddleware::new(federation_config))
         .with_state(app_state);
 
     // run our app with hyper

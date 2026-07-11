@@ -19,6 +19,10 @@ pub mod ssr {
         use_context::<AuthSession>().ok_or_else(|| AppError::new("Auth session missing."))
     }
 
+    pub fn get_federation() -> Result<AuthSession, AppError> {
+        use_context::<AuthSession>().ok_or_else(|| AppError::new("Auth session missing."))
+    }
+
     pub fn get_user_lock_cache() -> Result<Arc<UserLockCache>, AppError> {
         use_context::<Arc<UserLockCache>>().ok_or_else(|| AppError::new("User lock cache missing."))
     }

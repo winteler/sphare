@@ -8,7 +8,7 @@ edition = "2024"
 [dependencies]
 sphare_core_common = { path = "../../lib/core/common", default-features = false, features = ["ssr"] }
 sphare_core_user = { path = "../../lib/core/user", default-features = false, features = ["ssr"] }
-sphare_core_content = { path = "../../lib/core/content", default-features = false, features = ["ssr"] }
+sphare_iface_user = { path = "../../lib/interfaces/user", default-features = false, features = ["ssr"] }
 sphare_cmp_utils = { path = "../../lib/components/utils", default-features = false, features = ["ssr"] }
 sphare_app = { path = "../../lib/components/app", default-features = false, features = ["ssr"] }
 leptos = { workspace = true, features = [ "ssr" ]}
@@ -20,15 +20,12 @@ axum.workspace = true
 axum_session.workspace = true
 axum_session_auth.workspace = true
 axum_session_sqlx.workspace = true
+base64.workspace = true
 log.workspace = true
 simple_logger.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
 tower-http.workspace = true
-
-base64 = "0.22.1"
-backoff = { version = "0.4.0", features = ["tokio"] }
-tokio-cron-scheduler = "0.15.1"
-tracing-subscriber = "0.3.23"
-tracing = "0.1.44"
+tracing-subscriber.workspace = true
+tracing.workspace = true

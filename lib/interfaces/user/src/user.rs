@@ -50,3 +50,22 @@ pub async fn set_user_settings(
     reload_user(user.user_id)?;
     Ok(())
 }
+
+#[cfg(feature = "ssr")]
+pub mod ssr {
+    use activitypub_federation::config::Data;
+    use axum::extract::Path;
+    use axum::response::IntoResponse;
+    use leptos::serde_json;
+    use sqlx::PgPool;
+    use sphare_core_user::user::ssr::get_person_by_username;
+
+    pub async fn http_get_user(
+        Path(name): Path<String>,
+        data: Data<PgPool>,
+    ) -> impl IntoResponse {
+        let person = get_person_by_username(&name, data.app_data()).await?;
+        let person_json = serde_json::to_string(&person)?;
+        Ok(person_json)
+    }
+}

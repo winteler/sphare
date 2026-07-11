@@ -1,0 +1,16 @@
+[package]
+name = "jobs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sphare_core_common = { path = "../../lib/core/common", default-features = false, features = ["ssr"] }
+sphare_core_content = { path = "../../lib/core/content", default-features = false, features = ["ssr"] }
+sphare_core_user = { path = "../../lib/core/user", default-features = false, features = ["ssr"] }
+
+log.workspace = true
+simple_logger.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true

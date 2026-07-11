@@ -35,22 +35,39 @@ AS $$
     END;
 $$;
 
+
+CREATE TABLE persons (
+    person_id BIGSERIAL PRIMARY KEY,
+    username TEXT NOT NULL CHECK (LENGTH(display_name) <= 30),
+    display_name TEXT NOT NULL CHECK (LENGTH(display_name) <= 30),
+    is_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
+    federation_id TEXT NOT NULL,
+    inbox TEXT NOT NULL,
+    outbox TEXT NOT NULL,
+    is_local BOOLEAN NOT NULL,
+    public_key TEXT NOT NULL,
+    last_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    delete_timestamp TIMESTAMPTZ,
+    UNIQUE (federation_id, username)
+);
+
+CREATE UNIQUE INDEX idx_unique_username ON persons (username)
+    WHERE persons.delete_timestamp IS NULL;
+
 CREATE TABLE users (
     user_id BIGSERIAL PRIMARY KEY,
+    person_id BIGINT NOT NULL REFERENCES persons (person_id),
     oidc_id TEXT UNIQUE NOT NULL,
-    username TEXT NOT NULL CHECK (LENGTH(username) <= 30),
     email TEXT NOT NULL,
-    is_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
+    private_key TEXT NOT NULL,
     admin_role TEXT NOT NULL DEFAULT 'None' CHECK (admin_role IN ('None', 'Moderator', 'Admin')),
     days_hide_spoiler INT CHECK (days_hide_spoiler > 0),
     show_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delete_timestamp TIMESTAMPTZ,
-    UNIQUE (user_id, username)
+    UNIQUE (user_id, person_id)
 );
 
-CREATE UNIQUE INDEX idx_unique_username ON users (username)
-    WHERE users.delete_timestamp IS NULL;
 CREATE UNIQUE INDEX idx_unique_email ON users (email)
     WHERE users.delete_timestamp IS NULL;
 
@@ -130,7 +147,7 @@ CREATE TABLE rules (
     ),
     description TEXT NOT NULL CHECK (markdown_description IS NOT NULL OR LENGTH(description) <= 500),
     markdown_description TEXT CHECK (LENGTH(description) <= 500),
-    user_id BIGINT NOT NULL REFERENCES users (user_id),
+    person_id BIGINT NOT NULL REFERENCES persons (person_id),
     create_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delete_timestamp TIMESTAMPTZ
 );
@@ -339,11 +356,11 @@ CREATE INDEX idx_user_ban_sphere ON user_bans (sphere_id, user_id, delete_timest
     WHERE user_bans.delete_timestamp IS NULL;
 
 -- add functional user
-INSERT INTO users (oidc_id, username, email)
-VALUES ('', 'sphare-function-user', '');
+INSERT INTO persons (username, display_name, federation_id, inbox, outbox, is_local, public_key)
+VALUES ('sphare-function-user', 'admin', 'www.sphare.space/', '', '', true, '');
 
 -- add base rules
-INSERT INTO rules (sphere_id, priority, title, description, markdown_description, user_id)
+INSERT INTO rules (sphere_id, priority, title, description, markdown_description, person_id)
 VALUES
 (
 null, 0,'BeRespectful', '',
