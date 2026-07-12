@@ -1,7 +1,8 @@
 use std::num::NonZeroUsize;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc};
 use activitypub_federation::config::{Data, FederationConfig, FederationMiddleware};
+use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use axum::body::Body;
 use axum::http::HeaderValue;
 use axum::{body::Body as AxumBody, extract::{Path, State}, http::Request, response::{IntoResponse, Response}, routing::get, Router};
@@ -12,7 +13,7 @@ use base64::{engine::general_purpose, Engine};
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
 use sqlx::PgPool;
-
+use tower::ServiceExt;
 use sphare_core_common::db_utils::ssr::create_db_pool;
 use sphare_core_common::env::ssr::LEPTOS_ENV;
 use sphare_core_user::session::ssr::{AuthSession};
@@ -22,7 +23,7 @@ use sphare_core_user::user::User;
 use sphare_iface_user::user::ssr::http_get_user;
 
 use sphare_app::app::*;
-use sphare_core_common::routes::get_app_origin;
+use sphare_core_common::routes::{get_app_origin};
 use crate::fallback::file_and_error_handler;
 use crate::state::AppState;
 
@@ -114,20 +115,25 @@ async fn leptos_routes_handler(
         value: req.headers().get("User-Agent").map(|value: &HeaderValue| value.to_str().unwrap_or_default().to_string())
     };
 
-    let handler = leptos_axum::render_route_with_context(
-        app_state.routes.clone(),
-        move || {
-            provide_context(auth_session.clone());
-            provide_context(federation_data.clone());
-            provide_context(db_pool.clone());
-            provide_context(user_lock_cache.clone());
-            provide_context(user_agent.clone());
-        },
-        move || shell(leptos_options.clone()),
-    );
-    let mut response = handler(app_state, req).await.into_response();
-    add_security_headers(&mut response);
-    response
+    let accept = req.headers().get("accept").map(|v| v.to_str().unwrap());
+    if accept == Some(FEDERATION_CONTENT_TYPE) {
+        app_state.activitypub_router.clone().oneshot(req).await.into_response()
+    } else {
+        let handler = leptos_axum::render_route_with_context(
+            app_state.routes.clone(),
+            move || {
+                provide_context(auth_session.clone());
+                provide_context(federation_data.clone());
+                provide_context(db_pool.clone());
+                provide_context(user_lock_cache.clone());
+                provide_context(user_agent.clone());
+            },
+            move || shell(leptos_options.clone()),
+        );
+        let mut response = handler(app_state, req).await.into_response();
+        add_security_headers(&mut response);
+        response
+    }
 }
 
 fn add_security_headers(response: &mut Response<Body>) {
@@ -155,10 +161,12 @@ async fn get_federation_config(db_pool: PgPool) -> Result<FederationConfig<PgPoo
     Ok(config)
 }
 
-fn activitypub_router(app_state: AppState) -> Router {
+async fn get_activitypub_router(db_pool: &PgPool) -> Router {
+    let federation_config = get_federation_config(db_pool.clone()).await.expect("Should be able to get federation config");
+
     Router::new()
         .route("/users/:name", get(http_get_user))
-        .with_state(app_state)
+        .layer(FederationMiddleware::new(federation_config))
 }
 
 #[tokio::main]
@@ -191,7 +199,7 @@ async fn main() {
         Some(pool.clone().into()), session_config
     ).await.unwrap();
 
-    let federation_config = get_federation_config(pool.clone()).await.expect("Should be able to get federation config");
+    let activity_pub_router = get_activitypub_router(&pool).await;
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
     // For deployment these variables are:
@@ -208,6 +216,7 @@ async fn main() {
         db_pool: pool.clone(),
         user_lock_cache: Arc::new(UserLockCache::new(get_user_lock_cache_size())),
         routes: routes.clone(),
+        activitypub_router: activity_pub_router,
     };
 
     // build our application with a route
@@ -224,7 +233,6 @@ async fn main() {
             ).with_config(auth_config)
         )
         .layer(SessionLayer::new(session_store))
-        .layer(FederationMiddleware::new(federation_config))
         .with_state(app_state);
 
     // run our app with hyper

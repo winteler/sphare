@@ -18,6 +18,7 @@ pub enum BanStatus {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct User {
     pub user_id: i64,
+    pub person_id: i64,
     pub oidc_id: String,
     pub username: String,
     pub email: String,
@@ -49,7 +50,7 @@ pub struct UserPostFilters {
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct UserBan {
     pub ban_id: i64,
-    pub user_id: i64,
+    pub person_id: i64,
     pub username: String,
     pub sphere_id: Option<i64>,
     pub sphere_name: Option<String>,
@@ -78,6 +79,7 @@ impl Default for User {
     fn default() -> Self {
         Self {
             user_id: -1,
+            person_id: -1,
             oidc_id: String::default(),
             username: String::default(),
             email: String::default(),
@@ -182,21 +184,29 @@ pub mod ssr {
     use async_trait::async_trait;
     use axum_session_auth::Authentication;
     use lru::LruCache;
+    use rand::prelude::StdRng;
+    use rand::rngs::SysRng;
+    use rand::SeedableRng;
+    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use rsa::pkcs1::LineEnding;
+    use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
     use sqlx::PgPool;
     use tokio::sync::Mutex;
-
+    use url::Url;
     use sphare_core_common::checks::check_username;
-    use sphare_core_common::constants::USER_FETCH_LIMIT;
+    use sphare_core_common::constants::{RSA_KEY_SIZE, USER_FETCH_LIMIT};
     use sphare_core_common::errors::AppError;
-
+    use sphare_core_common::routes::{get_profile_link, ACTIVITY_PUB_INBOX_PATH, ACTIVITY_PUB_OUTBOX_PATH};
+    use sphare_core_common::to_app_error;
     use crate::role::ssr::get_user_sphere_role;
     use crate::role::UserSphereRole;
 
     use super::*;
 
     #[derive(sqlx::FromRow, Clone, Debug, PartialEq)]
-    pub struct SqlUser {
+    pub struct DbUser {
         pub user_id: i64,
+        pub person_id: i64,
         pub oidc_id: String,
         pub username: String,
         pub email: String,
@@ -204,12 +214,13 @@ pub mod ssr {
         pub admin_role: AdminRole,
         pub show_nsfw: bool,
         pub days_hide_spoiler: Option<i32>,
+        pub private_key: String,
         pub timestamp: chrono::DateTime<chrono::Utc>,
         pub delete_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
 
     #[derive(sqlx::FromRow, Clone, Debug, PartialEq, Serialize, Deserialize)]
-    pub struct Person {
+    pub struct DbPerson {
         pub person_id: i64,
         pub username: String,
         pub display_name: String,
@@ -223,20 +234,22 @@ pub mod ssr {
         pub delete_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
 
-    impl SqlUser {
+    impl DbUser {
         pub async fn get_by_username(
             username: &str,
             db_pool: &PgPool,
-        ) -> Result<SqlUser, AppError> {
-            let sql_user = sqlx::query_as!(
-            SqlUser,
-            "SELECT * FROM users WHERE username = $1",
+        ) -> Result<DbUser, AppError> {
+            let db_user = sqlx::query_as!(
+            DbUser,
+            "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
+            JOIN persons p ON p.person_id = u.person_id
+            WHERE p.username = $1",
             username,
         )
                 .fetch_one(db_pool)
                 .await?;
 
-            Ok(sql_user)
+            Ok(db_user)
         }
 
         pub fn into_user(
@@ -290,6 +303,7 @@ pub mod ssr {
 
             User {
                 user_id: self.user_id,
+                person_id: self.person_id,
                 oidc_id: self.oidc_id,
                 username: self.username,
                 email: self.email,
@@ -305,9 +319,16 @@ pub mod ssr {
                 delete_timestamp: self.delete_timestamp,
             }
         }
+
+        /// Load additional user data and returns User
+        pub async fn load_into_user(self, db_pool: &PgPool) -> Result<User, AppError> {
+            let user_sphere_role_vec = load_user_sphere_role_vec(self.person_id, db_pool).await?;
+            let user_ban_vec = load_user_ban_vec(self.person_id, db_pool).await?;
+            Ok(self.into_user(user_sphere_role_vec, user_ban_vec))
+        }
     }
 
-    // Map of (user_id, lock) to guarantee thread-safety when performing some operations, such as refreshing tokens
+    // Map of (person_id, lock) to guarantee thread-safety when performing some operations, such as refreshing tokens
     #[derive(Debug)]
 
     pub struct UserLockCache {
@@ -323,36 +344,31 @@ pub mod ssr {
         }
 
         // Get or insert a lock for the user, updating the LRU cache
-        pub async fn get_user_lock(&self, user_id: i64) -> Arc<Mutex<()>> {
+        pub async fn get_user_lock(&self, person_id: i64) -> Arc<Mutex<()>> {
             let mut lock_cache = self.lock_cache.lock().await;
 
             // If the user ID exists, update access and return the lock
-            if let Some(lock) = lock_cache.get(&user_id) {
+            if let Some(lock) = lock_cache.get(&person_id) {
                 return Arc::clone(lock);
             }
 
             // If the user ID does not exist, insert a new entry
             let new_lock = Arc::new(Mutex::new(()));
-            lock_cache.put(user_id, Arc::clone(&new_lock));
+            lock_cache.put(person_id, Arc::clone(&new_lock));
             new_lock
         }
     }
 
     impl User {
-        pub async fn get(user_id: i64, db_pool: &PgPool) -> Option<Self> {
-            match sqlx::query_as!(SqlUser, "SELECT * FROM users WHERE user_id = $1", user_id)
-                .fetch_one(db_pool)
-                .await
-            {
-                Ok(sql_user) => {
-                    let user_sphere_role_vec = load_user_sphere_role_vec(sql_user.user_id, db_pool)
-                        .await
-                        .unwrap_or_default();
-                    let user_ban_vec = load_user_ban_vec(sql_user.user_id, db_pool)
-                        .await
-                        .unwrap_or_default();
-                    Some(sql_user.into_user(user_sphere_role_vec, user_ban_vec))
-                }
+        pub async fn get(person_id: i64, db_pool: &PgPool) -> Option<Self> {
+            match sqlx::query_as!(
+                DbUser,
+                "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
+                JOIN persons p ON p.person_id = u.person_id
+                WHERE u.person_id = $1",
+                person_id
+            ).fetch_one(db_pool).await {
+                Ok(db_user) => db_user.load_into_user(db_pool).await.ok(),
                 Err(select_error) => {
                     log::debug!("User not found with error: {}", select_error);
                     None
@@ -363,11 +379,11 @@ pub mod ssr {
         pub async fn check_can_set_user_sphere_role(
             &self,
             permission_level: PermissionLevel,
-            user_id: i64,
+            person_id: i64,
             sphere_name: &str,
             db_pool: &PgPool,
         ) -> Result<(), AppError> {
-            let user_role = get_user_sphere_role(user_id, sphere_name, db_pool).await;
+            let user_role = get_user_sphere_role(person_id, sphere_name, db_pool).await;
             match (self.admin_role, self.permission_by_sphere_name_map.get(sphere_name), user_role) {
                 (AdminRole::Admin, _, Ok(user_role)) |
                 (_, Some(PermissionLevel::Lead), Ok(user_role)) if user_role.permission_level < PermissionLevel::Lead => Ok(()),
@@ -379,14 +395,26 @@ pub mod ssr {
                 _ => Err(AppError::InsufficientPrivileges),
             }
         }
+
+        pub fn get_user_inbox(
+            username: &str,
+        ) -> Result<Url, AppError> {
+            get_profile_link(username)?.join(ACTIVITY_PUB_INBOX_PATH).map_err(AppError::from)
+        }
+
+        pub fn get_user_outbox(
+            username: &str,
+        ) -> Result<Url, AppError> {
+            get_profile_link(username)?.join(ACTIVITY_PUB_OUTBOX_PATH).map_err(AppError::from)
+        }
     }
 
     #[async_trait]
     impl Authentication<User, i64, PgPool> for User {
-        async fn load_user(user_id: i64, pool: Option<&PgPool>) -> Result<User, anyhow::Error> {
+        async fn load_user(person_id: i64, pool: Option<&PgPool>) -> Result<User, anyhow::Error> {
             let pool = pool.ok_or(anyhow::anyhow!("Cannot get DB pool"))?;
 
-            User::get(user_id, pool)
+            User::get(person_id, pool)
                 .await
                 .ok_or_else(|| anyhow::anyhow!("Cannot get user"))
         }
@@ -404,38 +432,115 @@ pub mod ssr {
         }
     }
 
+    async fn get_optional_user_by_oidc_id(
+        oidc_id: &str,
+        db_pool: &PgPool,
+    ) -> Result<Option<DbUser>, AppError> {
+        let db_user = sqlx::query_as!(
+            DbUser,
+            "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
+            JOIN persons p ON p.person_id = u.person_id
+            WHERE oidc_id = $1",
+            oidc_id,
+        )
+            .fetch_optional(db_pool)
+            .await?;
+        Ok(db_user)
+    }
+
     pub async fn create_or_update_user(
         oidc_id: &str,
         username: &str,
         email: &str,
         db_pool: &PgPool,
-    ) -> Result<SqlUser, AppError> {
+    ) -> Result<DbUser, AppError> {
         log::debug!("Create or update user {username} with oidc id = {oidc_id}");
-        let sql_user = sqlx::query_as!(
-            SqlUser,
-            "INSERT INTO users (oidc_id, username, email)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (oidc_id) DO UPDATE
-                SET username = EXCLUDED.username,
-                    email = EXCLUDED.email
-            RETURNING *",
+        let is_already_created = get_optional_user_by_oidc_id(oidc_id, db_pool).await?.is_some();
+        let db_user = match is_already_created {
+            true => update_user(oidc_id, username, email, db_pool).await?,
+            false => create_user(oidc_id, username, email, db_pool).await?,
+        };
+
+        Ok(db_user)
+    }
+
+    async fn update_user(
+        oidc_id: &str,
+        username: &str,
+        email: &str,
+        db_pool: &PgPool,
+    ) -> Result<DbUser, AppError> {
+        let user = sqlx::query_as!(
+            DbUser,
+            "WITH updated_user AS (
+                UPDATE users
+                SET email = $1
+                WHERE oidc_id = $2
+                RETURNING *
+            ), updated_person AS (
+                UPDATE persons
+                SET username = $3,
+                    display_name = $3
+                WHERE person_id = (SELECT person_id FROM updated_user)
+                RETURNING *
+            )
+            SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM updated_user u, updated_person p",
+            email,
             oidc_id,
             username,
+        ).fetch_one(db_pool).await?;
+
+        Ok(user)
+    }
+
+    async fn create_user(
+        oidc_id: &str,
+        username: &str,
+        email: &str,
+        db_pool: &PgPool,
+    ) -> Result<DbUser, AppError> {
+        let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
+        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
+        let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::LF).map_err(to_app_error!("Failed to create private key pem"))?;
+        let pub_key = RsaPublicKey::from(&priv_key);
+
+        let db_user = sqlx::query_as!(
+            DbUser,
+            "WITH new_person AS (
+                INSERT INTO persons
+                    (username, display_name, federation_id, inbox, outbox, is_local, public_key)
+                VALUES ($1, $1, $2, $3, $4, $5, $6)
+                RETURNING *
+            ), new_user AS (
+                INSERT INTO users (person_id, oidc_id, email, private_key)
+                VALUES ((SELECT person_id FROM new_person), $7, $8, $9)
+                RETURNING *
+            )
+            SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp
+            FROM new_user u, new_person p",
+            username,
+            get_profile_link(username)?.to_string(),
+            User::get_user_inbox(username)?.to_string(),
+            User::get_user_outbox(username)?.to_string(),
+            true,
+            pub_key.to_public_key_pem(LineEnding::LF).map_err(AppError::new)?,
+            oidc_id,
             email,
+            priv_key_pem.as_str(),
         )
             .fetch_one(db_pool)
             .await?;
 
-        Ok(sql_user)
+        Ok(db_user)
     }
 
     pub async fn get_person_by_username(
         username: &str,
         db_pool: &PgPool,
-    ) -> Result<Person, AppError> {
+    ) -> Result<DbPerson, AppError> {
         let person = sqlx::query_as!(
-            Person,
-            "SELECT FROM persons
+            DbPerson,
+            "SELECT * FROM persons
             WHERE username = $1",
             username,
         )
@@ -446,17 +551,17 @@ pub mod ssr {
     }
 
     async fn load_user_sphere_role_vec(
-        user_id: i64,
+        person_id: i64,
         db_pool: &PgPool,
     ) -> Result<Vec<UserSphereRole>, AppError> {
         let user_sphere_role_vec = sqlx::query_as!(
             UserSphereRole,
-            "SELECT r.*, u.username, s.sphere_name
+            "SELECT r.*, p.username, s.sphere_name
             FROM user_sphere_roles r
-            JOIN users u ON u.user_id = r.user_id
+            JOIN persons p ON p.person_id = r.person_id
             JOIN spheres s ON s.sphere_id = r.sphere_id
-            WHERE r.user_id = $1 AND r.delete_timestamp IS NULL",
-            user_id
+            WHERE r.person_id = $1 AND r.delete_timestamp IS NULL",
+            person_id
         )
             .fetch_all(db_pool)
             .await?;
@@ -467,11 +572,11 @@ pub mod ssr {
     async fn load_user_ban_vec(user_id: i64, db_pool: &PgPool) -> Result<Vec<UserBan>, AppError> {
         let user_ban_vec = sqlx::query_as!(
             UserBan,
-            "SELECT b.*, u.username, s.sphere_name FROM user_bans b
-            JOIN users u ON u.user_id = b.user_id
+            "SELECT b.*, p.username, s.sphere_name FROM user_bans b
+            JOIN persons p ON p.person_id = b.person_id
             JOIN spheres s ON s.sphere_id = b.sphere_id
             WHERE
-                b.user_id = $1 AND
+                b.person_id = $1 AND
                 (b.until_timestamp > NOW() OR b.until_timestamp IS NULL) AND
                 b.delete_timestamp IS NULL",
             user_id,
@@ -492,7 +597,7 @@ pub mod ssr {
         let user_header_vec = sqlx::query_as!(
             UserHeader,
             "SELECT username, is_nsfw
-            FROM users
+            FROM persons
             WHERE
                 username LIKE $1 AND
                 ($2 OR NOT is_nsfw) AND
@@ -521,17 +626,22 @@ pub mod ssr {
         };
         sqlx::query!(
             "UPDATE users SET
-                is_nsfw = $1,
-                show_nsfw = $2,
-                days_hide_spoiler = $3
-            WHERE user_id = $4",
-            is_nsfw,
+                show_nsfw = $1,
+                days_hide_spoiler = $2
+            WHERE user_id = $3",
             show_nsfw,
             days_hide_spoilers,
             user.user_id,
-        )
-            .execute(db_pool)
-            .await?;
+        ).execute(db_pool).await?;
+
+        sqlx::query!(
+            "UPDATE persons SET
+                is_nsfw = $1
+            WHERE person_id = $2",
+            is_nsfw,
+            user.person_id,
+        ).execute(db_pool).await?;
+
         Ok(())
     }
 
@@ -546,20 +656,19 @@ pub mod ssr {
         delete_user_bans(user, db_pool).await?;
 
         sqlx::query!(
-            "UPDATE users SET
-                 username = '',
-                 email = '',
-                 is_nsfw = false,
-                 admin_role = 'None',
-                 days_hide_spoiler = NULL,
-                 show_nsfw = false,
-                 timestamp = NOW(),
+            "UPDATE persons SET
+                 display_name = '',
+                 public_key = '',
                  delete_timestamp = NOW()
+            WHERE person_id = $1",
+            user.person_id,
+        ).execute(db_pool).await?;
+
+        sqlx::query!(
+            "DELETE FROM users
             WHERE user_id = $1",
             user.user_id,
-        )
-            .execute(db_pool)
-            .await?;
+        ).execute(db_pool).await?;
 
         Ok(())
     }
@@ -619,8 +728,8 @@ pub mod ssr {
         sqlx::query!(
             "UPDATE user_sphere_roles
             SET delete_timestamp = NOW()
-            WHERE user_id = $1 AND delete_timestamp IS NULL",
-            user.user_id,
+            WHERE person_id = $1 AND delete_timestamp IS NULL",
+            user.person_id,
         )
             .execute(db_pool)
             .await?;
@@ -635,8 +744,8 @@ pub mod ssr {
         sqlx::query!(
             "UPDATE user_bans
             SET delete_timestamp = NOW()
-            WHERE user_id = $1 AND delete_timestamp IS NULL",
-            user.user_id
+            WHERE person_id = $1 AND delete_timestamp IS NULL",
+            user.person_id
         )
             .execute(db_pool)
             .await?;
@@ -653,11 +762,12 @@ pub mod ssr {
         use super::*;
 
         #[test]
-        fn test_sql_user_into_user() {
+        fn test_db_user_into_user() {
             let past_timestamp = chrono::DateTime::from_timestamp_nanos(0);
             let future_timestamp = chrono::offset::Utc::now().add(Days::new(1));
-            let sql_user = SqlUser {
+            let db_user = DbUser {
                 user_id: 0,
+                person_id: 0,
                 oidc_id: String::from("a"),
                 username: String::from("b"),
                 email: String::from("c"),
@@ -665,13 +775,14 @@ pub mod ssr {
                 admin_role: AdminRole::None,
                 show_nsfw: true,
                 days_hide_spoiler: None,
+                private_key: "".to_string(),
                 timestamp: chrono::DateTime::from_timestamp_nanos(0),
                 delete_timestamp: None,
             };
             let user_sphere_role_vec = vec![
                 UserSphereRole {
                     role_id: 0,
-                    user_id: 0,
+                    person_id: 0,
                     username: String::from("b"),
                     sphere_id: 0,
                     sphere_name: String::from("0"),
@@ -682,7 +793,7 @@ pub mod ssr {
                 },
                 UserSphereRole {
                     role_id: 0,
-                    user_id: 0,
+                    person_id: 0,
                     username: String::from("b"),
                     sphere_id: 1,
                     sphere_name: String::from("1"),
@@ -695,7 +806,7 @@ pub mod ssr {
             let user_ban_vec = vec![
                 UserBan {
                     ban_id: 0,
-                    user_id: 0,
+                    person_id: 0,
                     username: String::from("b"),
                     sphere_id: None,
                     sphere_name: None,
@@ -709,7 +820,7 @@ pub mod ssr {
                 },
                 UserBan {
                     ban_id: 1,
-                    user_id: 0,
+                    person_id: 0,
                     username: String::from("b"),
                     sphere_id: Some(0),
                     sphere_name: Some(String::from("a")),
@@ -723,7 +834,7 @@ pub mod ssr {
                 },
                 UserBan {
                     ban_id: 2,
-                    user_id: 0,
+                    person_id: 0,
                     username: String::from("b"),
                     sphere_id: Some(1),
                     sphere_name: Some(String::from("b")),
@@ -737,7 +848,7 @@ pub mod ssr {
                 },
                 UserBan {
                     ban_id: 3,
-                    user_id: 0,
+                    person_id: 0,
                     username: String::from("b"),
                     sphere_id: Some(2),
                     sphere_name: Some(String::from("c")),
@@ -750,7 +861,7 @@ pub mod ssr {
                     delete_timestamp: None,
                 },
             ];
-            let user_1 = sql_user.clone().into_user(user_sphere_role_vec.clone(), user_ban_vec);
+            let user_1 = db_user.clone().into_user(user_sphere_role_vec.clone(), user_ban_vec);
             assert_eq!(user_1.user_id, 0);
             assert_eq!(user_1.oidc_id, "a");
             assert_eq!(user_1.username, "b");
@@ -773,7 +884,7 @@ pub mod ssr {
 
             let user_2_ban_vec = vec![UserBan {
                 ban_id: 3,
-                user_id: 0,
+                person_id: 0,
                 username: String::from("b"),
                 sphere_id: None,
                 sphere_name: None,
@@ -785,7 +896,7 @@ pub mod ssr {
                 create_timestamp: Default::default(),
                 delete_timestamp: None,
             }];
-            let user_2 = sql_user.into_user(user_sphere_role_vec, user_2_ban_vec);
+            let user_2 = db_user.into_user(user_sphere_role_vec, user_2_ban_vec);
             assert_eq!(user_2.ban_status, BanStatus::Until(future_timestamp));
         }
     }

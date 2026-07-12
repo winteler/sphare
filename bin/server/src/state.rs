@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::extract::FromRef;
+use axum::Router;
 use leptos::prelude::LeptosOptions;
 use leptos_axum::AxumRouteListing;
 use sqlx::PgPool;
@@ -15,4 +16,5 @@ pub struct AppState {
     pub db_pool: PgPool,
     pub user_lock_cache: Arc<UserLockCache>,
     pub routes: Vec<AxumRouteListing>,
+    pub activitypub_router: Router,
 }

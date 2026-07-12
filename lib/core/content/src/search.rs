@@ -131,7 +131,7 @@ pub mod ssr {
         let post_vec = sqlx::query_as::<_, PostJoinSphereInfo>(
             "SELECT
                 p.*,
-                u.username as creator_name,
+                pe.username as creator_name,
                 c.category_name,
                 c.category_color,
                 s.icon_url as sphere_icon_url,
@@ -139,7 +139,7 @@ pub mod ssr {
                 ts_rank(p.post_document,
                 plainto_tsquery('simple', $1)) AS rank
             FROM posts p
-            JOIN users u ON u.user_id = p.creator_id
+            JOIN persons pe ON pe.person_id = p.creator_id
             JOIN spheres s ON s.sphere_id = p.sphere_id
             LEFT JOIN sphere_categories c ON c.category_id = p.category_id
             WHERE
@@ -181,7 +181,7 @@ pub mod ssr {
         let comment_vec = sqlx::query_as::<_, CommentWithContext>(
             "SELECT
                 c.*,
-                u.username as creator_name,
+                pe.username as creator_name,
                 p.sphere_id,
                 p.satellite_id,
                 p.title as post_title,
@@ -191,7 +191,7 @@ pub mod ssr {
                 ts_rank(c.comment_document,
                 plainto_tsquery('simple', $1)) AS rank
                 FROM comments c
-                JOIN users u ON u.user_id = c.creator_id
+                JOIN persons pe ON pe.person_id = c.creator_id
                 JOIN posts p ON p.post_id = c.post_id
                 JOIN spheres s ON s.sphere_id = p.sphere_id
                 WHERE

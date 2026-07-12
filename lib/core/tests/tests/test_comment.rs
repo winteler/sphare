@@ -80,7 +80,7 @@ async fn test_get_post_comment_tree() -> Result<(), AppError> {
     ).await;
 
     // reload user to refresh moderator permissions
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user.");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user.");
     let pinned_comment = create_comment(post.post_id, None, "1", None, true, &user, &db_pool).await?;
 
     expected_comment_tree.push(CommentWithChildren {
@@ -94,7 +94,7 @@ async fn test_get_post_comment_tree() -> Result<(), AppError> {
             post.post_id,
             SortType::Comment(sort_type),
             None,
-            Some(user.user_id),
+            Some(user.person_id),
             COMMENT_BATCH_SIZE,
             0,
             &db_pool,
@@ -109,7 +109,7 @@ async fn test_get_post_comment_tree() -> Result<(), AppError> {
             post.post_id,
             SortType::Comment(sort_type),
             None,
-            Some(user.user_id),
+            Some(user.person_id),
             COMMENT_BATCH_SIZE,
             COMMENT_BATCH_SIZE,
             &db_pool,
@@ -158,7 +158,7 @@ async fn test_get_post_comment_tree_with_depth() {
         post.post_id,
         SortType::Comment(CommentSortType::Best),
         Some(0),
-        Some(user.user_id),
+        Some(user.person_id),
         COMMENT_BATCH_SIZE,
         0,
         &db_pool,
@@ -183,7 +183,7 @@ async fn test_get_post_comment_tree_with_depth() {
         post.post_id,
         SortType::Comment(CommentSortType::Best),
         Some(1),
-        Some(user.user_id),
+        Some(user.person_id),
         COMMENT_BATCH_SIZE,
         0,
         &db_pool,
@@ -245,7 +245,7 @@ async fn test_get_comment_tree_by_id() {
         post.post_id,
         SortType::Comment(CommentSortType::Best),
         None,
-        Some(user.user_id),
+        Some(user.person_id),
         COMMENT_BATCH_SIZE,
         0,
         &db_pool
@@ -271,27 +271,27 @@ async fn test_get_comment_tree_by_id() {
 
     for sort_type in COMMENT_SORT_TYPE_ARRAY {
         let comment_1_tree = get_comment_tree_by_id(
-            comment_1.comment_id, SortType::Comment(sort_type), None, Some(user.user_id), &db_pool
+            comment_1.comment_id, SortType::Comment(sort_type), None, Some(user.person_id), &db_pool
         ).await.expect("Should get comment 1 tree");
         assert_eq!(comment_1_tree, *expected_comment_1_tree);
 
         let comment_2_tree = get_comment_tree_by_id(
-            comment_2.comment_id, SortType::Comment(sort_type), None, Some(user.user_id), &db_pool
+            comment_2.comment_id, SortType::Comment(sort_type), None, Some(user.person_id), &db_pool
         ).await.expect("Should get comment 2 tree");
         assert_eq!(comment_2_tree, *expected_comment_2_tree);
 
         let comment_1_1_tree = get_comment_tree_by_id(
-            comment_1_1.comment_id, SortType::Comment(sort_type), None, Some(user.user_id), &db_pool
+            comment_1_1.comment_id, SortType::Comment(sort_type), None, Some(user.person_id), &db_pool
         ).await.expect("Should get comment 1_1 tree");
         assert_eq!(comment_1_1_tree, expected_comment_1_1_tree);
 
         let comment_1_2_tree = get_comment_tree_by_id(
-            comment_1_2.comment_id, SortType::Comment(sort_type), None, Some(user.user_id), &db_pool
+            comment_1_2.comment_id, SortType::Comment(sort_type), None, Some(user.person_id), &db_pool
         ).await.expect("Should get comment 1_2 tree");
         assert_eq!(comment_1_2_tree, expected_comment_1_2_tree);
 
         let comment_1_2_1_tree = get_comment_tree_by_id(
-            comment_1_2_1.comment_id, SortType::Comment(sort_type), None, Some(user.user_id), &db_pool
+            comment_1_2_1.comment_id, SortType::Comment(sort_type), None, Some(user.person_id), &db_pool
         ).await.expect("Should get comment 1_2_1 tree");
         assert_eq!(comment_1_2_1_tree, *expected_comment_1_2_1_tree);
     }
@@ -300,7 +300,7 @@ async fn test_get_comment_tree_by_id() {
         comment_1.comment_id,
         SortType::Comment(CommentSortType::Best),
         Some(0),
-        Some(user.user_id),
+        Some(user.person_id),
         &db_pool
     ).await.expect("Should get depth 0 comment 1 tree");
 
@@ -319,7 +319,7 @@ async fn test_get_comment_tree_by_id() {
         comment_1.comment_id,
         SortType::Comment(CommentSortType::Best),
         Some(0),
-        Some(user.user_id),
+        Some(user.person_id),
         &db_pool
     ).await.expect("Should get depth 0 comment 1 tree");
 
@@ -342,7 +342,7 @@ async fn test_get_comment_tree_by_id() {
         comment_1.comment_id,
         SortType::Comment(CommentSortType::Best),
         Some(1),
-        Some(user.user_id),
+        Some(user.person_id),
         &db_pool
     ).await.expect("Should get depth 1 comment 1 tree");
 
@@ -383,13 +383,13 @@ async fn test_create_comment_with_notif() {
     ).await.expect("Should create comment with post notif");
 
     let expected_comment_1 = get_comment_by_id(comment_1.comment.comment_id, &db_pool).await.expect("Should get comment 1");
-    let expected_vote_1 = get_user_comment_vote(&comment_1.comment, base_user.user_id, &db_pool).await.expect("Should get vote 1");
+    let expected_vote_1 = get_user_comment_vote(&comment_1.comment, base_user.person_id, &db_pool).await.expect("Should get vote 1");
 
     assert_eq!(comment_1.comment, expected_comment_1);
     assert_eq!(comment_1.vote.as_ref(), Some(&expected_vote_1));
     assert_eq!(expected_vote_1.post_id, expected_comment_1.post_id);
     assert_eq!(expected_vote_1.comment_id, Some(expected_comment_1.comment_id));
-    assert_eq!(expected_vote_1.user_id, base_user.user_id);
+    assert_eq!(expected_vote_1.person_id, base_user.person_id);
     assert_eq!(expected_vote_1.value, VoteValue::Up);
 
     assert_eq!(expected_comment_1.post_id, post.post_id);
@@ -409,7 +409,7 @@ async fn test_create_comment_with_notif() {
     ).await.expect("Should create comment without notif");
 
     let expected_comment_2 = get_comment_by_id(comment_2.comment.comment_id, &db_pool).await.expect("Should get comment 2");
-    let expected_vote_2 = get_user_comment_vote(&comment_2.comment, user.user_id, &db_pool).await.expect("Should get vote 2");
+    let expected_vote_2 = get_user_comment_vote(&comment_2.comment, user.person_id, &db_pool).await.expect("Should get vote 2");
 
 
     assert_eq!(comment_2.comment, expected_comment_2);
@@ -444,14 +444,14 @@ async fn test_create_comment_with_notif() {
     assert_eq!(user_notif.post_id, comment_1.comment.post_id);
     assert_eq!(user_notif.comment_id, Some(comment_1.comment.comment_id));
     assert_eq!(user_notif.user_id, user.user_id);
-    assert_eq!(user_notif.trigger_user_id, base_user.user_id);
+    assert_eq!(user_notif.trigger_person_id, base_user.person_id);
     assert_eq!(user_notif.is_read, false);
 
     assert_eq!(base_user_notif.notification_type, NotificationType::CommentReply);
     assert_eq!(base_user_notif.post_id, comment_3.comment.post_id);
     assert_eq!(base_user_notif.comment_id, Some(comment_3.comment.comment_id));
     assert_eq!(base_user_notif.user_id, base_user.user_id);
-    assert_eq!(base_user_notif.trigger_user_id, user.user_id);
+    assert_eq!(base_user_notif.trigger_person_id, user.person_id);
     assert_eq!(base_user_notif.is_read, false);
 }
 
@@ -474,7 +474,7 @@ async fn test_create_comment() -> Result<(), AppError> {
     assert_eq!(comment.infringed_rule_title, None);
     assert_eq!(comment.parent_id, None);
     assert_eq!(comment.post_id, post.post_id);
-    assert_eq!(comment.creator_id, user.user_id);
+    assert_eq!(comment.creator_id, user.person_id);
     assert_eq!(comment.creator_name, user.username);
     assert_eq!(comment.is_creator_moderator, true);
     assert_eq!(comment.moderator_id, None);
@@ -494,7 +494,7 @@ async fn test_create_comment() -> Result<(), AppError> {
     let post = get_post_by_id(post.post_id, &db_pool).await.expect("Should get post.");
     assert_eq!(post.num_comments, 1);
 
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be reloaded.");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be reloaded.");
     let markdown_body = "# markdown";
     let child_comment = create_comment(post.post_id, Some(comment.comment_id), comment_body, Some(markdown_body), true, &user, &db_pool).await.expect("Comment should be created.");
 
@@ -506,7 +506,7 @@ async fn test_create_comment() -> Result<(), AppError> {
     assert_eq!(child_comment.infringed_rule_title, None);
     assert_eq!(child_comment.parent_id, Some(comment.comment_id));
     assert_eq!(child_comment.post_id, post.post_id);
-    assert_eq!(child_comment.creator_id, user.user_id);
+    assert_eq!(child_comment.creator_id, user.person_id);
     assert_eq!(child_comment.creator_name, user.username);
     assert_eq!(child_comment.is_creator_moderator, true);
     assert_eq!(child_comment.moderator_id, None);
@@ -661,7 +661,7 @@ async fn test_delete_comment() {
     assert_eq!(deleted_comment.post_id, comment.post_id);
     assert_eq!(deleted_comment.body, "");
     assert_eq!(deleted_comment.markdown_body, None);
-    assert_eq!(deleted_comment.creator_id, user.user_id);
+    assert_eq!(deleted_comment.creator_id, user.person_id);
     assert_eq!(deleted_comment.creator_name, "");
     assert_eq!(deleted_comment.is_pinned, false);
     assert!(
@@ -685,7 +685,7 @@ async fn test_delete_comment() {
     assert_eq!(deleted_parent_comment.post_id, parent_comment.post_id);
     assert_eq!(deleted_parent_comment.body, "");
     assert_eq!(deleted_parent_comment.markdown_body, None);
-    assert_eq!(deleted_comment.creator_id, user.user_id);
+    assert_eq!(deleted_comment.creator_id, user.person_id);
     assert_eq!(deleted_comment.creator_name, "");
     assert_eq!(deleted_parent_comment.is_pinned, false);
     assert!(

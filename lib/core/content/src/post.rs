@@ -183,7 +183,7 @@ pub mod ssr {
         pub vote_id: Option<i64>,
         pub vote_post_id: Option<i64>,
         pub vote_comment_id: Option<Option<i64>>,
-        pub vote_user_id: Option<i64>,
+        pub vote_person_id: Option<i64>,
         pub value: Option<i16>,
         pub vote_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
@@ -215,12 +215,12 @@ pub mod ssr {
                 }),
                 _ => None,
             };
-            let post_vote = match (self.vote_id, self.vote_user_id, self.value, self.vote_timestamp) {
-                (Some(vote_id), Some(vote_user_id), Some(value), Some(vote_timestamp)) => Some(Vote {
+            let post_vote = match (self.vote_id, self.vote_person_id, self.value, self.vote_timestamp) {
+                (Some(vote_id), Some(vote_person_id), Some(value), Some(vote_timestamp)) => Some(Vote {
                     vote_id,
                     post_id: self.post.post_id,
                     comment_id: None,
-                    user_id: vote_user_id,
+                    person_id: vote_person_id,
                     value: VoteValue::from(value),
                     timestamp: vote_timestamp,
                 }),
@@ -242,13 +242,13 @@ pub mod ssr {
         let post = sqlx::query_as::<_, Post>(
             "SELECT
                 p.*,
-                COALESCE(u.username, '') as creator_name,
+                COALESCE(pe.username, '') as creator_name,
                 m.username as moderator_name,
                 r.title as infringed_rule_title,
                 r.sphere_id IS NOT NULL AS is_sphere_rule
             FROM posts p
-            JOIN users u ON u.user_id = p.creator_id AND p.delete_timestamp IS NULL
-            LEFT JOIN users m ON m.user_id = p.moderator_id AND p.delete_timestamp IS NULL
+            JOIN persons pe ON pe.person_id = p.creator_id AND p.delete_timestamp IS NULL
+            LEFT JOIN persons m ON m.person_id = p.moderator_id AND p.delete_timestamp IS NULL
             LEFT JOIN rules r ON r.rule_id = p.infringed_rule_id AND p.delete_timestamp IS NULL
             WHERE post_id = $1",
         )
@@ -264,34 +264,34 @@ pub mod ssr {
         user: Option<&User>,
         db_pool: &PgPool,
     ) -> Result<PostWithInfo, AppError> {
-        let user_id = user.map(|user| user.user_id);
+        let person_id = user.map(|user| user.person_id);
 
         let post_join_vote = sqlx::query_as::<_, PostJoinInfo>(
             "SELECT p.*,
-                COALESCE(u.username, '') as creator_name,
+                COALESCE(pe.username, '') as creator_name,
                 m.username as moderator_name,
                 r.title as infringed_rule_title,
                 r.sphere_id IS NOT NULL AS is_sphere_rule,
                 c.category_name,
                 c.category_color,
                 v.vote_id,
-                v.user_id as vote_user_id,
+                v.person_id as vote_person_id,
                 v.post_id as vote_post_id,
                 v.comment_id as vote_comment_id,
                 v.value,
                 v.timestamp as vote_timestamp
             FROM posts p
-            LEFT JOIN users u ON u.user_id = p.creator_id AND p.delete_timestamp IS NULL
-            LEFT JOIN users m ON m.user_id = p.moderator_id AND p.delete_timestamp IS NULL
+            LEFT JOIN persons pe ON pe.person_id = p.creator_id AND p.delete_timestamp IS NULL
+            LEFT JOIN persons m ON m.person_id = p.moderator_id AND p.delete_timestamp IS NULL
             LEFT JOIN rules r ON r.rule_id = p.infringed_rule_id AND p.delete_timestamp IS NULL
             LEFT JOIN sphere_categories c on c.category_id = p.category_id
             LEFT JOIN votes v
             ON v.post_id = p.post_id AND
                v.comment_id IS NULL AND
-               v.user_id = $1
+               v.person_id = $1
             WHERE p.post_id = $2",
         )
-            .bind(user_id)
+            .bind(person_id)
             .bind(post_id)
             .fetch_one(db_pool)
             .await?;
@@ -350,9 +350,9 @@ pub mod ssr {
         let post_vec = sqlx::query_as::<_, Post>(
             AssertSqlSafe(format!(
                 "WITH base_posts AS NOT MATERIALIZED (
-                    SELECT p.*, u.username as creator_name
+                    SELECT p.*, pe.username as creator_name
                     FROM posts p
-                    JOIN users u ON u.user_id = p.creator_id
+                    JOIN persons pe ON pe.person_id = p.creator_id
                     JOIN spheres s on s.sphere_id = p.sphere_id
                     WHERE
                         s.sphere_name = $1 AND
@@ -418,9 +418,9 @@ pub mod ssr {
         let post_vec = sqlx::query_as::<_, Post>(
             AssertSqlSafe(format!(
                 "WITH base_posts AS NOT MATERIALIZED (
-                    SELECT p.*, u.username as creator_name
+                    SELECT p.*, pe.username as creator_name
                     FROM posts p
-                    JOIN users u ON u.user_id = p.creator_id
+                    JOIN persons pe ON pe.person_id = p.creator_id
                     JOIN satellites s ON s.satellite_id = p.satellite_id
                     WHERE
                         s.satellite_id = $1 AND
@@ -499,13 +499,13 @@ pub mod ssr {
             AssertSqlSafe(format!(
                 "SELECT
                     p.*,
-                    u.username as creator_name,
+                    pe.username as creator_name,
                     c.category_name,
                     c.category_color,
                     s.icon_url as sphere_icon_url,
                     s.sphere_name
                 FROM posts p
-                JOIN users u ON u.user_id = p.creator_id
+                JOIN persons pe ON pe.person_id = p.creator_id
                 JOIN spheres s on s.sphere_id = p.sphere_id
                 LEFT JOIN sphere_categories c on c.category_id = p.category_id
                 WHERE
@@ -549,15 +549,15 @@ pub mod ssr {
             AssertSqlSafe(format!(
                 "SELECT
                     p.*,
-                    u.username AS creator_name,
+                    pe.username AS creator_name,
                     c.category_name,
                     c.category_color,
                     s.icon_url AS sphere_icon_url,
                     s.sphere_name
                 FROM posts p
-                JOIN users u ON u.user_id = p.creator_id
+                JOIN persons pe ON pe.person_id = p.creator_id
                 JOIN spheres s on s.sphere_id = p.sphere_id
-                JOIN sphere_subscriptions su ON su.sphere_id = s.sphere_id AND su.user_id = $1
+                JOIN sphere_subscriptions su ON su.sphere_id = s.sphere_id AND su.person_id = $1
                 LEFT JOIN sphere_categories c on c.category_id = p.category_id
                 WHERE
                     p.moderator_id IS NULL AND
@@ -574,7 +574,7 @@ pub mod ssr {
                 OFFSET $5"
             )),
         )
-            .bind(user.user_id)
+            .bind(user.person_id)
             .bind(posts_filters.days_hide_spoiler)
             .bind(posts_filters.show_nsfw)
             .bind(limit)
@@ -591,7 +591,7 @@ pub mod ssr {
                         SELECT COUNT(*) AS total
                         FROM posts p
                         JOIN spheres s on s.sphere_id = p.sphere_id
-                        JOIN sphere_subscriptions su ON su.sphere_id = s.sphere_id AND su.user_id = $1
+                        JOIN sphere_subscriptions su ON su.sphere_id = s.sphere_id AND su.person_id = $1
                         WHERE
                             p.moderator_id IS NULL AND
                             p.delete_timestamp IS NULL AND
@@ -605,13 +605,13 @@ pub mod ssr {
                     )
                     SELECT
                         p.*,
-                        u.username as creator_name,
+                        pe.username as creator_name,
                         c.category_name,
                         c.category_color,
                         s.icon_url as sphere_icon_url,
                         s.sphere_name
                     FROM posts p
-                    JOIN users u ON u.user_id = p.creator_id
+                    JOIN persons pe ON pe.person_id = p.creator_id
                     JOIN spheres s on s.sphere_id = p.sphere_id
                     LEFT JOIN sphere_categories c on c.category_id = p.category_id
                     WHERE
@@ -625,14 +625,14 @@ pub mod ssr {
                             $3 OR NOT p.is_nsfw
                         ) AND
                         s.sphere_id NOT IN (
-                            SELECT sphere_id FROM sphere_subscriptions su where su.user_id = $1
+                            SELECT sphere_id FROM sphere_subscriptions su where su.person_id = $1
                         )
                     ORDER BY {order_by} DESC
                     LIMIT $4
                     OFFSET GREATEST(0, $5 - (SELECT total FROM subscribed_post_count))"
                     ))
                 )
-                    .bind(user.user_id)
+                    .bind(user.person_id)
                     .bind(posts_filters.days_hide_spoiler)
                     .bind(posts_filters.show_nsfw)
                     .bind(limit - loaded_post_count as i64)
@@ -750,7 +750,7 @@ pub mod ssr {
             .bind(sphere_name)
             .bind(satellite_id)
             .bind(post_tags.is_pinned)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .bind(user.check_sphere_permissions_by_name(sphere_name, PermissionLevel::Moderate).is_ok())
             .bind(user.username.clone())
             .fetch_one(db_pool)
@@ -866,7 +866,7 @@ pub mod ssr {
             .bind(post_tags.is_pinned)
             .bind(post_tags.category_id)
             .bind(post_id)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .bind(user.username.clone())
             .fetch_one(db_pool)
             .await?;
@@ -905,7 +905,7 @@ pub mod ssr {
             FROM deleted_post"
         )
             .bind(post_id)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .fetch_one(db_pool)
             .await?;
 
@@ -962,7 +962,7 @@ pub mod ssr {
         fn test_post_join_vote_into_post_with_info() {
             let user = User::default();
             let mut user_post = Post::default();
-            user_post.creator_id = user.user_id;
+            user_post.creator_id = user.person_id;
 
             let user_post_without_vote = PostJoinInfo {
                 post: user_post.clone(),
@@ -971,7 +971,7 @@ pub mod ssr {
                 vote_id: None,
                 vote_post_id: None,
                 vote_comment_id: None,
-                vote_user_id: None,
+                vote_person_id: None,
                 value: None,
                 vote_timestamp: None,
             };
@@ -987,7 +987,7 @@ pub mod ssr {
                 vote_id: Some(0),
                 vote_post_id: Some(user_post.post_id),
                 vote_comment_id: None,
-                vote_user_id: Some(user.user_id),
+                vote_person_id: Some(user.person_id),
                 value: Some(1),
                 vote_timestamp: Some(user_post.create_timestamp),
             };
@@ -995,13 +995,13 @@ pub mod ssr {
             let user_vote = user_post_with_info.vote.expect("PostWithInfo should contain vote.");
             assert_eq!(user_post_with_info.post, user_post);
             assert_eq!(user_post_with_info.sphere_category, None);
-            assert_eq!(user_vote.user_id, user.user_id);
+            assert_eq!(user_vote.person_id, user.person_id);
             assert_eq!(user_vote.post_id, user_post.post_id);
             assert_eq!(user_vote.value, VoteValue::Up);
             assert_eq!(user_vote.comment_id, None);
 
             let mut other_post = Post::default();
-            other_post.creator_id = user.user_id + 1;
+            other_post.creator_id = user.person_id + 1;
 
             let other_post_with_vote = PostJoinInfo {
                 post: other_post.clone(),
@@ -1010,7 +1010,7 @@ pub mod ssr {
                 vote_id: Some(0),
                 vote_post_id: Some(other_post.post_id),
                 vote_comment_id: None,
-                vote_user_id: Some(user.user_id),
+                vote_person_id: Some(user.person_id),
                 value: Some(-1),
                 vote_timestamp: Some(other_post.create_timestamp),
             };
@@ -1020,7 +1020,7 @@ pub mod ssr {
             assert_eq!(other_post_with_info.post, other_post);
             assert_eq!(sphere_category.category_name, String::from("a"));
             assert_eq!(sphere_category.category_color, Color::Green);
-            assert_eq!(user_vote.user_id, user.user_id);
+            assert_eq!(user_vote.person_id, user.person_id);
             assert_eq!(user_vote.post_id, other_post.post_id);
             assert_eq!(user_vote.value, VoteValue::Down);
             assert_eq!(user_vote.comment_id, None);

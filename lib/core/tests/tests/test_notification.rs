@@ -54,7 +54,7 @@ async fn test_create_notification() {
     assert_eq!(post_comment_notif.post_id, post.post_id);
     assert_eq!(post_comment_notif.comment_id, Some(comment.comment_id));
     assert_eq!(post_comment_notif.user_id, user_1.user_id);
-    assert_eq!(post_comment_notif.trigger_user_id, user_2.user_id);
+    assert_eq!(post_comment_notif.trigger_person_id, user_2.person_id);
     assert_eq!(post_comment_notif.trigger_username, user_2.username);
     assert_eq!(post_comment_notif.notification_type, NotificationType::PostReply);
     assert_eq!(post_comment_notif.is_read, false);
@@ -76,7 +76,7 @@ async fn test_create_notification() {
     assert_eq!(nested_comment_notif.post_id, nested_comment.post_id);
     assert_eq!(nested_comment_notif.comment_id, Some(nested_comment.comment_id));
     assert_eq!(nested_comment_notif.user_id, user_2.user_id);
-    assert_eq!(nested_comment_notif.trigger_user_id, user_1.user_id);
+    assert_eq!(nested_comment_notif.trigger_person_id, user_1.person_id);
     assert_eq!(nested_comment_notif.trigger_username, user_1.username);
     assert_eq!(nested_comment_notif.notification_type, NotificationType::CommentReply);
     assert_eq!(nested_comment_notif.is_read, false);
@@ -85,7 +85,7 @@ async fn test_create_notification() {
         comment.post_id,
         Some(comment.comment_id),
         Some(comment.comment_id),
-        user_1.user_id,
+        user_1.person_id,
         NotificationType::Moderation,
         &db_pool
     )
@@ -98,7 +98,7 @@ async fn test_create_notification() {
     assert_eq!(moderate_comment_notif.post_id, comment.post_id);
     assert_eq!(moderate_comment_notif.comment_id, Some(comment.comment_id));
     assert_eq!(moderate_comment_notif.user_id, user_2.user_id);
-    assert_eq!(moderate_comment_notif.trigger_user_id, user_1.user_id);
+    assert_eq!(moderate_comment_notif.trigger_person_id, user_1.person_id);
     assert_eq!(moderate_comment_notif.trigger_username, user_1.username);
     assert_eq!(moderate_comment_notif.notification_type, NotificationType::Moderation);
     assert_eq!(moderate_comment_notif.is_read, false);
@@ -172,7 +172,7 @@ async fn test_get_notifications() {
         post.post_id,
         None,
         None,
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::Moderation,
         &db_pool
     )
@@ -184,7 +184,7 @@ async fn test_get_notifications() {
         comment.post_id,
         comment.parent_id,
         Some(comment.comment_id),
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::CommentReply,
         &db_pool
     )
@@ -210,7 +210,7 @@ async fn test_set_notification_read() {
         post.post_id,
         comment.parent_id,
         Some(comment.comment_id),
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::PostReply,
         &db_pool
     ).await.expect("Should create post comment notification").expect("Should have notification");
@@ -235,7 +235,7 @@ async fn test_set_all_notifications_read() {
         post.post_id,
         None,
         None,
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::Moderation,
         &db_pool
     )
@@ -247,7 +247,7 @@ async fn test_set_all_notifications_read() {
         comment.post_id,
         comment.parent_id,
         Some(comment.comment_id),
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::PostReply,
         &db_pool
     )
@@ -278,7 +278,7 @@ async fn test_delete_stale_notifications() {
         post.post_id,
         None,
         None,
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::Moderation,
         &db_pool
     )
@@ -290,7 +290,7 @@ async fn test_delete_stale_notifications() {
         comment.post_id,
         comment.parent_id,
         Some(comment.comment_id),
-        trigger_user.user_id,
+        trigger_user.person_id,
         NotificationType::PostReply,
         &db_pool
     )

@@ -11,6 +11,7 @@ leptos_router.workspace = true
 leptos-fluent.workspace = true
 
 anyhow = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
 chrono.workspace = true
 const_format.workspace = true
 http.workspace = true
@@ -18,6 +19,7 @@ log.workspace = true
 markdown.workspace = true
 openidconnect = { workspace = true, optional = true }
 quick-xml.workspace = true
+rand = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
 sqlx = { workspace = true, optional = true }
@@ -40,7 +42,9 @@ default = []
 ssr = [
     "leptos/ssr",
     "dep:anyhow",
+    "dep:axum",
     "dep:openidconnect",
+    "dep:rand",
     "dep:reqwest",
     "dep:sqlx",
     "dep:tokio",

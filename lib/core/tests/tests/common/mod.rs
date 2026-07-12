@@ -97,10 +97,10 @@ pub async fn create_user(
     test_id: &str,
     db_pool: &PgPool
 ) -> User {
-    let sql_user = create_or_update_user(test_id, test_id, test_id, db_pool)
+    let db_user = create_or_update_user(test_id, test_id, test_id, db_pool)
         .await
         .expect("Should be possible to create user.");
-    User::get(sql_user.user_id, db_pool).await.expect("New user should be available in DB.")
+    User::get(db_user.person_id, db_pool).await.expect("New user should be available in DB.")
 }
 
 pub fn get_i18n() -> I18n {

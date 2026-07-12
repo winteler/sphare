@@ -218,7 +218,7 @@ fn PostBottomWidgetBar(
                     <EditPostButton author_id post=stored_post/>
                     <SuspenseUnpack resource=state.user let:user>
                     {
-                        match user.as_ref().is_some_and(|user| user.user_id == author_id) {
+                        match user.as_ref().is_some_and(|user| user.person_id == author_id) {
                             true => None,
                             false => Some(view! {
                                 <ModeratePostButton post_id/>
@@ -252,7 +252,7 @@ pub fn EditPostButton(
     let state = expect_context::<GlobalState>();
     let show_dialog = RwSignal::new(false);
     let show_button = move || match &(*state.user.read()) {
-        Some(Ok(Some(user))) => user.user_id == author_id,
+        Some(Ok(Some(user))) => user.person_id == author_id,
         _ => false,
     };
     let edit_button_class = move || match show_dialog.get() {

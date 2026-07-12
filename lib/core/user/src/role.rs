@@ -27,7 +27,7 @@ pub enum PermissionLevel {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserSphereRole {
     pub role_id: i64,
-    pub user_id: i64,
+    pub person_id: i64,
     pub username: String,
     pub sphere_id: i64,
     pub sphere_name: String,
@@ -75,25 +75,25 @@ impl ToLocalizedStr for PermissionLevel {
 pub mod ssr {
     use sqlx::PgPool;
     use sphare_core_common::checks::{check_sphere_name, check_username};
-    use crate::user::{ssr::SqlUser, User};
+    use crate::user::{ssr::DbUser, User};
     use sphare_core_common::errors::AppError;
 
     use super::*;
 
     pub async fn get_user_sphere_role(
-        user_id: i64,
+        person_id: i64,
         sphere_name: &str,
         db_pool: &PgPool,
     ) -> Result<UserSphereRole, AppError> {
         let user_sphere_role = sqlx::query_as!(
             UserSphereRole,
-            "SELECT r.*, u.username, s.sphere_name FROM user_sphere_roles r
-            JOIN users u ON u.user_id = r.user_id
+            "SELECT r.*, p.username, s.sphere_name FROM user_sphere_roles r
+            JOIN persons p ON p.person_id = r.person_id
             JOIN spheres s ON s.sphere_id = r.sphere_id
-            WHERE r.user_id = $1 AND
+            WHERE r.person_id = $1 AND
                   s.sphere_name = $2 AND
                   r.delete_timestamp IS NULL",
-            user_id,
+            person_id,
             sphere_name,
         )
             .fetch_one(db_pool)
@@ -102,15 +102,44 @@ pub mod ssr {
         Ok(user_sphere_role)
     }
 
+    pub async fn get_user_sphere_role_by_sphere_id(
+        person_id: i64,
+        sphere_id: i64,
+        db_pool: &PgPool,
+    ) -> Result<UserSphereRole, AppError> {
+        let user_sphere_role = sqlx::query_as!(
+            UserSphereRole,
+            "SELECT r.*, p.username, s.sphere_name FROM user_sphere_roles r
+            JOIN persons p ON p.person_id = r.person_id
+            JOIN spheres s ON s.sphere_id = r.sphere_id
+            WHERE r.person_id = $1 AND
+                  r.sphere_id = $2 AND
+                  r.delete_timestamp IS NULL",
+            person_id,
+            sphere_id,
+        )
+            .fetch_one(db_pool)
+            .await?;
+
+        Ok(user_sphere_role)
+    }
+
     pub async fn is_user_sphere_moderator(
-        user_id: i64,
+        person_id: i64,
         sphere_id: i64,
         db_pool: &PgPool,
     ) -> Result<bool, AppError> {
         // Get the user to check both his admin role and sphere permissions
-        match User::get(user_id, db_pool).await {
+        match User::get(person_id, db_pool).await {
             Some(user) => Ok(user.check_sphere_permissions_by_id(sphere_id, PermissionLevel::Moderate).is_ok()),
-            None => Err(AppError::InternalServerError(format!("Could not find user with id = {user_id}"))),
+            None => {
+                // person_id is not an internal user, check if he has a role for the given sphere
+                match get_user_sphere_role_by_sphere_id(person_id, sphere_id, db_pool).await {
+                    Ok(role) if role.permission_level > PermissionLevel::None => Ok(true),
+                    Ok(_) => Ok(false),
+                    Err(e) => Err(AppError::InternalServerError(format!("Could not find role in sphere {sphere_id} for person with id = {person_id}: {e}"))),
+                }
+            },
         }
     }
 
@@ -121,8 +150,8 @@ pub mod ssr {
         check_sphere_name(sphere_name)?;
         let sphere_role_vec = sqlx::query_as!(
             UserSphereRole,
-            "SELECT r.*, u.username, s.sphere_name FROM user_sphere_roles r
-            JOIN users u ON u.user_id = r.user_id
+            "SELECT r.*, p.username, s.sphere_name FROM user_sphere_roles r
+            JOIN persons p ON p.person_id = r.person_id
             JOIN spheres s ON s.sphere_id = r.sphere_id
             WHERE
                 s.sphere_name = $1 AND
@@ -145,12 +174,12 @@ pub mod ssr {
     ) -> Result<(UserSphereRole, Option<i64>), AppError> {
         check_username(username, false)?;
         check_sphere_name(sphere_name)?;
-        let assigned_user = SqlUser::get_by_username(username, db_pool).await?;
+        let assigned_user = DbUser::get_by_username(username, db_pool).await?;
         if permission_level == PermissionLevel::Lead {
-            set_sphere_leader(assigned_user.user_id, sphere_name, grantor, db_pool).await
+            set_sphere_leader(assigned_user.person_id, sphere_name, grantor, db_pool).await
         } else {
             let user_sphere_role = insert_user_sphere_role(
-                assigned_user.user_id,
+                assigned_user.person_id,
                 sphere_name,
                 permission_level,
                 grantor,
@@ -161,7 +190,7 @@ pub mod ssr {
     }
 
     async fn set_sphere_leader(
-        user_id: i64,
+        person_id: i64,
         sphere_name: &str,
         grantor: &User,
         db_pool: &PgPool,
@@ -180,30 +209,30 @@ pub mod ssr {
         ).execute(db_pool).await?;
 
         sqlx::query!(
-            "INSERT INTO user_sphere_roles (user_id, sphere_id, permission_level, grantor_id)
+            "INSERT INTO user_sphere_roles (person_id, sphere_id, permission_level, grantor_id)
             VALUES (
                 $1,
                 (SELECT sphere_id FROM spheres WHERE sphere_name = $2),
                 $3, $1
             )",
-            grantor.user_id,
+            grantor.person_id,
             sphere_name,
             manage_level_str,
         ).execute(db_pool).await?;
 
         let user_sphere_role = insert_user_sphere_role(
-            user_id,
+            person_id,
             sphere_name,
             PermissionLevel::Lead,
             grantor,
             db_pool,
         ).await?;
 
-        Ok((user_sphere_role, Some(grantor.user_id)))
+        Ok((user_sphere_role, Some(grantor.person_id)))
     }
 
     pub async fn init_sphere_leader(
-        user_id: i64,
+        person_id: i64,
         sphere_name: &str,
         db_pool: &PgPool,
     ) -> Result<UserSphereRole, AppError> {
@@ -214,49 +243,49 @@ pub mod ssr {
         }
 
         insert_user_sphere_role_returning(
-            user_id,
+            person_id,
             sphere_name,
             PermissionLevel::Lead,
-            user_id,
+            person_id,
             db_pool,
         ).await
     }
 
     async fn insert_user_sphere_role(
-        user_id: i64,
+        person_id: i64,
         sphere_name: &str,
         permission_level: PermissionLevel,
         grantor: &User,
         db_pool: &PgPool,
     ) -> Result<UserSphereRole, AppError> {
-        if user_id == grantor.user_id && grantor.check_is_sphere_leader(sphere_name).is_ok() {
+        if person_id == grantor.person_id && grantor.check_is_sphere_leader(sphere_name).is_ok() {
             return Err(AppError::InternalServerError(
                 String::from("Sphere leader cannot lower his permissions, must designate another leader.")
             ));
         }
-        grantor.check_can_set_user_sphere_role(permission_level, user_id, sphere_name, db_pool).await?;
+        grantor.check_can_set_user_sphere_role(permission_level, person_id, sphere_name, db_pool).await?;
 
         sqlx::query!(
             "UPDATE user_sphere_roles SET delete_timestamp = NOW()
             WHERE
-                user_id = $1 AND sphere_id = (
+                person_id = $1 AND sphere_id = (
                     SELECT sphere_id FROM spheres WHERE spheres.sphere_name = $2
                 ) AND delete_timestamp IS NULL",
-            user_id,
+            person_id,
             sphere_name,
         ).execute(db_pool).await?;
 
         insert_user_sphere_role_returning(
-            user_id,
+            person_id,
             sphere_name,
             permission_level,
-            grantor.user_id,
+            grantor.person_id,
             db_pool,
         ).await
     }
 
     async fn insert_user_sphere_role_returning(
-        user_id: i64,
+        person_id: i64,
         sphere_name: &str,
         permission_level: PermissionLevel,
         grantor_id: i64,
@@ -267,7 +296,7 @@ pub mod ssr {
         let user_sphere_role = sqlx::query_as!(
             UserSphereRole,
             "WITH new_role AS (
-                INSERT INTO user_sphere_roles (user_id, sphere_id, permission_level, grantor_id)
+                INSERT INTO user_sphere_roles (person_id, sphere_id, permission_level, grantor_id)
                 VALUES (
                     $1,
                     (SELECT sphere_id FROM spheres WHERE sphere_name = $2),
@@ -275,10 +304,10 @@ pub mod ssr {
                 )
                 RETURNING *
             )
-            SELECT r.*, u.username, s.sphere_name FROM new_role r
-            JOIN users u ON u.user_id = r.user_id
+            SELECT r.*, p.username, s.sphere_name FROM new_role r
+            JOIN persons p ON p.person_id = r.person_id
             JOIN spheres s ON s.sphere_id = r.sphere_id",
-            user_id,
+            person_id,
             sphere_name,
             permission_level_str,
             grantor_id,
@@ -292,23 +321,28 @@ pub mod ssr {
         admin_role: AdminRole,
         grantor: &User,
         db_pool: &PgPool,
-    ) -> Result<SqlUser, AppError> {
+    ) -> Result<DbUser, AppError> {
         grantor.check_admin_role(AdminRole::Admin)?;
         let admin_role_str: &str = admin_role.into();
-        let sql_user = sqlx::query_as!(
-            SqlUser,
-            "UPDATE users
-            SET
-                admin_role = $1,
-                timestamp = NOW()
-            WHERE user_id = $2
-            RETURNING *",
+        let db_user = sqlx::query_as!(
+            DbUser,
+            "WITH updated_user AS (
+                UPDATE users
+                SET
+                    admin_role = $1,
+                    timestamp = NOW()
+                WHERE user_id = $2
+                RETURNING *
+            )
+            SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp
+            FROM updated_user u
+            JOIN persons p ON p.person_id = u.person_id",
             admin_role_str,
             user_id,
         )
             .fetch_one(db_pool)
             .await?;
-        Ok(sql_user)
+        Ok(db_user)
     }
 }
 

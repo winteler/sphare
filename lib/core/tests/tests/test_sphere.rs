@@ -147,14 +147,14 @@ async fn test_get_subscribed_sphere_headers() -> Result<(), AppError> {
         .await?;
 
         if i % 2 == 1 {
-            subscribe(sphere.sphere_id, creator_user.user_id, &db_pool).await?;
+            subscribe(sphere.sphere_id, creator_user.person_id, &db_pool).await?;
             expected_create_sub_sphere_vec.push(SphereHeader {
                 sphere_name: sphere.sphere_name,
                 icon_url: sphere.icon_url,
                 is_nsfw: sphere.is_nsfw,
             });
         } else {
-            subscribe(sphere.sphere_id, member_user.user_id, &db_pool).await?;
+            subscribe(sphere.sphere_id, member_user.person_id, &db_pool).await?;
             expected_member_sub_sphere_vec.push(SphereHeader {
                 sphere_name: sphere.sphere_name,
                 icon_url: sphere.icon_url,
@@ -163,8 +163,8 @@ async fn test_get_subscribed_sphere_headers() -> Result<(), AppError> {
         }
     }
 
-    let create_sub_sphere_name_vec = sphere::ssr::get_subscribed_sphere_headers(creator_user.user_id, &db_pool).await?;
-    let member_sub_sphere_name_vec = sphere::ssr::get_subscribed_sphere_headers(member_user.user_id, &db_pool).await?;
+    let create_sub_sphere_name_vec = sphere::ssr::get_subscribed_sphere_headers(creator_user.person_id, &db_pool).await?;
+    let member_sub_sphere_name_vec = sphere::ssr::get_subscribed_sphere_headers(member_user.person_id, &db_pool).await?;
 
     assert_eq!(
         create_sub_sphere_name_vec.len(),
@@ -207,30 +207,30 @@ async fn test_get_sphere_with_user_info() -> Result<(), AppError> {
         sphere_with_subscription.sphere.sphere_name.as_str(),
         sphere.sphere_name
     );
-    assert_eq!(sphere_with_subscription.sphere.creator_id, test_user.user_id);
+    assert_eq!(sphere_with_subscription.sphere.creator_id, test_user.person_id);
     assert_eq!(sphere_with_subscription.subscription_id, None);
 
     let sphere_with_subscription = sphere::ssr::get_sphere_with_user_info(
         sphere_name,
-        Some(test_user.user_id),
+        Some(test_user.person_id),
         &db_pool,
     )
     .await?;
     assert!(sphere_with_subscription.subscription_id.is_none());
 
-    subscribe(sphere.sphere_id, test_user.user_id, &db_pool).await?;
+    subscribe(sphere.sphere_id, test_user.person_id, &db_pool).await?;
     let sphere_with_subscription = sphere::ssr::get_sphere_with_user_info(
         sphere_name,
-        Some(test_user.user_id),
+        Some(test_user.person_id),
         &db_pool,
     )
     .await?;
     assert!(sphere_with_subscription.subscription_id.is_some());
 
-    unsubscribe(sphere.sphere_id, test_user.user_id, &db_pool).await?;
+    unsubscribe(sphere.sphere_id, test_user.person_id, &db_pool).await?;
     let sphere_with_subscription = sphere::ssr::get_sphere_with_user_info(
         sphere_name,
-        Some(test_user.user_id),
+        Some(test_user.person_id),
         &db_pool,
     )
     .await?;
@@ -256,7 +256,7 @@ async fn test_create_sphere_and_subscribe() {
     assert_eq!(sphere.description, sphere_description);
     assert_eq!(sphere.num_members, 1);
 
-    let subscription_vec = get_subscribed_sphere_headers(user.user_id, &db_pool).await.expect("Should get subscribed sphere headers");
+    let subscription_vec = get_subscribed_sphere_headers(user.person_id, &db_pool).await.expect("Should get subscribed sphere headers");
     let sphere_subscription = subscription_vec.first().expect("Should get sphere subscription");
     assert_eq!(sphere_subscription.sphere_name, sphere_name);
     assert_eq!(sphere_subscription.is_nsfw, false);
@@ -280,13 +280,13 @@ async fn test_create_sphere() -> Result<(), AppError> {
 
     assert_eq!(sphere.sphere_name, sphere_name);
     assert_eq!(sphere.normalized_sphere_name, "ccase_s_case123_");
-    assert_eq!(sphere.creator_id, test_user.user_id);
+    assert_eq!(sphere.creator_id, test_user.person_id);
     assert_eq!(sphere.description, sphere_description);
     assert_eq!(sphere.is_nsfw, false);
     assert_eq!(sphere.timestamp, sphere.create_timestamp);
 
     // Check new permissions were created
-    let test_user = User::get(test_user.user_id, &db_pool).await.expect("User should be available in DB.");
+    let test_user = User::get(test_user.person_id, &db_pool).await.expect("User should be available in DB.");
     assert_eq!(test_user.permission_by_sphere_name_map.len(), 1);
     let sphere_permission = test_user.permission_by_sphere_name_map.get(sphere_name).expect("User should have leader role after sphere creation.");
     assert_eq!(*sphere_permission, PermissionLevel::Lead);
@@ -342,7 +342,7 @@ async fn test_update_sphere_description() -> Result<(), AppError> {
         &lead,
         &db_pool
     ).await.expect("Should be possible to create sphere.");
-    let lead = User::get(lead.user_id, &db_pool).await.expect("User should be available in DB.");
+    let lead = User::get(lead.person_id, &db_pool).await.expect("User should be available in DB.");
 
     let updated_description = "second";
     assert_eq!(
@@ -362,7 +362,7 @@ async fn test_update_sphere_description() -> Result<(), AppError> {
     ).await.expect("Should be possible to update sphere.");
 
     assert_eq!(updated_sphere.sphere_id, sphere.sphere_id);
-    assert_eq!(updated_sphere.creator_id, lead.user_id);
+    assert_eq!(updated_sphere.creator_id, lead.person_id);
     assert_eq!(updated_sphere.description, updated_description);
     assert!(updated_sphere.timestamp > sphere.timestamp);
     assert!(updated_sphere.timestamp > updated_sphere.create_timestamp);
@@ -385,14 +385,14 @@ async fn test_subscribe() -> Result<(), AppError> {
         &db_pool,
     ).await.expect("Should be possible to create sphere.");
 
-    subscribe(sphere.sphere_id, test_user.user_id, &db_pool).await.expect("User should be able to subscribe to sphere");
+    subscribe(sphere.sphere_id, test_user.person_id, &db_pool).await.expect("User should be able to subscribe to sphere");
 
     // duplicated subscription fails
-    assert!(subscribe(sphere.sphere_id, test_user.user_id, &db_pool).await.is_err());
+    assert!(subscribe(sphere.sphere_id, test_user.person_id, &db_pool).await.is_err());
     // Subscribe to non-existent sphere fails
-    assert!(subscribe(sphere.sphere_id + 1, test_user.user_id, &db_pool).await.is_err());
+    assert!(subscribe(sphere.sphere_id + 1, test_user.person_id, &db_pool).await.is_err());
     // Subscribe with non-existent user fails
-    assert!(subscribe(sphere.sphere_id, test_user.user_id + 1, &db_pool).await.is_err());
+    assert!(subscribe(sphere.sphere_id, test_user.person_id + 1, &db_pool).await.is_err());
 
     Ok(())
 }
@@ -413,10 +413,10 @@ async fn test_unsubscribe() -> Result<(), AppError> {
     ).await.expect("Should be possible to create sphere.");
 
     // unsubscribe without subscription fails
-    assert!(unsubscribe(sphere.sphere_id, test_user.user_id, &db_pool).await.is_err());
+    assert!(unsubscribe(sphere.sphere_id, test_user.person_id, &db_pool).await.is_err());
 
-    subscribe(sphere.sphere_id, test_user.user_id, &db_pool).await.expect("User should be able to subscribe to sphere.");
-    unsubscribe(sphere.sphere_id, test_user.user_id, &db_pool).await.expect("User should be able to unsubscribe to sphere.");
+    subscribe(sphere.sphere_id, test_user.person_id, &db_pool).await.expect("User should be able to subscribe to sphere.");
+    unsubscribe(sphere.sphere_id, test_user.person_id, &db_pool).await.expect("User should be able to unsubscribe to sphere.");
 
     Ok(())
 }

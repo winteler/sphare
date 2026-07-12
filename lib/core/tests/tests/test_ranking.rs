@@ -38,7 +38,7 @@ async fn test_vote_on_content_post() -> Result<(), AppError> {
     let post_with_vote = post::ssr::get_post_with_info_by_id(post.post_id, Some(&user), &db_pool).await?;
     let vote = post_with_vote.vote.expect("Vote should be Some");
     assert_eq!(vote.value, vote_value);
-    assert_eq!(vote.user_id, user.user_id);
+    assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, post.post_id);
     assert_eq!(vote.comment_id, None);
     assert_eq!(post.score + 1, post_with_vote.post.score);
@@ -78,7 +78,7 @@ async fn test_vote_on_content_post() -> Result<(), AppError> {
     let post_with_vote = post::ssr::get_post_with_info_by_id(post.post_id, Some(&user), &db_pool).await?;
     let vote = post_with_vote.vote.expect("Post should have vote");
     assert_eq!(vote.value, VoteValue::Down);
-    assert_eq!(vote.user_id, user.user_id);
+    assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, post.post_id);
     assert_eq!(vote.comment_id, None);
     assert_eq!(post.score - 1, post_with_vote.post.score);
@@ -119,9 +119,9 @@ async fn test_vote_on_content_comment() {
     ).await.expect("Upvote should be created.");
 
     let comment = get_comment_by_id(comment.comment_id, &db_pool).await.expect("Should get comment aftervote");
-    let vote = get_user_comment_vote(&comment, user.user_id, &db_pool).await.expect("Should get user comment vote");
+    let vote = get_user_comment_vote(&comment, user.person_id, &db_pool).await.expect("Should get user comment vote");
     assert_eq!(vote.value, vote_value);
-    assert_eq!(vote.user_id, user.user_id);
+    assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, comment.post_id);
     assert_eq!(vote.comment_id, Some(comment.comment_id));
     assert_eq!(init_comment.score + 1, comment.score);
@@ -159,9 +159,9 @@ async fn test_vote_on_content_comment() {
     ).await.expect("Downvote should be created.");
 
     let comment = get_comment_by_id(comment.comment_id, &db_pool).await.expect("Should get comment after 2nd vote");
-    let vote = get_user_comment_vote(&comment, user.user_id, &db_pool).await.expect("Should get user comment vote");
+    let vote = get_user_comment_vote(&comment, user.person_id, &db_pool).await.expect("Should get user comment vote");
     assert_eq!(vote.value, VoteValue::Down);
-    assert_eq!(vote.user_id, user.user_id);
+    assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, comment.post_id);
     assert_eq!(vote.comment_id, Some(comment.comment_id));
     assert_eq!(init_comment.score - 1, comment.score);
@@ -176,7 +176,7 @@ async fn test_vote_on_content_comment() {
     ).await.expect("Vote should be deleted.");
 
     let comment = get_comment_by_id(comment.comment_id, &db_pool).await.expect("Should get comment after third vote");
-    assert_eq!(get_user_comment_vote(&comment, user.user_id, &db_pool).await, Err(AppError::NotFound));
+    assert_eq!(get_user_comment_vote(&comment, user.person_id, &db_pool).await, Err(AppError::NotFound));
     assert_eq!(init_comment.score, comment.score);
 }
 
@@ -186,7 +186,7 @@ async fn test_vote_on_content_with_ban() {
     let mut user = create_test_user(&db_pool).await;
 
     let (sphere, _, comment) = create_sphere_with_post_and_comment("sphere", &mut user, &db_pool).await;
-    let mut user = User::get(user.user_id, &db_pool).await.expect("User should be found.");
+    let mut user = User::get(user.person_id, &db_pool).await.expect("User should be found.");
     user.admin_role = AdminRole::Admin;
 
     let (_, _, comment_2) = create_sphere_with_post_and_comment("sphere_2", &mut user, &db_pool).await;
@@ -196,7 +196,7 @@ async fn test_vote_on_content_with_ban() {
 
     let user_1 = create_user("1", &db_pool).await;
     ban_user_from_sphere(
-        user_1.user_id, sphere.sphere_id, comment.post_id, Some(comment.comment_id), sphere_rule.rule_id, None, &user, &db_pool
+        user_1.person_id, sphere.sphere_id, comment.post_id, Some(comment.comment_id), sphere_rule.rule_id, None, &user, &db_pool
     ).await.expect("User should be banned.");
 
     ranking::ssr::vote_on_content(

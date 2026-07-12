@@ -90,7 +90,7 @@ async fn test_get_matching_sphere_header_vec() -> Result<(), AppError> {
         );
     }
 
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be reloaded.");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be reloaded.");
 
     let first_sphere_icon_url = Some("a");
     set_sphere_icon_url(expected_sphere_name_vec.first().unwrap(), first_sphere_icon_url, &user, &db_pool).await.expect("Sphere icon should be set.");

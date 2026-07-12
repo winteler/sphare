@@ -41,7 +41,7 @@ pub async fn create_sphere_with_post(
         db_pool,
     ).await.expect("Should be able to create sphere.");
 
-    *user = User::get(user.user_id, db_pool).await.expect("Should reload user.");
+    *user = User::get(user.person_id, db_pool).await.expect("Should reload user.");
 
     let post = create_post(
         sphere_name,
@@ -87,7 +87,7 @@ pub async fn create_sphere_with_posts(
         db_pool,
     ).await?;
 
-    *user = User::get(user.user_id, db_pool).await.expect("Should reload user.");
+    *user = User::get(user.person_id, db_pool).await.expect("Should reload user.");
 
     set_sphere_icon_url(sphere_name, sphere_icon_url, user, db_pool).await.expect("Should set icon url.");
     sphere.icon_url = sphere_icon_url.map(|x| x.to_string());
@@ -177,7 +177,7 @@ pub async fn create_sphere_with_satellite(
         db_pool,
     ).await?;
 
-    *user = User::get(user.user_id, db_pool).await.expect("Should reload user.");
+    *user = User::get(user.person_id, db_pool).await.expect("Should reload user.");
 
     let satellite = create_satellite(
         &sphere.sphere_name,
@@ -207,7 +207,7 @@ pub async fn create_sphere_with_satellite_vec(
         db_pool,
     ).await?;
     
-    *user = User::get(user.user_id, db_pool).await.expect("Should reload user.");
+    *user = User::get(user.person_id, db_pool).await.expect("Should reload user.");
     
     let mut satellite_vec = Vec::new();
     for i in 0..num_satellites {
@@ -446,9 +446,9 @@ pub async fn set_post_score(
             WHERE post_id = $2
             RETURNING *
         )
-        SELECT p.*, u.username as creator_name, NULL as moderator_name
+        SELECT p.*, pe.username as creator_name, NULL as moderator_name
         FROM updated_post p
-        JOIN users u ON u.user_id = p.creator_id",
+        JOIN persons pe ON pe.person_id = p.creator_id",
     )
         .bind(score)
         .bind(post_id)
@@ -471,9 +471,9 @@ pub async fn set_post_timestamp(
             WHERE post_id = $2
             RETURNING *
         )
-        SELECT p.*, u.username as creator_name, NULL as moderator_name
+        SELECT p.*, pe.username as creator_name, NULL as moderator_name
         FROM updated_post p
-        JOIN users u ON u.user_id = p.creator_id",
+        JOIN persons pe ON pe.person_id = p.creator_id",
     )
         .bind(day_offset)
         .bind(post_id)
@@ -494,9 +494,9 @@ pub async fn set_comment_score(
             WHERE comment_id = $2
             RETURNING *
         )
-        SELECT c.*, u.username as creator_name, NULL as moderator_name
+        SELECT c.*, p.username as creator_name, NULL as moderator_name
         FROM updated_comment c
-        JOIN users u ON u.user_id = c.creator_id",
+        JOIN persons p ON p.person_id = c.creator_id",
     )
         .bind(score)
         .bind(comment_id)
@@ -526,7 +526,7 @@ pub async fn add_base_rule(
     let rule = sqlx::query_as!(
         Rule,
         "INSERT INTO rules
-        (sphere_id, priority, title, description, markdown_description, user_id)
+        (sphere_id, priority, title, description, markdown_description, person_id)
         VALUES (
             NULL, $1, $2, $3, $4, $5
         ) RETURNING *",
@@ -534,7 +534,7 @@ pub async fn add_base_rule(
         title,
         description,
         markdown_description,
-        user.user_id,
+        user.person_id,
     ).fetch_one(db_pool).await?;
     Ok(rule)
 }
@@ -580,7 +580,7 @@ pub async fn update_base_rule(
     let new_rule = sqlx::query_as!(
         Rule,
         "INSERT INTO rules
-        (rule_key, sphere_id, priority, title, description, markdown_description, user_id)
+        (rule_key, sphere_id, priority, title, description, markdown_description, person_id)
         VALUES (
             $1, NULL, $2, $3, $4, $5, $6
         ) RETURNING *",
@@ -589,7 +589,7 @@ pub async fn update_base_rule(
         title,
         description,
         markdown_description,
-        user.user_id,
+        user.person_id,
     ).fetch_one(db_pool).await?;
 
     Ok(new_rule)

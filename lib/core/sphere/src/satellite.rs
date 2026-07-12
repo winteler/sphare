@@ -119,7 +119,7 @@ pub mod ssr {
             markdown_body,
             is_nsfw,
             is_spoiler,
-            user.user_id,
+            user.person_id,
         )
             .fetch_one(db_pool)
             .await?;

@@ -47,29 +47,26 @@ CREATE TABLE persons (
     is_local BOOLEAN NOT NULL,
     public_key TEXT NOT NULL,
     last_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    delete_timestamp TIMESTAMPTZ,
-    UNIQUE (federation_id, username)
+    delete_timestamp TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX idx_unique_username ON persons (username)
+    WHERE persons.delete_timestamp IS NULL;
+
+CREATE UNIQUE INDEX idx_unique_federation_id ON persons (federation_id)
     WHERE persons.delete_timestamp IS NULL;
 
 CREATE TABLE users (
     user_id BIGSERIAL PRIMARY KEY,
     person_id BIGINT NOT NULL REFERENCES persons (person_id),
     oidc_id TEXT UNIQUE NOT NULL,
-    email TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
     private_key TEXT NOT NULL,
     admin_role TEXT NOT NULL DEFAULT 'None' CHECK (admin_role IN ('None', 'Moderator', 'Admin')),
     days_hide_spoiler INT CHECK (days_hide_spoiler > 0),
     show_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    delete_timestamp TIMESTAMPTZ,
-    UNIQUE (user_id, person_id)
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE UNIQUE INDEX idx_unique_email ON users (email)
-    WHERE users.delete_timestamp IS NULL;
 
 CREATE TABLE spheres (
     sphere_id BIGSERIAL PRIMARY KEY,
@@ -89,7 +86,7 @@ CREATE TABLE spheres (
     icon_url TEXT,
     banner_url TEXT,
     num_members INT NOT NULL DEFAULT 0,
-    creator_id BIGINT NOT NULL REFERENCES users (user_id),
+    creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     create_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -106,7 +103,7 @@ CREATE TABLE satellites (
     is_nsfw BOOLEAN NOT NULL,
     is_spoiler BOOLEAN NOT NULL,
     num_posts INT NOT NULL DEFAULT 0,
-    creator_id BIGINT NOT NULL REFERENCES users (user_id),
+    creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     disable_timestamp TIMESTAMPTZ,
     CONSTRAINT unique_satellite_name UNIQUE (satellite_name, sphere_id),
@@ -119,16 +116,16 @@ CREATE UNIQUE INDEX idx_unique_satellite ON satellites (sphere_id, satellite_nam
 
 CREATE TABLE user_sphere_roles (
     role_id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users (user_id),
+    person_id BIGINT NOT NULL REFERENCES persons (person_id),
     sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
     permission_level TEXT NOT NULL CHECK (permission_level IN ('None', 'Moderate', 'Ban', 'Manage', 'Lead')),
-    grantor_id BIGINT NOT NULL REFERENCES users (user_id),
+    grantor_id BIGINT NOT NULL REFERENCES persons (person_id),
     create_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delete_timestamp TIMESTAMPTZ
 );
 
 -- index to guarantee there is only one role per user and sphere
-CREATE UNIQUE INDEX idx_unique_sphere_role ON user_sphere_roles (sphere_id, user_id)
+CREATE UNIQUE INDEX idx_unique_sphere_role ON user_sphere_roles (sphere_id, person_id)
     WHERE user_sphere_roles.delete_timestamp IS NULL;
 -- index to guarantee maximum 1 leader per sphere
 CREATE UNIQUE INDEX idx_unique_sphere_leader ON user_sphere_roles (sphere_id, permission_level)
@@ -166,7 +163,7 @@ CREATE TABLE sphere_categories (
     category_color SMALLINT NOT NULL,
     description TEXT NOT NULL CHECK (LENGTH(description) <= 500),
     is_active BOOLEAN NOT NULL,
-    creator_id BIGINT NOT NULL REFERENCES users (user_id),
+    creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delete_timestamp TIMESTAMPTZ,
     CONSTRAINT sphere_category UNIQUE (category_id, sphere_id),
@@ -177,10 +174,10 @@ CREATE INDEX idx_category_order ON sphere_categories (sphere_id, is_active, cate
 
 CREATE TABLE sphere_subscriptions (
    subscription_id BIGSERIAL PRIMARY KEY,
-   user_id BIGINT NOT NULL REFERENCES users (user_id),
+   person_id BIGINT NOT NULL REFERENCES persons (person_id),
    sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-   CONSTRAINT unique_subscription UNIQUE (user_id, sphere_id)
+   CONSTRAINT unique_subscription UNIQUE (person_id, sphere_id)
 );
 
 CREATE TABLE posts (
@@ -202,11 +199,11 @@ CREATE TABLE posts (
     is_edited BOOLEAN NOT NULL DEFAULT FALSE,
     sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
     satellite_id BIGINT,
-    creator_id BIGINT NOT NULL REFERENCES users (user_id),
+    creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     is_creator_moderator BOOLEAN NOT NULL,
     moderator_message TEXT CHECK (LENGTH(moderator_message) <= 500),
     infringed_rule_id BIGINT REFERENCES rules (rule_id),
-    moderator_id BIGINT REFERENCES users (user_id),
+    moderator_id BIGINT REFERENCES persons (person_id),
     num_comments INT NOT NULL DEFAULT 0,
     is_pinned BOOLEAN NOT NULL,
     score INT NOT NULL DEFAULT 0,
@@ -300,9 +297,9 @@ CREATE TABLE comments (
     infringed_rule_id BIGINT REFERENCES rules (rule_id),
     parent_id BIGINT REFERENCES comments (comment_id),
     post_id BIGINT NOT NULL REFERENCES posts (post_id),
-    creator_id BIGINT NOT NULL REFERENCES users (user_id),
+    creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     is_creator_moderator BOOLEAN NOT NULL,
-    moderator_id BIGINT REFERENCES users (user_id),
+    moderator_id BIGINT REFERENCES persons (person_id),
     is_pinned BOOLEAN NOT NULL,
     score INT NOT NULL DEFAULT 0,
     score_minus INT NOT NULL DEFAULT 0,
@@ -331,28 +328,28 @@ CREATE TABLE votes (
     vote_id BIGSERIAL PRIMARY KEY,
     post_id BIGINT NOT NULL REFERENCES posts (post_id),
     comment_id BIGINT REFERENCES comments (comment_id),
-    user_id BIGINT NOT NULL REFERENCES users (user_id),
+    person_id BIGINT NOT NULL REFERENCES persons (person_id),
     value SMALLINT NOT NULL CHECK (value IN (-1, 1)),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_vote UNIQUE NULLS NOT DISTINCT (post_id, comment_id, user_id)
+    CONSTRAINT unique_vote UNIQUE NULLS NOT DISTINCT (post_id, comment_id, person_id)
 );
 
-CREATE INDEX idx_vote_context ON votes (user_id, post_id, comment_id);
+CREATE INDEX idx_vote_context ON votes (person_id, post_id, comment_id);
 
 CREATE TABLE user_bans (
     ban_id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users (user_id),
+    person_id BIGINT NOT NULL REFERENCES persons (person_id),
     sphere_id BIGINT REFERENCES spheres (sphere_id),
     post_id BIGINT NOT NULL,
     comment_id BIGINT,
     infringed_rule_id BIGINT NOT NULL REFERENCES rules (rule_id),
-    moderator_id BIGINT NOT NULL REFERENCES users (user_id),
+    moderator_id BIGINT NOT NULL REFERENCES persons (person_id),
     until_timestamp TIMESTAMPTZ,
     create_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delete_timestamp TIMESTAMPTZ
 );
 
-CREATE INDEX idx_user_ban_sphere ON user_bans (sphere_id, user_id, delete_timestamp)
+CREATE INDEX idx_user_ban_sphere ON user_bans (sphere_id, person_id, delete_timestamp)
     WHERE user_bans.delete_timestamp IS NULL;
 
 -- add functional user

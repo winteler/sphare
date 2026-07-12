@@ -113,7 +113,7 @@ pub mod ssr {
         let rule = sqlx::query_as!(
             Rule,
             "INSERT INTO rules
-            (sphere_id, priority, title, description, markdown_description, user_id)
+            (sphere_id, priority, title, description, markdown_description, person_id)
             VALUES (
                 (SELECT sphere_id FROM spheres WHERE sphere_name = $1),
                 $2, $3, $4, $5, $6
@@ -123,7 +123,7 @@ pub mod ssr {
             title,
             description,
             markdown_description,
-            user.user_id,
+            user.person_id,
         )
             .fetch_one(db_pool)
             .await?;
@@ -187,7 +187,7 @@ pub mod ssr {
         let new_rule = sqlx::query_as!(
             Rule,
             "INSERT INTO rules
-            (rule_key, sphere_id, priority, title, description, markdown_description, user_id)
+            (rule_key, sphere_id, priority, title, description, markdown_description, person_id)
             VALUES (
                 $1,
                 (SELECT sphere_id FROM spheres WHERE sphere_name = $2),
@@ -199,7 +199,7 @@ pub mod ssr {
             title,
             description,
             markdown_description,
-            user.user_id,
+            user.person_id,
         ).fetch_one(db_pool).await?;
 
         Ok(new_rule)

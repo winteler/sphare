@@ -273,7 +273,7 @@ pub fn ModerationInfoButton(
             Content::Comment(comment) => (comment.infringed_rule_id.is_some(), comment.creator_id),
         };
         let is_author = match &(*state.user.read()) {
-            Some(Ok(Some(user))) => user.user_id == creator_id,
+            Some(Ok(Some(user))) => user.person_id == creator_id,
             _ => false
         };
         let is_moderator = *sphere_state.permission_level.read() >= PermissionLevel::Moderate;

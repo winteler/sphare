@@ -224,8 +224,8 @@ pub fn AuthorWidget(
             {
                 move || Suspend::new(async move {
                     match (&state.user.await, is_moderator) {
-                        (Ok(Some(user)), true) if author_id == user.user_id => view! { <SelfModeratorIcon/> }.into_any(),
-                        (Ok(Some(user)), false) if author_id == user.user_id => view! { <SelfAuthorIcon/> }.into_any(),
+                        (Ok(Some(user)), true) if author_id == user.person_id => view! { <SelfModeratorIcon/> }.into_any(),
+                        (Ok(Some(user)), false) if author_id == user.person_id => view! { <SelfAuthorIcon/> }.into_any(),
                         (_, true) => view! { <ModeratorIcon is_grayed_out/> }.into_any(),
                         (_, false) => view! { <AuthorIcon is_grayed_out/> }.into_any(),
                     }
@@ -270,7 +270,7 @@ where
     let state = expect_context::<GlobalState>();
     let show_form = RwSignal::new(false);
     let show_button = move || match &(*state.user.read()) {
-        Some(Ok(Some(user))) => user.user_id == author_id,
+        Some(Ok(Some(user))) => user.person_id == author_id,
         _ => false,
     };
     let delete_button_class = move || match show_form.get() {

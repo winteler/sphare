@@ -33,7 +33,7 @@ pub async fn set_user_sphere_role(
         &db_pool,
     ).await?;
 
-    reload_user(sphere_role.user_id)?;
+    reload_user(sphere_role.person_id)?;
 
     if let Some(prev_leader_id) = prev_sphere_leader_id {
         // In case the sphere leader changed, also reload previous leader

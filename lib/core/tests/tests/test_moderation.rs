@@ -85,14 +85,14 @@ async fn test_moderate_post_and_ban_user() {
     assert_eq!(notif.user_id, base_user.user_id);
     assert_eq!(notif.post_id, post_1.post_id);
     assert_eq!(notif.comment_id, None);
-    assert_eq!(notif.trigger_user_id, user.user_id);
+    assert_eq!(notif.trigger_person_id, user.person_id);
     assert_eq!(notif.trigger_username, user.username);
     assert_eq!(notif.is_read, false);
     assert_eq!(notif.notification_type, NotificationType::Moderation);
 
     // Check user is not banned
     assert_eq!(user_ban, None);
-    let base_user = User::get(base_user.user_id, &db_pool).await.expect("Should get user");
+    let base_user = User::get(base_user.person_id, &db_pool).await.expect("Should get user");
     base_user.check_can_publish_on_sphere(&sphere.sphere_name).expect("User should not be banned");
 
     let (moderated_post_2, user_ban, notif_2) = moderate_post_and_ban_user(
@@ -119,35 +119,35 @@ async fn test_moderate_post_and_ban_user() {
     assert_eq!(notif_2.user_id, base_user.user_id);
     assert_eq!(notif_2.post_id, post_2.post_id);
     assert_eq!(notif_2.comment_id, None);
-    assert_eq!(notif_2.trigger_user_id, user.user_id);
+    assert_eq!(notif_2.trigger_person_id, user.person_id);
     assert_eq!(notif_2.trigger_username, user.username);
     assert_eq!(notif_2.is_read, false);
     assert_eq!(notif_2.notification_type, NotificationType::Moderation);
 
     // Check user is banned
     let user_ban = user_ban.expect("User should be banned");
-    assert_eq!(user_ban.user_id, base_user.user_id);
+    assert_eq!(user_ban.person_id, base_user.person_id);
     assert_eq!(user_ban.username, base_user.username);
     assert_eq!(user_ban.post_id, post_2.post_id);
     assert_eq!(user_ban.comment_id, None);
     assert_eq!(user_ban.infringed_rule_id, rule.rule_id);
-    assert_eq!(user_ban.moderator_id, user.user_id);
+    assert_eq!(user_ban.moderator_id, user.person_id);
     assert!(user_ban.until_timestamp.is_some_and(|until| until > current_timestamp + chrono::Duration::days(1)));
 
-    let base_user = User::get(base_user.user_id, &db_pool).await.expect("Should get base user");
+    let base_user = User::get(base_user.person_id, &db_pool).await.expect("Should get base user");
     base_user.check_can_publish_on_sphere(&sphere.sphere_name).expect_err("User should be banned");
 
     // Self-moderation should generate error
     moderate_post_and_ban_user(mod_post.post_id, rule.rule_id, "test self-moderation", Some(1), &user, &db_pool).await.expect_err("Self-moderation should generate error");
     // Post is still moderated
     let reloaded_mod_post = get_post_by_id(mod_post.post_id, &db_pool).await.expect("Should get mod post by id");
-    assert_eq!(reloaded_mod_post.moderator_id, Some(user.user_id));
+    assert_eq!(reloaded_mod_post.moderator_id, Some(user.person_id));
     assert_eq!(moderated_post_2.infringed_rule_id, Some(rule.rule_id));
     assert_eq!(moderated_post_2.infringed_rule_title, Some(rule.title));
     assert_eq!(reloaded_mod_post.moderator_message.as_deref(), Some("test self-moderation"));
     assert!(moderated_post_2.edit_timestamp.is_some());
     // Check user is not banned
-    let user = User::get(user.user_id, &db_pool).await.expect("Should get user");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should get user");
     user.check_can_publish_on_sphere(&sphere.sphere_name).expect("User should not be banned");
 }
 
@@ -165,14 +165,14 @@ async fn test_moderate_post() -> Result<(), AppError> {
     assert!(moderate_post(post.post_id, rule.rule_id, "unauthorized", &unauthorized_user, &db_pool).await.is_err());
 
     let moderated_post = moderate_post(post.post_id, rule.rule_id, "test", &user, &db_pool).await?;
-    assert_eq!(moderated_post.moderator_id, Some(user.user_id));
+    assert_eq!(moderated_post.moderator_id, Some(user.person_id));
     assert_eq!(moderated_post.moderator_name, Some(user.username));
     assert_eq!(moderated_post.moderator_message, Some(String::from("test")));
     assert_eq!(moderated_post.infringed_rule_id, Some(rule.rule_id));
     assert_eq!(moderated_post.infringed_rule_title, Some(rule.title.clone()));
 
     let remoderated_post = moderate_post(post.post_id, rule.rule_id, "global", &global_moderator, &db_pool).await?;
-    assert_eq!(remoderated_post.moderator_id, Some(global_moderator.user_id));
+    assert_eq!(remoderated_post.moderator_id, Some(global_moderator.person_id));
     assert_eq!(remoderated_post.moderator_name, Some(global_moderator.username));
     assert_eq!(remoderated_post.moderator_message, Some(String::from("global")));
     assert_eq!(moderated_post.infringed_rule_id, Some(rule.rule_id));
@@ -218,14 +218,14 @@ async fn test_moderate_comment_and_ban_user() {
     assert_eq!(notif.user_id, base_user.user_id);
     assert_eq!(notif.post_id, comment_1.post_id);
     assert_eq!(notif.comment_id, Some(comment_1.comment_id));
-    assert_eq!(notif.trigger_user_id, user.user_id);
+    assert_eq!(notif.trigger_person_id, user.person_id);
     assert_eq!(notif.trigger_username, user.username);
     assert_eq!(notif.is_read, false);
     assert_eq!(notif.notification_type, NotificationType::Moderation);
 
     // Check user is not banned
     assert_eq!(user_ban, None);
-    let base_user = User::get(base_user.user_id, &db_pool).await.expect("Should get user");
+    let base_user = User::get(base_user.person_id, &db_pool).await.expect("Should get user");
     base_user.check_can_publish_on_sphere(&sphere.sphere_name).expect("User should not be banned");
 
     let (moderated_comment_2, user_ban, notif_2) = moderate_comment_and_ban_user(
@@ -252,35 +252,35 @@ async fn test_moderate_comment_and_ban_user() {
     assert_eq!(notif_2.user_id, base_user.user_id);
     assert_eq!(notif_2.post_id, comment_2.post_id);
     assert_eq!(notif_2.comment_id, Some(comment_2.comment_id));
-    assert_eq!(notif_2.trigger_user_id, user.user_id);
+    assert_eq!(notif_2.trigger_person_id, user.person_id);
     assert_eq!(notif_2.trigger_username, user.username);
     assert_eq!(notif_2.is_read, false);
     assert_eq!(notif_2.notification_type, NotificationType::Moderation);
 
     // Check user is banned
     let user_ban = user_ban.expect("User should be banned");
-    assert_eq!(user_ban.user_id, base_user.user_id);
+    assert_eq!(user_ban.person_id, base_user.person_id);
     assert_eq!(user_ban.username, base_user.username);
     assert_eq!(user_ban.post_id, comment_2.post_id);
     assert_eq!(user_ban.comment_id, Some(comment_2.comment_id));
     assert_eq!(user_ban.infringed_rule_id, rule.rule_id);
-    assert_eq!(user_ban.moderator_id, user.user_id);
+    assert_eq!(user_ban.moderator_id, user.person_id);
     assert!(user_ban.until_timestamp.is_some_and(|until| until > current_timestamp + chrono::Duration::days(1)));
 
-    let base_user = User::get(base_user.user_id, &db_pool).await.expect("Should get base user");
+    let base_user = User::get(base_user.person_id, &db_pool).await.expect("Should get base user");
     base_user.check_can_publish_on_sphere(&sphere.sphere_name).expect_err("User should be banned");
 
     // Self-moderation should generate error
     moderate_comment_and_ban_user(mod_comment.comment_id, rule.rule_id, "test self-moderation", Some(1), &user, &db_pool).await.expect_err("Self-moderation should generate error");
     // Post is still moderated
     let reloaded_mod_comment = get_comment_by_id(mod_comment.comment_id, &db_pool).await.expect("Should get mod comment by id");
-    assert_eq!(reloaded_mod_comment.moderator_id, Some(user.user_id));
+    assert_eq!(reloaded_mod_comment.moderator_id, Some(user.person_id));
     assert_eq!(moderated_comment_2.infringed_rule_id, Some(rule.rule_id));
     assert_eq!(moderated_comment_2.infringed_rule_title, Some(rule.title));
     assert_eq!(reloaded_mod_comment.moderator_message.as_deref(), Some("test self-moderation"));
     assert!(moderated_comment_2.edit_timestamp.is_some());
     // Check user is not banned
-    let user = User::get(user.user_id, &db_pool).await.expect("Should get user");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should get user");
     user.check_can_publish_on_sphere(&sphere.sphere_name).expect("User should not be banned");
 }
 
@@ -298,14 +298,14 @@ async fn test_moderate_comment() -> Result<(), AppError> {
     assert!(moderate_comment(comment.comment_id, rule.rule_id, "unauthorized", &unauthorized_user, &db_pool).await.is_err());
 
     let moderated_comment = moderate_comment(comment.comment_id, rule.rule_id, "test", &user, &db_pool).await?;
-    assert_eq!(moderated_comment.moderator_id, Some(user.user_id));
+    assert_eq!(moderated_comment.moderator_id, Some(user.person_id));
     assert_eq!(moderated_comment.moderator_name, Some(user.username));
     assert_eq!(moderated_comment.moderator_message, Some(String::from("test")));
     assert_eq!(moderated_comment.infringed_rule_id, Some(rule.rule_id));
     assert_eq!(moderated_comment.infringed_rule_title, Some(rule.title.clone()));
 
     let remoderated_comment = moderate_comment(comment.comment_id, rule.rule_id, "global", &global_moderator, &db_pool).await?;
-    assert_eq!(remoderated_comment.moderator_id, Some(global_moderator.user_id));
+    assert_eq!(remoderated_comment.moderator_id, Some(global_moderator.person_id));
     assert_eq!(remoderated_comment.moderator_name, Some(global_moderator.username));
     assert_eq!(remoderated_comment.moderator_message, Some(String::from("global")));
     assert_eq!(remoderated_comment.infringed_rule_id, Some(rule.rule_id));
@@ -315,7 +315,7 @@ async fn test_moderate_comment() -> Result<(), AppError> {
 }
 
 #[tokio::test]
-async fn test_ban_user_from_sphere() -> Result<(), AppError> {
+async fn test_ban_user_from_sphere() {
     let db_pool = get_db_pool().await;
     let mut user = create_user("test", &db_pool).await;
     let mut global_moderator = create_user("mod", &db_pool).await;
@@ -323,8 +323,8 @@ async fn test_ban_user_from_sphere() -> Result<(), AppError> {
     // set user role in the DB, needed to test that global Moderators/Admin cannot be banned
     global_moderator.admin_role = AdminRole::Moderator;
     admin.admin_role = AdminRole::Admin;
-    set_user_admin_role(global_moderator.user_id, AdminRole::Moderator, &admin, &db_pool).await?;
-    set_user_admin_role(admin.user_id, AdminRole::Admin, &admin, &db_pool).await?;
+    set_user_admin_role(global_moderator.user_id, AdminRole::Moderator, &admin, &db_pool).await.expect("Should set moderator");
+    set_user_admin_role(admin.user_id, AdminRole::Admin, &admin, &db_pool).await.expect("Should set admin");
     let unauthorized_user = create_user("user", &db_pool).await;
     let banned_user = create_user("banned", &db_pool).await;
 
@@ -332,31 +332,31 @@ async fn test_ban_user_from_sphere() -> Result<(), AppError> {
     let rule = add_base_rule(0, BaseRule::BeRespectful.into(), "test", None, &admin, &db_pool).await.expect("Rule should be added.");
 
     // unauthorized used cannot ban
-    assert!(ban_user_from_sphere(banned_user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, None, &unauthorized_user, &db_pool).await.is_err());
+    assert!(ban_user_from_sphere(banned_user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, None, &unauthorized_user, &db_pool).await.is_err());
     // ban with 0 days has no effect
-    assert_eq!(ban_user_from_sphere(unauthorized_user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(0), &user, &db_pool).await?, None);
+    assert_eq!(ban_user_from_sphere(unauthorized_user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(0), &user, &db_pool).await.expect("Should not ban user"), None);
     let post = create_post(
         &sphere.sphere_name, None,"a", "b", None, Link::default(),PostTags::default(), &unauthorized_user, &db_pool
-    ).await?;
+    ).await.expect("Should create post");
 
     // cannot ban moderators
-    assert!(ban_user_from_sphere(user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &global_moderator, &db_pool).await.is_err());
-    assert!(ban_user_from_sphere(global_moderator.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &user, &db_pool).await.is_err());
-    assert!(ban_user_from_sphere(admin.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &user, &db_pool).await.is_err());
-    assert!(ban_user_from_sphere(user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &admin, &db_pool).await.is_err());
+    assert!(ban_user_from_sphere(user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &global_moderator, &db_pool).await.is_err());
+    assert!(ban_user_from_sphere(global_moderator.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &user, &db_pool).await.is_err());
+    assert!(ban_user_from_sphere(admin.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &user, &db_pool).await.is_err());
+    assert!(ban_user_from_sphere(user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &admin, &db_pool).await.is_err());
 
     // sphere moderator can ban ordinary users
     let user_ban = ban_user_from_sphere(
-        unauthorized_user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &user, &db_pool
-    ).await?.expect("User ban from sphere should be possible.");
-    assert_eq!(user_ban.user_id, unauthorized_user.user_id);
+        unauthorized_user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(1), &user, &db_pool
+    ).await.expect("User ban from sphere should be possible.").expect("Should get ban");
+    assert_eq!(user_ban.person_id, unauthorized_user.person_id);
     assert_eq!(user_ban.sphere_id, Some(sphere.sphere_id));
     assert_eq!(user_ban.sphere_name, Some(sphere.sphere_name.clone()));
-    assert_eq!(user_ban.moderator_id, user.user_id);
+    assert_eq!(user_ban.moderator_id, user.person_id);
     assert_eq!(user_ban.until_timestamp, Some(user_ban.create_timestamp.add(Days::new(1))));
 
     // banned user cannot create new content
-    let unauthorized_user = User::get(unauthorized_user.user_id, &db_pool).await.expect("Should be able to reload user.");
+    let unauthorized_user = User::get(unauthorized_user.person_id, &db_pool).await.expect("Should be able to reload user.");
     assert!(
         matches!(
             create_post(
@@ -373,23 +373,23 @@ async fn test_ban_user_from_sphere() -> Result<(), AppError> {
     );
 
     // global moderator can ban ordinary users
-    let user_ban = ban_user_from_sphere(banned_user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(2), &global_moderator, &db_pool).await?.expect("User ban from sphere should be possible.");
-    assert_eq!(user_ban.user_id, banned_user.user_id);
+    let user_ban = ban_user_from_sphere(banned_user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, Some(2), &global_moderator, &db_pool).await.expect("Should ban user").expect("Should get ban.");
+    assert_eq!(user_ban.person_id, banned_user.person_id);
     assert_eq!(user_ban.sphere_id, Some(sphere.sphere_id));
     assert_eq!(user_ban.sphere_name, Some(sphere.sphere_name.clone()));
-    assert_eq!(user_ban.moderator_id, global_moderator.user_id);
+    assert_eq!(user_ban.moderator_id, global_moderator.person_id);
     assert_eq!(user_ban.until_timestamp, Some(user_ban.create_timestamp.add(Days::new(2))));
 
     // global moderator can ban ordinary users
-    let user_ban = ban_user_from_sphere(banned_user.user_id, sphere.sphere_id, post.post_id, None, rule.rule_id, None, &admin, &db_pool).await?.expect("User ban from sphere should be possible.");
-    assert_eq!(user_ban.user_id, banned_user.user_id);
+    let user_ban = ban_user_from_sphere(banned_user.person_id, sphere.sphere_id, post.post_id, None, rule.rule_id, None, &admin, &db_pool).await.expect("Should ban user").expect("Should get ban.");
+    assert_eq!(user_ban.person_id, banned_user.person_id);
     assert_eq!(user_ban.sphere_id, Some(sphere.sphere_id));
     assert_eq!(user_ban.sphere_name, Some(sphere.sphere_name.clone()));
-    assert_eq!(user_ban.moderator_id, admin.user_id);
+    assert_eq!(user_ban.moderator_id, admin.person_id);
     assert_eq!(user_ban.until_timestamp, None);
 
     // banned user cannot create new content
-    let banned_user = User::get(banned_user.user_id, &db_pool).await.expect("Should be possible to reload banned user.");
+    let banned_user = User::get(banned_user.person_id, &db_pool).await.expect("Should be possible to reload banned user.");
     assert_eq!(
         create_post(&sphere.sphere_name, None,"c", "d", None, Link::default(), PostTags::default(), &banned_user, &db_pool).await,
         Err(AppError::PermanentSphereBan),
@@ -398,6 +398,4 @@ async fn test_ban_user_from_sphere() -> Result<(), AppError> {
         create_comment(post.post_id, None, "a", None, false, &banned_user, &db_pool).await,
         Err(AppError::PermanentSphereBan),
     );
-
-    Ok(())
 }

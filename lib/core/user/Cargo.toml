@@ -21,7 +21,9 @@ chrono.workspace = true
 log.workspace = true
 lru = { workspace = true, optional = true }
 openidconnect = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
+rsa = { workspace = true, optional = true }
 serde.workspace = true
 sqlx = { workspace = true, optional = true }
 serde_json.workspace = true
@@ -48,7 +50,9 @@ ssr = [
     "dep:leptos_axum",
     "dep:lru",
     "dep:openidconnect",
+    "dep:rand",
     "dep:reqwest",
+    "dep:rsa",
     "dep:sqlx",
     "dep:tokio",
     "dep:url",

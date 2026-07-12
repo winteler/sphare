@@ -39,7 +39,7 @@ pub mod ssr {
     use sphare_core_common::routes::{get_app_origin, AUTH_CALLBACK_ROUTE};
 
     use crate::session::ssr::{get_session, get_user_lock_cache, AuthSession};
-    use crate::user::ssr::{create_or_update_user, SqlUser};
+    use crate::user::ssr::{create_or_update_user, DbUser};
     use crate::user::User;
 
     use super::*;
@@ -168,9 +168,9 @@ pub mod ssr {
         user.ok_or(AppError::NotAuthenticated)
     }
 
-    pub fn reload_user(user_id: i64) -> Result<(), AppError> {
+    pub fn reload_user(person_id: i64) -> Result<(), AppError> {
         let auth_session = get_session()?;
-        auth_session.cache_clear_user(user_id);
+        auth_session.cache_clear_user(person_id);
         Ok(())
     }
     
@@ -206,7 +206,7 @@ pub mod ssr {
     pub async fn get_user() -> Result<Option<User>, AppError> {
         let auth_session = get_session()?;
         if let Some(user) = &auth_session.current_user {
-            let user_lock = get_user_lock_cache()?.get_user_lock(user.user_id).await;
+            let user_lock = get_user_lock_cache()?.get_user_lock(user.person_id).await;
 
             // Lock the mutex for this user
             let _lock = user_lock.lock().await;
@@ -237,11 +237,11 @@ pub mod ssr {
 
                     match token_response {
                         Ok(token_response) => {
-                            let sql_user = process_oidc_token_response(token_response, auth_session.clone(), client).await?;
+                            let db_user = process_oidc_token_response(token_response, auth_session.clone(), client).await?;
                             let db_pool = get_db_pool()?;
-                            let user = User::get(sql_user.user_id, &db_pool).await;
-                            log::debug!("Logged in as {:?}", sql_user);
-                            auth_session.cache_clear_user(sql_user.user_id);
+                            let user = User::get(db_user.person_id, &db_pool).await;
+                            log::debug!("Logged in as {:?}", db_user);
+                            auth_session.cache_clear_user(db_user.person_id);
                             Ok(user)
                         }
                         Err(e) => {
@@ -287,7 +287,7 @@ pub mod ssr {
         token_response: CoreTokenResponse,
         auth_session: AuthSession,
         client: OidcCoreClient,
-    ) -> Result<SqlUser, AppError> {
+    ) -> Result<DbUser, AppError> {
         // Extract the ID token claims after verifying its authenticity and nonce.
         let id_token = token_response
             .id_token()

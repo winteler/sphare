@@ -54,3 +54,5 @@ pub const SPHERE_FETCH_LIMIT: usize = 100;
 pub const SPHERE_HEADER_FETCH_LIMIT: usize = 10;
 pub const POST_BATCH_SIZE: i64 = 50;
 pub const COMMENT_BATCH_SIZE: i64 = 50;
+
+pub const RSA_KEY_SIZE: usize = 2048;

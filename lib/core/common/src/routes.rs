@@ -2,7 +2,7 @@ use const_format::concatcp;
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 use leptos_router::params::ParamsMap;
-
+use url::Url;
 use crate::errors::AppError;
 
 pub const APP_ORIGIN_ENV: &str = "APP_ORIGIN";
@@ -34,6 +34,9 @@ pub const RULES_ROUTE: &str = "/rules";
 pub const FAQ_ROUTE: &str = "/faq";
 pub const GITHUB_REPO_URL: &str = "https://github.com/winteler/sphare";
 
+pub const ACTIVITY_PUB_INBOX_PATH: &str = "/inbox";
+pub const ACTIVITY_PUB_OUTBOX_PATH: &str = "/outbox";
+
 #[cfg(feature = "ssr")]
 pub fn get_app_origin() -> Result<String, AppError> {
     Ok(std::env::var(APP_ORIGIN_ENV)?)
@@ -50,10 +53,33 @@ pub fn get_current_url() -> Signal<String> {
     })
 }
 
+/// # Returns the path to a user's profile
+///
+/// ```
+/// use sphare_core_common::routes::get_profile_path;
+///
+/// assert_eq!(get_profile_path("test"), "/users/test");
+/// ```
 pub fn get_profile_path(
     username: &str,
 ) -> String {
     format!("{USER_ROUTE_PREFIX}/{username}")
+}
+
+/// # Returns the url to a user's profile
+///
+/// ```
+/// use sphare_core_common::routes::get_profile_path;
+///
+/// assert_eq!(get_profile_path("test"), "/users/test");
+/// ```
+pub fn get_profile_link(
+    username: &str,
+) -> Result<Url, AppError> {
+    let base_url = get_app_origin().unwrap_or_default();
+    let profile_path = get_profile_path(username);
+    let profile_link = Url::parse(&base_url)?.join(&profile_path)?;
+    Ok(profile_link)
 }
 
 /// Get a memo returning the last valid user id from the url. Used to avoid triggering resources when leaving pages.

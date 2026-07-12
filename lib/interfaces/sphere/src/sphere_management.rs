@@ -30,7 +30,7 @@ pub async fn remove_user_ban(
     let user = check_user().await?;
     let db_pool = get_db_pool()?;
     let deleted_user_ban = ssr::remove_user_ban(ban_id, &user, &db_pool).await?;
-    reload_user(deleted_user_ban.user_id)?;
+    reload_user(deleted_user_ban.person_id)?;
     Ok(())
 }
 

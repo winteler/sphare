@@ -10,6 +10,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use validator::{ValidationError, ValidationErrors};
 
+#[macro_export] macro_rules! to_app_error {
+    ($msg:expr) => {
+        |e| AppError::InternalServerError(format!("{}: {}", $msg, e))
+    };
+}
+
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AppError {
     AuthenticationError(String),
@@ -158,9 +164,11 @@ impl From<std::io::Error> for AppError {
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    use crate::errors::AppError;
+    use axum::response::{IntoResponse, Response};
     use openidconnect::SignatureVerificationError;
     use sqlx;
+
+    use crate::errors::AppError;
 
     impl From<sqlx::Error> for AppError {
         fn from(error: sqlx::Error) -> Self {
@@ -216,6 +224,12 @@ mod ssr {
     impl From<reqwest::Error> for AppError {
         fn from(value: reqwest::Error) -> Self {
             AppError::InternalServerError(value.to_string())
+        }
+    }
+
+    impl IntoResponse for AppError {
+        fn into_response(self) -> Response {
+            (self.status_code(), self.to_string()).into_response()
         }
     }
 }

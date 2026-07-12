@@ -34,7 +34,7 @@ async fn test_get_sphere_ban_vec() -> Result<(), AppError> {
     let rule = add_rule(&sphere.sphere_name, 0, "test", "test", false, &lead, &db_pool).await.expect("Rule should be added.");
 
     let ban_user_1 = ban_user_from_sphere(
-        banned_user_1.user_id,
+        banned_user_1.person_id,
         sphere.sphere_id,
         post.post_id,
         None,
@@ -48,7 +48,7 @@ async fn test_get_sphere_ban_vec() -> Result<(), AppError> {
     assert!(banned_user_vec.contains(&ban_user_1));
 
     let ban_user_2 = ban_user_from_sphere(
-        banned_user_2.user_id,
+        banned_user_2.person_id,
         sphere.sphere_id,
         post.post_id,
         None,
@@ -85,7 +85,7 @@ async fn test_remove_user_ban() -> Result<(), AppError> {
     let rule = add_rule(&sphere.sphere_name, 0, "test", "test", false, &lead, &db_pool).await.expect("Rule should be added.");
 
     let ban_user_1 = ban_user_from_sphere(
-        banned_user_1.user_id,
+        banned_user_1.person_id,
         sphere.sphere_id,
         post.post_id,
         None,
@@ -125,7 +125,7 @@ async fn test_remove_user_ban() -> Result<(), AppError> {
     create_comment_with_notif(post.post_id, None, "c", false, false, &banned_user_1, &db_pool).await.expect("Should create comment");
 
     let ban_user_1 = ban_user_from_sphere(
-        banned_user_1.user_id,
+        banned_user_1.person_id,
         sphere.sphere_id,
         post.post_id,
         None,
@@ -145,7 +145,7 @@ async fn test_remove_user_ban() -> Result<(), AppError> {
 
     let removed_ban = get_user_ban_by_id(ban_user_1.ban_id, &db_pool).await?;
     assert_eq!(removed_ban.ban_id, ban_user_1.ban_id);
-    assert_eq!(removed_ban.user_id, ban_user_1.user_id);
+    assert_eq!(removed_ban.person_id, ban_user_1.person_id);
     assert_eq!(removed_ban.username, ban_user_1.username);
     assert_eq!(removed_ban.sphere_id, ban_user_1.sphere_id);
     assert_eq!(removed_ban.sphere_name, ban_user_1.sphere_name);
@@ -176,11 +176,11 @@ async fn test_is_user_sphere_moderator() -> Result<(), AppError> {
 
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await?;
 
-    assert_eq!(is_user_sphere_moderator(user.user_id, sphere.sphere_id, &db_pool).await, Ok(true));
-    assert_eq!(is_user_sphere_moderator(global_moderator.user_id, sphere.sphere_id, &db_pool).await, Ok(true));
-    assert_eq!(is_user_sphere_moderator(admin.user_id, sphere.sphere_id, &db_pool).await, Ok(true));
-    assert_eq!(is_user_sphere_moderator(ordinary_user.user_id, sphere.sphere_id, &db_pool).await, Ok(false));
-    assert!(is_user_sphere_moderator(ordinary_user.user_id + 1, sphere.sphere_id, &db_pool).await.is_err());
+    assert_eq!(is_user_sphere_moderator(user.person_id, sphere.sphere_id, &db_pool).await, Ok(true));
+    assert_eq!(is_user_sphere_moderator(global_moderator.person_id, sphere.sphere_id, &db_pool).await, Ok(true));
+    assert_eq!(is_user_sphere_moderator(admin.person_id, sphere.sphere_id, &db_pool).await, Ok(true));
+    assert_eq!(is_user_sphere_moderator(ordinary_user.person_id, sphere.sphere_id, &db_pool).await, Ok(false));
+    assert!(is_user_sphere_moderator(ordinary_user.person_id + 1, sphere.sphere_id, &db_pool).await.is_err());
 
     Ok(())
 }
@@ -190,7 +190,7 @@ async fn test_set_sphere_image() {
     let db_pool = get_db_pool().await;
     let user = create_test_user(&db_pool).await;
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await.expect("Should create sphere");
-    let user = User::get(user.user_id, &db_pool).await.expect("Should get user after sphere creation");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should get user after sphere creation");
     let object_store = InMemory::new();
     let container_url = "https://objectstorage.com";
     let icon_bucket_name = "icon_bucket";
@@ -265,7 +265,7 @@ async fn test_delete_sphere_image() {
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await.expect("Should create sphere");
     let object_store = InMemory::new();
     // reload user to have updated permissions
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user.");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user.");
 
     let (sphere_name, image_file_name) = store_sphere_image(
         get_multipart_image_with_string(IMAGE_FILE_PARAM, SPHERE_NAME_PARAM, &sphere.sphere_name).await,
@@ -311,7 +311,7 @@ async fn test_store_sphere_image() {
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await.expect("Should create sphere");
     let object_store = InMemory::new();
     // reload user to have updated permissions
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user.");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user.");
 
     // Test need manage permissions to store image
 
@@ -376,7 +376,7 @@ async fn test_set_sphere_icon_url() -> Result<(), AppError> {
     let base_user = create_user("base", &db_pool).await;
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await?;
     // reload user to have updated permissions
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user.");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user.");
     let icon_url = "a";
     assert_eq!(sphere.icon_url, None);
 
@@ -396,7 +396,7 @@ async fn test_set_sphere_banner_url() -> Result<(), AppError> {
     let base_user = create_user("base", &db_pool).await;
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await?;
     // reload user to have updated permissions
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user.");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user.");
     let banner_url = "a";
     assert_eq!(sphere.banner_url, None);
 

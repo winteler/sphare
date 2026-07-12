@@ -69,8 +69,8 @@ pub async fn authenticate_user(auth_code: String) -> Result<(), AppError> {
             .await
             .map_err(AppError::from)?;
 
-        let sql_user = ssr::process_oidc_token_response(token_response, auth_session.clone(), client).await?;
-        auth_session.login_user(sql_user.user_id);
+        let db_user = ssr::process_oidc_token_response(token_response, auth_session.clone(), client).await?;
+        auth_session.login_user(db_user.person_id);
         auth_session.remember_user(true);
     }
 
@@ -114,7 +114,7 @@ pub async fn end_session(redirect_url: String) -> Result<String, AppError> {
 
     auth_session.session.remove(OIDC_TOKEN_KEY);
     if let Some(user) = user {
-        auth_session.cache_clear_user(user.user_id);
+        auth_session.cache_clear_user(user.person_id);
     }
     auth_session.logout_user();
 

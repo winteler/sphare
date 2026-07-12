@@ -100,7 +100,7 @@ pub mod ssr {
             category_color as i32,
             description,
             is_active,
-            user.user_id,
+            user.person_id,
         )
             .fetch_one(db_pool)
             .await?;

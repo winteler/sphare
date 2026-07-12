@@ -35,7 +35,7 @@ pub enum VoteValue {
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Vote {
     pub vote_id: i64,
-    pub user_id: i64,
+    pub person_id: i64,
     pub comment_id: Option<i64>,
     pub post_id: i64,
     pub value: VoteValue,
@@ -111,13 +111,13 @@ pub mod ssr {
                         vote_id = $2 AND
                         post_id = $3 AND
                         comment_id IS NOT DISTINCT FROM $4 AND
-                        user_id = $5 AND
+                        person_id = $5 AND
                         NOT EXISTS (
                             SELECT * FROM user_bans b
                             JOIN posts p ON p.sphere_id = b.sphere_id
                             WHERE
                                 p.post_id = $3 AND
-                                b.user_id = $5 AND
+                                b.person_id = $5 AND
                                 b.delete_timestamp IS NULL AND
                                 (b.until_timestamp <= NOW() OR b.until_timestamp IS NULL)
                         )
@@ -126,7 +126,7 @@ pub mod ssr {
                     vote_id,
                     post_id,
                     comment_id,
-                    user.user_id,
+                    user.person_id,
                 )
                     .fetch_one(db_pool)
                     .await?;
@@ -137,33 +137,33 @@ pub mod ssr {
                     "DELETE from votes
                     WHERE vote_id = $1 AND
                           post_id = $2 AND
-                          user_id = $3",
+                          person_id = $3",
                     vote_id,
                     post_id,
-                    user.user_id,
+                    user.person_id,
                 )
                     .execute(db_pool)
                     .await?;
                 (current_vote.value, None)
             }
         } else {
-            log::debug!("Create vote for content {post_id}, comment {comment_id:?}, user {} with value {vote_value:?}", user.user_id);
+            log::debug!("Create vote for content {post_id}, comment {comment_id:?}, person_id {} with value {vote_value:?}", user.person_id);
             let vote = sqlx::query_as!(
                 Vote,
-                "INSERT INTO votes (post_id, comment_id, user_id, value)
+                "INSERT INTO votes (post_id, comment_id, person_id, value)
                 SELECT $1, $2, $3, $4
                 WHERE NOT EXISTS (
                     SELECT * FROM user_bans b
                     JOIN posts p ON p.sphere_id = b.sphere_id
                     WHERE
                         p.post_id = $1 AND
-                        b.user_id = $3 AND
+                        b.person_id = $3 AND
                         b.delete_timestamp IS NULL AND
                         (b.until_timestamp <= NOW() OR b.until_timestamp IS NULL)
                 ) RETURNING *",
                 post_id,
                 comment_id,
-                user.user_id,
+                user.person_id,
                 vote_value as i16,
             )
                 .fetch_one(db_pool)
@@ -244,11 +244,11 @@ pub mod ssr {
                 post_id = $1 AND
                 comment_id IS NOT DISTINCT FROM $2 AND
                 vote_id = $3 AND
-                user_id = $4",
+                person_id = $4",
             post_id,
             comment_id,
             vote_id,
-            user.user_id,
+            user.person_id,
         )
             .fetch_one(db_pool)
             .await?;

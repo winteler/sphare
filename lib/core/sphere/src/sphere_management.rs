@@ -80,11 +80,11 @@ pub mod ssr {
         check_username(username_prefix, true)?;
         let user_ban_vec = sqlx::query_as!(
             UserBan,
-            "SELECT b.*, u.username, s.sphere_name FROM user_bans b
-            JOIN users u ON u.user_id = b.user_id
+            "SELECT b.*, p.username, s.sphere_name FROM user_bans b
+            JOIN persons p ON p.person_id = b.person_id
             JOIN spheres s ON s.sphere_id = b.sphere_id
             WHERE s.sphere_name = $1 AND
-                  u.username like $2 AND
+                  p.username like $2 AND
                   b.delete_timestamp IS NULL
             ORDER BY b.until_timestamp DESC",
             sphere_name,
@@ -103,8 +103,8 @@ pub mod ssr {
     ) -> Result<UserBan, AppError> {
         let user_ban = sqlx::query_as!(
             UserBan,
-            "SELECT b.*, u.username, s.sphere_name FROM user_bans b
-            JOIN users u ON u.user_id = b.user_id
+            "SELECT b.*, p.username, s.sphere_name FROM user_bans b
+            JOIN persons p ON p.person_id = b.person_id
             JOIN spheres s ON s.sphere_id = b.sphere_id
             WHERE ban_id = $1",
             ban_id

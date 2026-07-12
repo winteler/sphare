@@ -23,7 +23,7 @@ pub struct Sphere {
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct SphereSubscription {
     pub subscription_id: i64,
-    pub user_id: i64,
+    pub person_id: i64,
     pub sphere_id: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
@@ -71,7 +71,7 @@ pub mod ssr {
 
     pub async fn get_sphere_with_user_info(
         sphere_name: &str,
-        user_id: Option<i64>,
+        person_id: Option<i64>,
         db_pool: &PgPool,
     ) -> Result<SphereWithUserInfo, AppError> {
         check_sphere_name(sphere_name)?;
@@ -80,10 +80,10 @@ pub mod ssr {
             FROM spheres s
             LEFT JOIN sphere_subscriptions sub ON
                 sub.sphere_id = s.sphere_id AND
-                sub.user_id = $1
+                sub.person_id = $1
             WHERE s.sphere_name = $2",
         )
-            .bind(user_id)
+            .bind(person_id)
             .bind(sphere_name)
             .fetch_one(db_pool)
             .await?;
@@ -143,7 +143,7 @@ pub mod ssr {
     }
 
     pub async fn get_subscribed_sphere_headers(
-        user_id: i64,
+        person_id: i64,
         db_pool: &PgPool,
     ) -> Result<Vec<SphereHeader>, AppError> {
         let sphere_header_vec = sqlx::query_as!(
@@ -152,9 +152,9 @@ pub mod ssr {
             FROM spheres s
             JOIN sphere_subscriptions sub ON
                 s.sphere_id = sub.sphere_id AND
-                sub.user_id = $1
+                sub.person_id = $1
             ORDER BY sphere_name",
-            user_id,
+            person_id,
         )
             .fetch_all(db_pool)
             .await?;
@@ -184,7 +184,7 @@ pub mod ssr {
             db_pool,
         ).await?;
 
-        subscribe(sphere.sphere_id, user.user_id, db_pool).await?;
+        subscribe(sphere.sphere_id, user.person_id, db_pool).await?;
 
         sphere.num_members = 1;
 
@@ -207,11 +207,11 @@ pub mod ssr {
             .bind(name)
             .bind(description)
             .bind(is_nsfw)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .fetch_one(db_pool)
             .await?;
 
-        init_sphere_leader(user.user_id, &sphere.sphere_name, &db_pool).await?;
+        init_sphere_leader(user.person_id, &sphere.sphere_name, &db_pool).await?;
 
         Ok(sphere)
     }
@@ -237,10 +237,10 @@ pub mod ssr {
         Ok(sphere)
     }
 
-    pub async fn subscribe(sphere_id: i64, user_id: i64, db_pool: &PgPool) -> Result<(), AppError> {
+    pub async fn subscribe(sphere_id: i64, person_id: i64, db_pool: &PgPool) -> Result<(), AppError> {
         sqlx::query!(
-            "INSERT INTO sphere_subscriptions (user_id, sphere_id) VALUES ($1, $2)",
-            user_id,
+            "INSERT INTO sphere_subscriptions (person_id, sphere_id) VALUES ($1, $2)",
+            person_id,
             sphere_id
         )
             .execute(db_pool)
@@ -256,10 +256,10 @@ pub mod ssr {
         Ok(())
     }
 
-    pub async fn unsubscribe(sphere_id: i64, user_id: i64, db_pool: &PgPool) -> Result<(), AppError> {
+    pub async fn unsubscribe(sphere_id: i64, person_id: i64, db_pool: &PgPool) -> Result<(), AppError> {
         let deleted_rows = sqlx::query!(
-            "DELETE FROM sphere_subscriptions WHERE user_id = $1 AND sphere_id = $2",
-            user_id,
+            "DELETE FROM sphere_subscriptions WHERE person_id = $1 AND sphere_id = $2",
+            person_id,
             sphere_id,
         )
             .execute(db_pool)

@@ -99,7 +99,7 @@ pub mod ssr {
         pub vote_id: Option<i64>,
         pub vote_post_id: Option<i64>,
         pub vote_comment_id: Option<Option<i64>>,
-        pub vote_user_id: Option<i64>,
+        pub vote_person_id: Option<i64>,
         pub value: Option<i16>,
         pub vote_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
@@ -109,7 +109,7 @@ pub mod ssr {
             let comment_vote = if self.vote_id.is_some() {
                 Some(Vote {
                     vote_id: self.vote_id.unwrap(),
-                    user_id: self.vote_user_id.unwrap(),
+                    person_id: self.vote_person_id.unwrap(),
                     comment_id: self.vote_comment_id.unwrap(),
                     post_id: self.vote_post_id.unwrap(),
                     value: VoteValue::from(self.value.unwrap()),
@@ -134,13 +134,13 @@ pub mod ssr {
         let comment = sqlx::query_as::<_, Comment>(
             "SELECT
                 c.*,
-                COALESCE(u.username, '') as creator_name,
+                COALESCE(p.username, '') as creator_name,
                 m.username as moderator_name,
                 r.title as infringed_rule_title,
                 r.sphere_id IS NOT NULL AS is_sphere_rule
             FROM comments c
-            LEFT JOIN users u ON u.user_id = c.creator_id AND c.delete_timestamp IS NULL
-            LEFT JOIN users m ON m.user_id = c.moderator_id AND c.delete_timestamp IS NULL
+            LEFT JOIN persons p ON p.person_id = c.creator_id AND c.delete_timestamp IS NULL
+            LEFT JOIN persons m ON m.person_id = c.moderator_id AND c.delete_timestamp IS NULL
             LEFT JOIN rules r ON r.rule_id = c.infringed_rule_id AND c.delete_timestamp IS NULL
             WHERE comment_id = $1"
         )
@@ -218,7 +218,7 @@ pub mod ssr {
         post_id: i64,
         sort_type: SortType,
         max_depth: Option<usize>,
-        user_id: Option<i64>,
+        person_id: Option<i64>,
         limit: i64,
         offset: i64,
         db_pool: &PgPool,
@@ -257,25 +257,25 @@ pub mod ssr {
                 )
                 SELECT
                     c.*,
-                    COALESCE(u.username, '') as creator_name,
+                    COALESCE(p.username, '') as creator_name,
                     m.username as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule,
                     v.vote_id,
-                    v.user_id as vote_user_id,
+                    v.person_id as vote_person_id,
                     v.post_id as vote_post_id,
                     v.comment_id as vote_comment_id,
                     v.value,
                     v.timestamp as vote_timestamp
                 FROM comment_tree c
-                LEFT JOIN users u ON u.user_id = c.creator_id AND c.delete_timestamp IS NULL
-                LEFT JOIN users m ON m.user_id = c.moderator_id AND c.delete_timestamp IS NULL
+                LEFT JOIN persons p ON p.person_id = c.creator_id AND c.delete_timestamp IS NULL
+                LEFT JOIN persons m ON m.person_id = c.moderator_id AND c.delete_timestamp IS NULL
                 LEFT JOIN rules r ON r.rule_id = c.infringed_rule_id AND c.delete_timestamp IS NULL
-                LEFT JOIN votes v ON v.comment_id = c.comment_id AND v.user_id = $1
+                LEFT JOIN votes v ON v.comment_id = c.comment_id AND v.person_id = $1
                 ORDER BY c.path DESC"
             ))
         )
-            .bind(user_id)
+            .bind(person_id)
             .bind(post_id)
             .bind(max_depth.map(|max_depth| (max_depth+ 1) as i64))
             .bind(limit)
@@ -293,7 +293,7 @@ pub mod ssr {
         comment_id: i64,
         sort_type: SortType,
         max_depth: Option<usize>,
-        user_id: Option<i64>,
+        person_id: Option<i64>,
         db_pool: &PgPool,
     ) -> Result<CommentWithChildren, AppError> {
         if comment_id < 1 {
@@ -345,25 +345,25 @@ pub mod ssr {
                 )
                 SELECT
                     c.*,
-                    COALESCE(u.username, '') as creator_name,
+                    COALESCE(p.username, '') as creator_name,
                     m.username as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule,
                     v.vote_id,
-                    v.user_id as vote_user_id,
+                    v.person_id as vote_person_id,
                     v.post_id as vote_post_id,
                     v.comment_id as vote_comment_id,
                     v.value,
                     v.timestamp as vote_timestamp
                 FROM selected_comments c
-                LEFT JOIN users u ON u.user_id = c.creator_id AND c.delete_timestamp IS NULL
-                LEFT JOIN users m ON m.user_id = c.moderator_id AND c.delete_timestamp IS NULL
+                LEFT JOIN persons p ON p.person_id = c.creator_id AND c.delete_timestamp IS NULL
+                LEFT JOIN persons m ON m.person_id = c.moderator_id AND c.delete_timestamp IS NULL
                 LEFT JOIN rules r ON r.rule_id = c.infringed_rule_id AND c.delete_timestamp IS NULL
-                LEFT JOIN votes v ON v.comment_id = c.comment_id AND v.user_id = $1
+                LEFT JOIN votes v ON v.comment_id = c.comment_id AND v.person_id = $1
                 ORDER BY depth DESC, c.path DESC"
             ))
         )
-            .bind(user_id)
+            .bind(person_id)
             .bind(comment_id)
             .bind(max_depth.map(|max_depth| (max_depth+ 1) as i64))
             .bind(COMMENT_BATCH_SIZE)
@@ -389,7 +389,7 @@ pub mod ssr {
         let comment_vec = sqlx::query_as::<_, CommentWithContext>(
             "SELECT
                 c.*,
-                u.username as creator_name,
+                pe.username as creator_name,
                 p.sphere_id,
                 p.satellite_id,
                 p.title as post_title,
@@ -399,7 +399,7 @@ pub mod ssr {
                 ts_rank(c.comment_document,
                 plainto_tsquery('simple', $1)) AS rank
                 FROM comments c
-                JOIN users u ON u.user_id = c.creator_id
+                JOIN persons pe ON pe.person_id = c.creator_id
                 JOIN posts p ON p.post_id = c.post_id
                 JOIN spheres s ON s.sphere_id = p.sphere_id
                 WHERE
@@ -460,7 +460,7 @@ pub mod ssr {
             Some(_) => NotificationType::CommentReply,
             None => NotificationType::PostReply,
         };
-        create_notification(post_id, comment.parent_id, Some(comment.comment_id), user.user_id, notif_type, &db_pool).await?;
+        create_notification(post_id, comment.parent_id, Some(comment.comment_id), user.person_id, notif_type, &db_pool).await?;
 
         Ok(CommentWithChildren {
             comment,
@@ -503,7 +503,7 @@ pub mod ssr {
             .bind(parent_comment_id)
             .bind(post_id)
             .bind(is_pinned)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .bind(user.check_sphere_permissions_by_name(&sphere.sphere_name, PermissionLevel::Moderate).is_ok())
             .bind(user.username.clone())
             .fetch_one(db_pool)
@@ -571,7 +571,7 @@ pub mod ssr {
             .bind(comment_markdown_body)
             .bind(is_pinned)
             .bind(comment_id)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .bind(user.username.clone())
             .fetch_one(db_pool)
             .await?;
@@ -601,7 +601,7 @@ pub mod ssr {
             SELECT *, '' as creator_name FROM deleted_comment",
         )
             .bind(comment_id)
-            .bind(user.user_id)
+            .bind(user.person_id)
             .fetch_one(db_pool)
             .await?;
 
@@ -619,14 +619,14 @@ pub mod ssr {
         fn test_comment_join_vote_into_comment_with_children() {
             let user = User::default();
             let mut comment = Comment::default();
-            comment.creator_id = user.user_id;
+            comment.creator_id = user.person_id;
 
             let comment_without_vote = CommentWithVote {
                 comment: comment.clone(),
                 vote_id: None,
                 vote_post_id: None,
                 vote_comment_id: None,
-                vote_user_id: None,
+                vote_person_id: None,
                 value: None,
                 vote_timestamp: None,
             };
@@ -640,14 +640,14 @@ pub mod ssr {
                 vote_id: Some(0),
                 vote_post_id: Some(comment.post_id),
                 vote_comment_id: Some(Some(comment.comment_id)),
-                vote_user_id: Some(user.user_id),
+                vote_person_id: Some(user.person_id),
                 value: Some(1),
                 vote_timestamp: Some(comment.create_timestamp),
             };
             let comment_with_vote = comment_with_vote.into_comment_with_children();
             let user_vote = comment_with_vote.vote.expect("CommentWithChildren should contain vote.");
             assert_eq!(comment_with_vote.comment, comment);
-            assert_eq!(user_vote.user_id, user.user_id);
+            assert_eq!(user_vote.person_id, user.person_id);
             assert_eq!(user_vote.comment_id, Some(comment.comment_id));
             assert_eq!(user_vote.value, VoteValue::Up);
             assert_eq!(user_vote.comment_id, Some(comment.comment_id));

@@ -272,7 +272,7 @@ pub fn NotificationItem(
                 <div class="leading-7">
                     <div class="inline-block align-middle">
                         <AuthorWidget
-                            author_id=notification.trigger_user_id
+                            author_id=notification.trigger_person_id
                             author=notification.trigger_username
                             is_moderator=is_moderation
                             is_grayed_out=is_notif_read.get_value()

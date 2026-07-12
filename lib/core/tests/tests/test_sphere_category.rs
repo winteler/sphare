@@ -19,7 +19,7 @@ async fn test_get_sphere_category_vec() -> Result<(), AppError> {
     let user = create_user("test", &db_pool).await;
     let sphere_1 = create_sphere("1", "1", false, &user, &db_pool).await?;
     let sphere_2 = create_sphere("2", "2", false, &user, &db_pool).await?;
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let sphere_1_category_1 = set_sphere_category(
         &sphere_1.sphere_name,
@@ -114,7 +114,7 @@ async fn test_set_sphere_category() -> Result<(), AppError> {
         Err(AppError::InsufficientPrivileges)
     );
 
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let sphere_category = set_sphere_category(
         &sphere.sphere_name,
@@ -129,7 +129,7 @@ async fn test_set_sphere_category() -> Result<(), AppError> {
     assert_eq!(sphere_category.sphere_id, sphere.sphere_id);
     assert_eq!(sphere_category.category_name, category_name);
     assert_eq!(sphere_category.description, description);
-    assert_eq!(sphere_category.creator_id, user.user_id);
+    assert_eq!(sphere_category.creator_id, user.person_id);
     assert!(sphere_category.is_active);
     assert_eq!(sphere_category.delete_timestamp, None);
 
@@ -147,7 +147,7 @@ async fn test_set_sphere_category() -> Result<(), AppError> {
     assert_eq!(updated_category.sphere_id, sphere.sphere_id);
     assert_eq!(updated_category.category_name, category_name);
     assert_eq!(updated_category.description, updated_description);
-    assert_eq!(updated_category.creator_id, user.user_id);
+    assert_eq!(updated_category.creator_id, user.person_id);
     assert!(!updated_category.is_active);
     assert_eq!(updated_category.delete_timestamp, None);
 
@@ -165,7 +165,7 @@ async fn test_set_sphere_category() -> Result<(), AppError> {
     assert_eq!(sphere_2_category.sphere_id, sphere_2.sphere_id);
     assert_eq!(sphere_2_category.category_name, category_name);
     assert_eq!(sphere_2_category.description, description);
-    assert_eq!(sphere_2_category.creator_id, user.user_id);
+    assert_eq!(sphere_2_category.creator_id, user.person_id);
     assert!(!sphere_2_category.is_active);
     assert_eq!(sphere_2_category.delete_timestamp, None);
 
@@ -177,7 +177,7 @@ async fn test_delete_sphere_category() -> Result<(), AppError> {
     let db_pool = get_db_pool().await;
     let user = create_user("test", &db_pool).await;
     let sphere = create_sphere("sphere", "a", false, &user, &db_pool).await?;
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let category_name = "a";
     let sphere_category = set_sphere_category(

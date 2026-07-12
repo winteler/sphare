@@ -46,12 +46,12 @@ pub async fn get_sphere_with_user_info(
     sphere_name: String,
 ) -> Result<SphereWithUserInfo, AppError> {
     let db_pool = get_db_pool()?;
-    let user_id = match get_user().await {
-        Ok(Some(user)) => Some(user.user_id),
+    let person_id = match get_user().await {
+        Ok(Some(user)) => Some(user.person_id),
         _ => None,
     };
 
-    ssr::get_sphere_with_user_info(sphere_name.as_str(), user_id, &db_pool).await
+    ssr::get_sphere_with_user_info(sphere_name.as_str(), person_id, &db_pool).await
 }
 
 #[server]
@@ -71,7 +71,7 @@ pub async fn create_sphere(
         &db_pool
     ).await?;
 
-    reload_user(user.user_id)?;
+    reload_user(user.person_id)?;
 
     // Redirect to the new sphere
     leptos_axum::redirect(&new_sphere_path);
@@ -96,7 +96,7 @@ pub async fn subscribe(sphere_id: i64) -> Result<(), AppError> {
     let user = check_user().await?;
     let db_pool = get_db_pool()?;
 
-    ssr::subscribe(sphere_id, user.user_id, &db_pool).await
+    ssr::subscribe(sphere_id, user.person_id, &db_pool).await
 }
 
 #[server]
@@ -104,5 +104,5 @@ pub async fn unsubscribe(sphere_id: i64) -> Result<(), AppError> {
     let user = check_user().await?;
     let db_pool = get_db_pool()?;
 
-    ssr::unsubscribe(sphere_id, user.user_id, &db_pool).await
+    ssr::unsubscribe(sphere_id, user.person_id, &db_pool).await
 }

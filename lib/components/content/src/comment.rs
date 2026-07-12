@@ -379,7 +379,7 @@ pub fn CommentBottomWidgetBar(
                     />
                     <SuspenseUnpack resource=state.user let:user>
                     {
-                        match user.as_ref().is_some_and(|user| user.user_id == author_id) {
+                        match user.as_ref().is_some_and(|user| user.person_id == author_id) {
                             true => None,
                             false => Some(view! {
                                 <ModerateCommentButton
@@ -567,7 +567,7 @@ pub fn EditCommentButton(
     let state = expect_context::<GlobalState>();
     let show_dialog = RwSignal::new(false);
     let show_button = move || match &(*state.user.read()) {
-        Some(Ok(Some(user))) => user.user_id == author_id,
+        Some(Ok(Some(user))) => user.person_id == author_id,
         _ => false,
     };
     let comment_button_class = move || match show_dialog.get() {

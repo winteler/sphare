@@ -96,7 +96,7 @@ pub mod ssr {
             post.post_id,
             None,
             None,
-            user.user_id,
+            user.person_id,
             NotificationType::Moderation,
             db_pool,
         ).await {
@@ -130,18 +130,18 @@ pub mod ssr {
                     RETURNING *
                 )
                 SELECT
-                    p.*,
-                    u.username as creator_name,
+                    mp.*,
+                    p.username as creator_name,
                     $5 as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule
-                FROM moderated_post p
-                JOIN users u ON u.user_id = p.creator_id
-                JOIN rules r ON r.rule_id = p.infringed_rule_id",
+                FROM moderated_post mp
+                JOIN persons p ON p.person_id = mp.creator_id
+                JOIN rules r ON r.rule_id = mp.infringed_rule_id",
             )
                 .bind(moderator_message)
                 .bind(rule_id)
-                .bind(user.user_id)
+                .bind(user.person_id)
                 .bind(post_id)
                 .bind(user.username.clone())
                 .fetch_one(db_pool)
@@ -160,24 +160,24 @@ pub mod ssr {
                             SELECT * FROM user_sphere_roles r
                             WHERE
                                 r.sphere_id = p.sphere_id AND
-                                r.user_id = $3 AND
+                                r.person_id = $3 AND
                                 r.permission_level != 'None'
                         )
                     RETURNING *
                 )
                 SELECT
-                    p.*,
-                    u.username as creator_name,
+                    mp.*,
+                    p.username as creator_name,
                     $5 as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule
-                FROM moderated_post p
-                JOIN users u ON u.user_id = p.creator_id
-                JOIN rules r ON r.rule_id = p.infringed_rule_id",
+                FROM moderated_post mp
+                JOIN persons p ON p.person_id = mp.creator_id
+                JOIN rules r ON r.rule_id = mp.infringed_rule_id",
             )
                 .bind(moderator_message)
                 .bind(rule_id)
-                .bind(user.user_id)
+                .bind(user.person_id)
                 .bind(post_id)
                 .bind(user.username.clone())
                 .fetch_one(db_pool)
@@ -223,7 +223,7 @@ pub mod ssr {
             comment.post_id,
             Some(comment.comment_id),
             Some(comment.comment_id),
-            user.user_id,
+            user.person_id,
             NotificationType::Moderation,
             db_pool
         ).await {
@@ -258,17 +258,17 @@ pub mod ssr {
                 )
                 SELECT
                     c.*,
-                    u.username as creator_name,
+                    p.username as creator_name,
                     $5 as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule
                 FROM moderated_comment c
-                JOIN users u ON u.user_id = c.creator_id
+                JOIN persons p ON p.person_id = c.creator_id
                 JOIN rules r ON r.rule_id = c.infringed_rule_id",
             )
                 .bind(moderator_message)
                 .bind(rule_id)
-                .bind(user.user_id)
+                .bind(user.person_id)
                 .bind(comment_id)
                 .bind(user.username.clone())
                 .fetch_one(db_pool)
@@ -289,24 +289,24 @@ pub mod ssr {
                             JOIN posts p ON p.sphere_id = r.sphere_id
                             WHERE
                                 p.post_id = c.post_id AND
-                                r.user_id = $3  AND
+                                r.person_id = $3  AND
                                 r.permission_level != 'None'
                         )
                     RETURNING *
                 )
                 SELECT
                     c.*,
-                    u.username as creator_name,
+                    p.username as creator_name,
                     $5 as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule
                 FROM moderated_comment c
-                JOIN users u ON u.user_id = c.creator_id
+                JOIN persons p ON p.person_id = c.creator_id
                 JOIN rules r ON r.rule_id = c.infringed_rule_id",
             )
                 .bind(moderator_message)
                 .bind(rule_id)
-                .bind(user.user_id)
+                .bind(user.person_id)
                 .bind(comment_id)
                 .bind(user.username.clone())
                 .fetch_one(db_pool)
@@ -317,7 +317,7 @@ pub mod ssr {
     }
 
     pub async fn ban_user_from_sphere(
-        user_id: i64,
+        person_id: i64,
         sphere_id: i64,
         post_id: i64,
         comment_id: Option<i64>,
@@ -327,8 +327,8 @@ pub mod ssr {
         db_pool: &PgPool,
     ) -> Result<Option<UserBan>, AppError> {
         if user.check_sphere_permissions_by_id(sphere_id, PermissionLevel::Moderate).is_ok() &&
-            user.user_id != user_id &&
-            !is_user_sphere_moderator(user_id, sphere_id, db_pool).await?
+            user.person_id != person_id &&
+            !is_user_sphere_moderator(person_id, sphere_id, db_pool).await?
         {
             let user_ban = match ban_duration_days {
                 Some(0) => None,
@@ -337,20 +337,20 @@ pub mod ssr {
                         sqlx::query_as!(
                             UserBan,
                             "WITH ban AS (
-                                INSERT INTO user_bans (user_id, sphere_id, post_id, comment_id, infringed_rule_id, moderator_id, until_timestamp)
+                                INSERT INTO user_bans (person_id, sphere_id, post_id, comment_id, infringed_rule_id, moderator_id, until_timestamp)
                                  VALUES (
                                     $1, $2, $3, $4, $5, $6, NOW() + $7 * interval '1 day'
                                 ) RETURNING *
                             )
-                            SELECT b.*, u.username, s.sphere_name FROM ban b
-                            JOIN users u ON u.user_id = b.user_id
+                            SELECT b.*, p.username, s.sphere_name FROM ban b
+                            JOIN persons p ON p.person_id = b.person_id
                             JOIN spheres s ON s.sphere_id = b.sphere_id",
-                            user_id,
+                            person_id,
                             sphere_id,
                             post_id,
                             comment_id,
                             rule_id,
-                            user.user_id,
+                            user.person_id,
                             ban_duration.map(|duration| duration as f64),
                         )
                             .fetch_one(db_pool)
@@ -360,7 +360,7 @@ pub mod ssr {
             };
             Ok(user_ban)
         } else {
-            Err(AppError::InternalServerError(format!("Error while trying to ban user {user_id}. Insufficient permissions or user is a moderator of the sphere.")))
+            Err(AppError::InternalServerError(format!("Error while trying to ban person {person_id}. Insufficient permissions or user is a moderator of the sphere.")))
         }
     }
 }

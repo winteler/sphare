@@ -167,7 +167,7 @@ pub fn test_comment_tree(
 
 pub async fn get_user_post_vote(
     post_id: i64,
-    user_id: i64,
+    person_id: i64,
     db_pool: &PgPool,
 ) -> Result<Vote, AppError> {
     let vote = sqlx::query_as!(
@@ -177,9 +177,9 @@ pub async fn get_user_post_vote(
             WHERE
                 post_id = $1 AND
                 comment_id IS NULL AND
-                user_id = $2",
+                person_id = $2",
             post_id,
-            user_id,
+            person_id,
         )
         .fetch_one(db_pool)
         .await?;
@@ -189,7 +189,7 @@ pub async fn get_user_post_vote(
 
 pub async fn get_user_comment_vote(
     comment: &Comment,
-    user_id: i64,
+    person_id: i64,
     db_pool: &PgPool,
 ) -> Result<Vote, AppError> {
     let vote = sqlx::query_as!(
@@ -199,10 +199,10 @@ pub async fn get_user_comment_vote(
             WHERE
                 post_id = $1 AND
                 comment_id = $2 AND
-                user_id = $3",
+                person_id = $3",
             comment.post_id,
             comment.comment_id,
-            user_id,
+            person_id,
         )
         .fetch_one(db_pool)
         .await?;
@@ -216,8 +216,8 @@ pub async fn get_user_role_by_id(
 ) -> Result<UserSphereRole, AppError> {
     let role = sqlx::query_as!(
         UserSphereRole,
-        "SELECT r.*, u.username, s.sphere_name FROM user_sphere_roles r
-         JOIN users u ON u.user_id = r.user_id
+        "SELECT r.*, p.username, s.sphere_name FROM user_sphere_roles r
+         JOIN persons p ON p.person_id = r.person_id
          JOIN spheres s ON s.sphere_id = r.sphere_id
          WHERE r.role_id = $1",
         role_id
@@ -232,8 +232,8 @@ pub async fn get_user_ban_by_id(
 ) -> Result<UserBan, AppError> {
     let user_ban = sqlx::query_as!(
         UserBan,
-        "SELECT b.*, u.username, s.sphere_name FROM user_bans b
-         JOIN users u ON u.user_id = b.user_id
+        "SELECT b.*, p.username, s.sphere_name FROM user_bans b
+         JOIN persons p ON p.person_id = b.person_id
          JOIN spheres s ON s.sphere_id = b.sphere_id
          WHERE b.ban_id = $1",
         ban_id
@@ -247,9 +247,9 @@ pub async fn get_notification(
     db_pool: &PgPool,
 ) -> Result<Notification, AppError> {
     let notification = sqlx::query_as::<_, Notification>(
-        "SELECT n.*, u.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
+        "SELECT n.*, p.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
         FROM notifications n
-        JOIN USERS u ON u.user_id = n.trigger_user_id
+        JOIN persons p ON p.person_id = n.trigger_person_id
         JOIN spheres s ON s.sphere_id = n.sphere_id
         WHERE n.notification_id = $1",
     )
@@ -272,9 +272,9 @@ pub async fn update_notification_timestamp(
             WHERE notification_id = $2
             RETURNING *
         )
-        SELECT n.*, u.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
+        SELECT n.*, p.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
         FROM updated_notif n
-        JOIN USERS u ON u.user_id = n.trigger_user_id
+        JOIN persons p ON p.person_id = n.trigger_person_id
         JOIN spheres s ON s.sphere_id = n.sphere_id",
     )
         .bind(day_delta)

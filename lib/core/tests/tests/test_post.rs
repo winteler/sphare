@@ -149,7 +149,7 @@ async fn test_get_post_with_info_by_id() -> Result<(), AppError> {
 
     let sphere = create_sphere("a", "sphere", false, &user, &db_pool).await?;
 
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user.");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user.");
     let sphere_category = set_sphere_category(
         &sphere.sphere_name,
         "b",
@@ -214,7 +214,7 @@ async fn test_get_post_with_info_by_id() -> Result<(), AppError> {
 
     let post_1_with_vote = get_post_with_info_by_id(post_1.post_id, Some(&user), &db_pool).await.expect("Should be able to load post 1.");
     assert_eq!(post_1_with_vote.post.post_id, post_1.post_id);
-    assert_eq!(post_1_with_vote.post.creator_id, user.user_id);
+    assert_eq!(post_1_with_vote.post.creator_id, user.person_id);
     assert_eq!(post_1_with_vote.post.creator_name, user.username);
     assert_eq!(post_1_with_vote.post.title, post_1_title);
     assert_eq!(post_1_with_vote.post.body, post_1_body);
@@ -224,7 +224,7 @@ async fn test_get_post_with_info_by_id() -> Result<(), AppError> {
 
     let post_2_with_vote = get_post_with_info_by_id(post_2.post_id, Some(&user), &db_pool).await.expect("Should be able to load post 2.");
     assert_eq!(post_2_with_vote.post.post_id, post_2.post_id);
-    assert_eq!(post_2_with_vote.post.creator_id, user.user_id);
+    assert_eq!(post_2_with_vote.post.creator_id, user.person_id);
     assert_eq!(post_2_with_vote.post.creator_name, user.username);
     assert_eq!(post_2_with_vote.post.title, post_2_title);
     assert_eq!(post_2_with_vote.post.body, post_2_body);
@@ -432,7 +432,7 @@ async fn test_get_subscribed_post_vec() -> Result<(), AppError> {
     }
 
     // When subscribed, the subscribed posts should come first, followed by unsubscribed posts
-    subscribe(sphere1.sphere_id, user.user_id, &db_pool).await?;
+    subscribe(sphere1.sphere_id, user.person_id, &db_pool).await?;
     for sort_type in POST_SORT_TYPE_ARRAY {
         sort_post_vec(&mut sphere1_post_vec, sort_type, false);
         sort_post_vec(&mut sphere2_post_vec, sort_type, false);
@@ -497,7 +497,7 @@ async fn test_get_subscribed_post_vec_with_filters() {
         &mut user,
         &db_pool,
     ).await;
-    subscribe(sphere.sphere_id, user.user_id, &db_pool).await.expect("Should subscribe to sphere 1");
+    subscribe(sphere.sphere_id, user.person_id, &db_pool).await.expect("Should subscribe to sphere 1");
 
     let (sphere_2, sphere_2_post) = create_sphere_with_post(
         "sphere_2",
@@ -505,7 +505,7 @@ async fn test_get_subscribed_post_vec_with_filters() {
         &db_pool,
     ).await;
     let sphere_2_post = set_post_score(sphere_2_post.post_id, 50, &db_pool).await.expect("Should set post score");
-    subscribe(sphere_2.sphere_id, user.user_id, &db_pool).await.expect("Should subscribe to sphere 1");
+    subscribe(sphere_2.sphere_id, user.person_id, &db_pool).await.expect("Should subscribe to sphere 1");
     post_vec.push(PostWithSphereInfo::from_post(sphere_2_post, sphere_2.sphere_name.clone(), None, None));
 
     let (_, _, mut sphere3_posts) = create_sphere_with_posts(
@@ -1611,7 +1611,7 @@ async fn test_get_homepage_post_vec() {
     let mut combined_post_vec = sphere_1_post_vec.clone();
     combined_post_vec.append(&mut sphere_2_post_vec.clone());
 
-    subscribe(sphere_1.sphere_id, user.user_id, &db_pool).await.expect("User should subscribe to sphere 1");
+    subscribe(sphere_1.sphere_id, user.person_id, &db_pool).await.expect("User should subscribe to sphere 1");
 
     for sort_type in POST_SORT_TYPE_ARRAY {
         let subscribed_post_vec = get_homepage_post_vec(
@@ -1619,9 +1619,8 @@ async fn test_get_homepage_post_vec() {
             0,
             Some(&user),
             &db_pool,
-        )
-            .await
-            .expect("Should load subscribed posts");
+        ).await.expect("Should load subscribed posts");
+
         sort_post_vec(&mut sphere_1_post_vec, sort_type, false);
         sort_post_vec(&mut sphere_2_post_vec, sort_type, false);
         assert_eq!(subscribed_post_vec[0..num_posts], sphere_1_post_vec);
@@ -1671,7 +1670,7 @@ async fn test_create_post_and_vote() {
     let vote_1 = vote_1.expect("Vote 1 should be some");
 
     let expected_post_1 = get_post_by_id(post_1.post_id, &db_pool).await.expect("Should load post by id");
-    let expected_vote_1 = get_user_post_vote(post_1.post_id, user.user_id, &db_pool).await.expect("Should load vote by id");
+    let expected_vote_1 = get_user_post_vote(post_1.post_id, user.person_id, &db_pool).await.expect("Should load vote by id");
 
     assert_eq!(post_1.title, expected_post_1.title);
     assert_eq!(post_1.body, expected_post_1.body);
@@ -1688,7 +1687,7 @@ async fn test_create_post_and_vote() {
     assert_eq!(vote_1, expected_vote_1);
     assert_eq!(vote_1.post_id, post_1.post_id);
     assert_eq!(vote_1.comment_id, None);
-    assert_eq!(vote_1.user_id, user.user_id);
+    assert_eq!(vote_1.person_id, user.person_id);
     assert_eq!(vote_1.value, VoteValue::Up);
 
     assert_eq!(post_1_path, get_post_path(&sphere.sphere_name, None, post_1.post_id));
@@ -1719,7 +1718,7 @@ async fn test_create_post_and_vote() {
     let vote_2 = vote_2.expect("Vote 2 should be some");
 
     let expected_post_2 = get_post_by_id(post_2.post_id, &db_pool).await.expect("Should load post by id");
-    let expected_vote_2 = get_user_post_vote(post_2.post_id, user.user_id, &db_pool).await.expect("Should load vote by id");
+    let expected_vote_2 = get_user_post_vote(post_2.post_id, user.person_id, &db_pool).await.expect("Should load vote by id");
 
     assert_eq!(post_2.title, expected_post_2.title);
     assert_eq!(post_2.body, expected_post_2.body);
@@ -1736,7 +1735,7 @@ async fn test_create_post_and_vote() {
     assert_eq!(vote_2, expected_vote_2);
     assert_eq!(vote_2.post_id, post_2.post_id);
     assert_eq!(vote_2.comment_id, None);
-    assert_eq!(vote_2.user_id, user.user_id);
+    assert_eq!(vote_2.person_id, user.person_id);
     assert_eq!(vote_2.value, VoteValue::Up);
 
     assert_eq!(post_path, get_post_path(&sphere.sphere_name, Some(satellite.satellite_id), post_2.post_id));
@@ -1774,7 +1773,7 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(post_1.is_edited, false);
     assert_eq!(post_1.sphere_id, sphere_1.sphere_id);
     assert_eq!(post_1.satellite_id, None);
-    assert_eq!(post_1.creator_id, user.user_id);
+    assert_eq!(post_1.creator_id, user.person_id);
     assert_eq!(post_1.creator_name, user.username);
     assert_eq!(post_1.is_creator_moderator, false); // user not refreshed yet
     assert_eq!(post_1.moderator_message, None);
@@ -1793,7 +1792,7 @@ async fn test_create_post() -> Result<(), AppError> {
         Err(AppError::InsufficientPrivileges),
     );
 
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be reloaded.");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be reloaded.");
     let post_2_title = "1";
     let post_2_body = "test";
     let post_2_markdown_body = "test";
@@ -1826,7 +1825,7 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(post_2.is_edited, false);
     assert_eq!(post_2.sphere_id, sphere_1.sphere_id);
     assert_eq!(post_2.satellite_id, None);
-    assert_eq!(post_2.creator_id, user.user_id);
+    assert_eq!(post_2.creator_id, user.person_id);
     assert_eq!(post_2.creator_name, user.username);
     assert_eq!(post_2.is_creator_moderator, true);
     assert_eq!(post_2.moderator_message, None);
@@ -1869,7 +1868,7 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(nsfw_post.is_edited, false);
     assert_eq!(nsfw_post.sphere_id, sphere_2.sphere_id);
     assert_eq!(nsfw_post.satellite_id, None);
-    assert_eq!(nsfw_post.creator_id, user.user_id);
+    assert_eq!(nsfw_post.creator_id, user.person_id);
     assert_eq!(nsfw_post.creator_name, user.username);
     assert_eq!(nsfw_post.is_creator_moderator, true);
     assert_eq!(nsfw_post.moderator_message, None);
@@ -1936,7 +1935,7 @@ async fn test_create_post_in_satellite() -> Result<(), AppError> {
     assert_eq!(post.is_edited, false);
     assert_eq!(post.sphere_id, sphere_1.sphere_id);
     assert_eq!(post.satellite_id, Some(satellite_1.satellite_id));
-    assert_eq!(post.creator_id, user.user_id);
+    assert_eq!(post.creator_id, user.person_id);
     assert_eq!(post.creator_name, user.username);
     assert_eq!(post.is_creator_moderator, true);
     assert_eq!(post.moderator_message, None);
@@ -1987,7 +1986,7 @@ async fn test_create_post_in_satellite() -> Result<(), AppError> {
     assert_eq!(post.is_edited, false);
     assert_eq!(post.sphere_id, sphere_2.sphere_id);
     assert_eq!(post.satellite_id, Some(satellite_2.satellite_id));
-    assert_eq!(post.creator_id, user.user_id);
+    assert_eq!(post.creator_id, user.person_id);
     assert_eq!(post.creator_name, user.username);
     assert_eq!(post.is_creator_moderator, true);
     assert_eq!(post.moderator_message, None);
@@ -2358,7 +2357,7 @@ async fn test_delete_post() {
     assert_eq!(deleted_post.body, "");
     assert_eq!(deleted_post.markdown_body, None);
     assert_eq!(deleted_post.link, Link::default());
-    assert_eq!(deleted_post.creator_id, user.user_id);
+    assert_eq!(deleted_post.creator_id, user.person_id);
     assert_eq!(deleted_post.creator_name, "");
     assert_eq!(deleted_post.is_spoiler, false);
     assert_eq!(deleted_post.is_nsfw, false);

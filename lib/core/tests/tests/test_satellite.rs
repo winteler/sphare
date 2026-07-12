@@ -151,7 +151,7 @@ async fn test_create_satellite() -> Result<(), AppError> {
         Err(AppError::InsufficientPrivileges)
     );
 
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user");
 
     let satellite_1 = create_satellite(
         &sphere.sphere_name,
@@ -233,7 +233,7 @@ async fn test_update_satellite() -> Result<(), AppError> {
         &db_pool,
     ).await.expect("Nsfw sphere should be created");
 
-    let user = User::get(user.user_id, &db_pool).await.expect("Should reload user");
+    let user = User::get(user.person_id, &db_pool).await.expect("Should reload user");
 
     let nsfw_satellite = create_satellite(
         &nsfw_sphere.sphere_name,

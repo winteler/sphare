@@ -22,7 +22,7 @@ async fn test_load_rule_by_id() -> Result<(), AppError> {
     let mut admin = create_user("admin", &db_pool).await;
     admin.admin_role = AdminRole::Admin;
     let sphere_1 = create_sphere("1", "a", false, &user, &db_pool).await?;
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let expected_common_rule = add_base_rule(
         0,
@@ -60,7 +60,7 @@ async fn test_get_rule_vec() -> Result<(), AppError> {
     admin.admin_role = AdminRole::Admin;
     let sphere_1 = create_sphere("1", "a", false, &user, &db_pool).await?;
     let sphere_2 = create_sphere("2", "b", false, &user, &db_pool).await?;
-    let user = User::get(user.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let user = User::get(user.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let common_rule_1 = add_base_rule(0, BaseRule::BeRespectful.into(), "0", None, &admin, &db_pool).await.expect("Rule should be created.");
     let common_rule_2 = add_base_rule(3, BaseRule::NoIllegalContent.into(), "0", Some("md"), &admin, &db_pool).await.expect("Rule should be created.");
@@ -103,7 +103,7 @@ async fn test_add_rule() -> Result<(), AppError> {
     let mut admin = create_user("admin", &db_pool).await;
     admin.admin_role = AdminRole::Admin;
     let sphere = create_sphere("sphere", "a", false, &lead, &db_pool).await?;
-    let lead = User::get(lead.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let lead = User::get(lead.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let title = BaseRule::BeRespectful.into();
     let description = "description";
@@ -121,14 +121,14 @@ async fn test_add_rule() -> Result<(), AppError> {
     assert_eq!(rule_1.title, title);
     assert_eq!(rule_1.description, description);
     assert_eq!(rule_1.markdown_description, None);
-    assert_eq!(rule_1.user_id, lead.user_id);
+    assert_eq!(rule_1.person_id, lead.person_id);
 
     assert_eq!(rule_2.sphere_id, Some(sphere.sphere_id));
     assert_eq!(rule_2.priority, 1);
     assert_eq!(rule_2.title, title);
     assert_eq!(rule_2.description, md_description);
     assert_eq!(rule_2.markdown_description.as_deref(), Some(description));
-    assert_eq!(rule_2.user_id, admin.user_id);
+    assert_eq!(rule_2.person_id, admin.person_id);
 
     let common_rule_2 = add_base_rule(0, title, description, Some("common_md"), &admin, &db_pool).await.expect("Rule should be created.");
     let sphere_rule_vec = get_rule_vec(Some(&sphere.sphere_name), &db_pool).await.expect("Sphere rules should be loaded");
@@ -149,7 +149,7 @@ async fn test_update_rule() -> Result<(), AppError> {
     let mut admin = create_user("admin", &db_pool).await;
     admin.admin_role = AdminRole::Admin;
     let sphere = create_sphere("sphere", "a", false, &lead, &db_pool).await?;
-    let lead = User::get(lead.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let lead = User::get(lead.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let title: &str = BaseRule::BeRespectful.into();
     let description = "description";
@@ -211,7 +211,7 @@ async fn test_remove_rule() -> Result<(), AppError> {
     let mut admin = create_user("admin", &db_pool).await;
     admin.admin_role = AdminRole::Admin;
     let sphere = create_sphere("sphere", "a", false, &lead, &db_pool).await?;
-    let lead = User::get(lead.user_id, &db_pool).await.expect("User should be loaded after sphere creation");
+    let lead = User::get(lead.person_id, &db_pool).await.expect("User should be loaded after sphere creation");
 
     let title: &str = BaseRule::BeRespectful.into();
     let description = "description";

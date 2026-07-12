@@ -36,7 +36,7 @@ pub struct Notification {
     pub post_id: i64,
     pub comment_id: Option<i64>,
     pub user_id: i64,
-    pub trigger_user_id: i64,
+    pub trigger_person_id: i64,
     pub trigger_username: String,
     pub notification_type: NotificationType,
     pub is_read: bool,
@@ -129,33 +129,43 @@ pub mod ssr {
         post_id: i64,
         notif_comment_id: Option<i64>,
         link_comment_id: Option<i64>,
-        trigger_user_id: i64,
+        trigger_person_id: i64,
         notification_type: NotificationType,
         db_pool: &PgPool,
     ) -> Result<Option<Notification>, AppError> {
         let notification = sqlx::query_as::<_, Notification>(
             "WITH trigger_user AS (
-                SELECT username FROM users WHERE user_id = $4
+                SELECT p.username, u.user_id
+                FROM persons p
+                JOIN users u ON u.person_id = p.person_id
+                WHERE p.person_id = $4
             ), post_info AS (
                 SELECT sphere_id, satellite_id, creator_id FROM posts WHERE post_id = $1
             ), notified_user AS (
                 SELECT
                     CASE
                         WHEN $2 IS NULL THEN
-                            (SELECT creator_id FROM post_info)
+                            (
+                                SELECT u.user_id FROM post_info p
+                                JOIN users u ON u.person_id = p.creator_id
+                            )
                         ELSE
-                            (SELECT creator_id FROM comments WHERE comment_id = $2)
-                    END AS creator_id
+                            (
+                                SELECT u.user_id FROM comments c
+                                JOIN users u ON u.person_id = c.creator_id
+                                WHERE c.comment_id = $2
+                            )
+                    END AS user_id
             ), new_notification AS (
-                INSERT INTO notifications (sphere_id, satellite_id, post_id, comment_id, user_id, trigger_user_id, notification_type)
+                INSERT INTO notifications (sphere_id, satellite_id, post_id, comment_id, user_id, trigger_person_id, notification_type)
                 SELECT
                     p.sphere_id,
                     p.satellite_id,
                     $1, $3,
-                    nu.creator_id,
+                    nu.user_id,
                     $4, $5
                 FROM post_info p, trigger_user tu, notified_user nu
-                WHERE $4 != nu.creator_id
+                WHERE tu.user_id != nu.user_id
                 RETURNING *
             )
             SELECT n.*, u.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
@@ -165,7 +175,7 @@ pub mod ssr {
             .bind(post_id)
             .bind(notif_comment_id)
             .bind(link_comment_id)
-            .bind(trigger_user_id)
+            .bind(trigger_person_id)
             .bind(notification_type as i16)
             .fetch_optional(db_pool)
             .await?;
@@ -178,9 +188,9 @@ pub mod ssr {
         db_pool: &PgPool,
     ) -> Result<Vec<Notification>, AppError> {
         let notification_vec = sqlx::query_as::<_, Notification>(
-            "SELECT n.*, u.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
+            "SELECT n.*, p.username AS trigger_username, s.sphere_name, s.icon_url, s.is_nsfw
             FROM notifications n
-            JOIN USERS u ON u.user_id = n.trigger_user_id
+            JOIN persons p ON p.person_id = n.trigger_person_id
             JOIN spheres s ON s.sphere_id = n.sphere_id
             WHERE n.user_id = $1
             ORDER BY n.create_timestamp DESC",
