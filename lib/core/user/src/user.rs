@@ -203,6 +203,7 @@ pub mod ssr {
 
     use super::*;
 
+    // Use zeroing type or RsaPrivateKey for private key attribute
     #[derive(sqlx::FromRow, Clone, Debug, PartialEq)]
     pub struct DbUser {
         pub user_id: i64,
