@@ -16,5 +16,10 @@ pub struct AppState {
     pub db_pool: PgPool,
     pub user_lock_cache: Arc<UserLockCache>,
     pub routes: Vec<AxumRouteListing>,
-    pub activitypub_router: Router,
+}
+
+#[derive(Debug, Clone)]
+pub struct RouterState {
+    pub activity_pub_router: Router,
+    pub leptos_router: Router,
 }
