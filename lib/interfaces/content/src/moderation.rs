@@ -3,7 +3,7 @@ use sphare_core_common::errors::AppError;
 
 #[cfg(feature = "ssr")]
 use {
-    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_common::db_utils::get_db_pool,
     sphare_core_content::moderation::*,
     sphare_core_user::auth::ssr::{check_user, reload_user},
 };

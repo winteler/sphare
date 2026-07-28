@@ -13,6 +13,7 @@ leptos_axum = { workspace = true, optional = true }
 
 leptos-fluent.workspace = true
 
+activitypub_federation = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 axum_session_auth = { workspace = true, optional = true }
@@ -43,6 +44,7 @@ ssr = [
     "leptos-fluent/axum",
     "leptos-fluent/ssr",
     "sphare_core_common/ssr",
+    "dep:activitypub_federation",
     "dep:anyhow",
     "dep:async-trait",
     "dep:axum_session_auth",

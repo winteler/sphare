@@ -2,7 +2,7 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_common::db_utils::get_db_pool,
     sphare_core_sphere::sphere_category::*,
     sphare_core_user::auth::ssr::check_user,
 };

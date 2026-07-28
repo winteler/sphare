@@ -34,7 +34,7 @@ pub mod ssr {
     use url::Url;
 
     use sphare_core_common::checks::validate_redirect_url;
-    use sphare_core_common::db_utils::ssr::get_db_pool;
+    use sphare_core_common::db_utils::get_db_pool;
     use sphare_core_common::errors::AppError;
     use sphare_core_common::routes::{get_app_origin, AUTH_CALLBACK_ROUTE};
 

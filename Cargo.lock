@@ -5956,6 +5956,7 @@ dependencies = [
 name = "sphare_core_user"
 version = "0.1.0"
 dependencies = [
+ "activitypub_federation",
  "anyhow",
  "async-trait",
  "axum_session_auth",

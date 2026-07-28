@@ -2,7 +2,7 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 use {
-    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_common::db_utils::get_db_pool,
     sphare_core_user::auth::ssr::{check_user, delete_user_in_oidc_provider, get_user, reload_user},
 };
 
@@ -53,18 +53,21 @@ pub async fn set_user_settings(
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use activitypub_federation::config::Data;
+    use activitypub_federation::traits::Object;
     use axum::extract::Path;
     use leptos::serde_json;
-    use sqlx::PgPool;
+    use sphare_core_common::activity_pub::ApHelper;
     use sphare_core_common::errors::AppError;
-    use sphare_core_user::user::ssr::get_person_by_username;
+    use sphare_core_common::to_app_error;
+    use sphare_core_user::person::{get_person_by_username, Person};
 
     pub async fn http_get_user(
         Path(name): Path<String>,
-        data: Data<PgPool>,
+        data: Data<ApHelper>,
     ) -> Result<String, AppError> {
-        let person = get_person_by_username(&name, data.app_data()).await?;
-        let person_json = serde_json::to_string(&person).map_err(AppError::new)?;
+        let person = get_person_by_username(&name, data.app_data().get_db_pool()).await?;
+        let person: Person = person.try_into()?;
+        let person_json = serde_json::to_string(&person.into_json(&data).await?).map_err(to_app_error!("Couldn't convert person to json"))?;
         Ok(person_json)
     }
 }

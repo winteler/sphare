@@ -1,7 +1,10 @@
+#[cfg(feature = "ssr")]
+pub mod activity_pub;
 pub mod checks;
 pub mod colors;
 pub mod common;
 pub mod constants;
+#[cfg(feature = "ssr")]
 pub mod db_utils;
 pub mod editor;
 pub mod env;

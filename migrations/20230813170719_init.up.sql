@@ -38,7 +38,7 @@ $$;
 
 CREATE TABLE persons (
     person_id BIGSERIAL PRIMARY KEY,
-    username TEXT NOT NULL CHECK (LENGTH(display_name) <= 30),
+    username TEXT NOT NULL CHECK (LENGTH(username) <= 30),
     display_name TEXT NOT NULL CHECK (LENGTH(display_name) <= 30),
     is_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
     federation_id TEXT NOT NULL,
@@ -50,11 +50,11 @@ CREATE TABLE persons (
     delete_timestamp TIMESTAMPTZ
 );
 
-CREATE UNIQUE INDEX idx_unique_username ON persons (username)
-    WHERE persons.delete_timestamp IS NULL;
-
 CREATE UNIQUE INDEX idx_unique_federation_id ON persons (federation_id)
-    WHERE persons.delete_timestamp IS NULL;
+    WHERE delete_timestamp IS NULL;
+
+CREATE UNIQUE INDEX idx_unique_local_username ON persons (username)
+    WHERE is_local = TRUE AND delete_timestamp IS NULL;
 
 CREATE TABLE users (
     user_id BIGSERIAL PRIMARY KEY,

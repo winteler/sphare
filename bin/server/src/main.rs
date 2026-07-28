@@ -1,6 +1,7 @@
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::{Arc};
+
 use activitypub_federation::config::{FederationConfig, FederationMiddleware};
 use activitypub_federation::FEDERATION_CONTENT_TYPE;
 use axum::body::Body;
@@ -15,7 +16,8 @@ use leptos::prelude::*;
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
 use sqlx::PgPool;
 use tower::ServiceExt;
-use sphare_core_common::db_utils::ssr::create_db_pool;
+
+use sphare_core_common::db_utils::create_db_pool;
 use sphare_core_common::env::ssr::LEPTOS_ENV;
 use sphare_core_user::session::ssr::{AuthSession};
 use sphare_core_user::user::ssr::UserLockCache;
@@ -24,7 +26,9 @@ use sphare_core_user::user::User;
 use sphare_iface_user::user::ssr::http_get_user;
 
 use sphare_app::app::*;
+use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::routes::{get_app_origin};
+
 use crate::fallback::file_and_error_handler;
 use crate::state::{AppState, RouterState};
 
@@ -84,10 +88,11 @@ pub fn get_user_lock_cache_size() -> NonZeroUsize {
     }
 }
 
-async fn get_federation_config(db_pool: PgPool) -> Result<FederationConfig<PgPool>, Error> {
+async fn get_federation_config(db_pool: PgPool) -> Result<FederationConfig<ApHelper>, Error> {
+    let database_handle = ApHelper::new(db_pool, get_app_origin()?);
     let config = FederationConfig::builder()
         .domain(get_app_origin()?)
-        .app_data(db_pool)
+        .app_data(database_handle)
         .build()
         .await?;
     Ok(config)
@@ -128,7 +133,7 @@ async fn root_dispatch(
 
     let router = match is_federation {
         true => {
-            log::info!("Handling ActivityPub request, uri: {}, extensions: {:?}", req.uri(), req.extensions());
+            log::debug!("Handling ActivityPub request, uri: {}", req.uri());
             router_state.activity_pub_router
         },
         false => router_state.leptos_router

@@ -3,7 +3,7 @@ use leptos::prelude::*;
 #[cfg(feature = "ssr")]
 use {
     sphare_core_common::constants::{COMMENT_BATCH_SIZE, POST_BATCH_SIZE, SPHERE_HEADER_FETCH_LIMIT},
-    sphare_core_common::db_utils::ssr::get_db_pool,
+    sphare_core_common::db_utils::get_db_pool,
     sphare_core_content::search::*,
     sphare_core_user::auth::ssr::{get_user},
 };
