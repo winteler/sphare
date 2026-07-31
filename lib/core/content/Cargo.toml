@@ -14,7 +14,9 @@ leptos.workspace = true
 leptos-fluent.workspace = true
 leptos-use.workspace = true
 
+activitypub_federation = { workspace = true, optional = true }
 ammonia.workspace = true
+async-trait = { workspace = true, optional = true }
 chrono.workspace = true
 gloo-net.workspace = true
 http = { workspace = true, optional = true }
@@ -41,6 +43,8 @@ ssr = [
     "sphare_core_common/ssr",
     "sphare_core_user/ssr",
     "sphare_core_sphere/ssr",
+    "dep:activitypub_federation",
+    "dep:async-trait",
     "dep:http",
     "dep:reqwest",
     "dep:sqlx",

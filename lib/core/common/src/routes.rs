@@ -1,8 +1,12 @@
+#[cfg(feature = "ssr")]
+use std::sync::LazyLock;
+
 use const_format::concatcp;
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 use leptos_router::params::ParamsMap;
 use url::Url;
+
 use crate::errors::AppError;
 
 pub const APP_ORIGIN_ENV: &str = "APP_ORIGIN";
@@ -38,8 +42,22 @@ pub const ACTIVITY_PUB_INBOX_PATH: &str = "/inbox";
 pub const ACTIVITY_PUB_OUTBOX_PATH: &str = "/outbox";
 
 #[cfg(feature = "ssr")]
+static APP_ORIGIN: LazyLock<Result<Url, AppError>> = LazyLock::new(|| {
+    let app_origin = std::env::var(APP_ORIGIN_ENV)?;
+    let app_origin = Url::parse(&app_origin)?;
+    Ok(app_origin)
+});
+
+#[cfg(feature = "ssr")]
 pub fn get_app_origin() -> Result<String, AppError> {
     Ok(std::env::var(APP_ORIGIN_ENV)?)
+}
+
+#[cfg(feature = "ssr")]
+pub fn get_apub_shared_inbox() -> Result<Url, AppError> {
+    let app_origin = APP_ORIGIN.clone()?;
+    let shared_inbox = app_origin.join(ACTIVITY_PUB_INBOX_PATH)?;
+    Ok(shared_inbox)
 }
 
 #[cfg(not(feature = "ssr"))]
@@ -105,6 +123,16 @@ pub fn get_sphere_path(
     sphere_name: &str,
 ) -> String {
     format!("{SPHERE_ROUTE_PREFIX}/{sphere_name}")
+}
+
+/// # Returns the link to a sphere given its name
+pub fn get_sphere_link(
+    sphere_name: &str,
+) -> Result<String, AppError> {
+    let base_url = get_app_origin().unwrap_or_default();
+    let sphere_path = get_sphere_path(sphere_name);
+    let sphere_url = url::Url::parse(&base_url)?.join(&sphere_path)?.to_string();
+    Ok(sphere_url)
 }
 
 /// # Extract the sphere name from the current path, if it exists

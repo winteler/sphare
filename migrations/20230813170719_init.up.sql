@@ -35,13 +35,25 @@ AS $$
     END;
 $$;
 
+CREATE TABLE instances (
+    instance_id BIGSERIAL PRIMARY KEY,
+    instance_apub_id TEXT UNIQUE NOT NULL CHECK (LENGTH(instance_apub_id) <= 500),
+    is_local BOOLEAN NOT NULL,
+    public_key TEXT,
+    private_key TEXT,
+    last_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_unique_local_instance ON instances (is_local)
+    WHERE is_local = TRUE;
 
 CREATE TABLE persons (
     person_id BIGSERIAL PRIMARY KEY,
+    instance_id BIGINT NOT NULL REFERENCES instances (instance_id),
     username TEXT NOT NULL CHECK (LENGTH(username) <= 30),
-    display_name TEXT NOT NULL CHECK (LENGTH(display_name) <= 30),
+    display_name TEXT CHECK (LENGTH(display_name) <= 30),
     is_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
-    federation_id TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
     inbox TEXT NOT NULL,
     outbox TEXT NOT NULL,
     is_local BOOLEAN NOT NULL,
@@ -50,7 +62,7 @@ CREATE TABLE persons (
     delete_timestamp TIMESTAMPTZ
 );
 
-CREATE UNIQUE INDEX idx_unique_federation_id ON persons (federation_id)
+CREATE UNIQUE INDEX idx_unique_actor_id ON persons (actor_id)
     WHERE delete_timestamp IS NULL;
 
 CREATE UNIQUE INDEX idx_unique_local_username ON persons (username)
@@ -70,6 +82,8 @@ CREATE TABLE users (
 
 CREATE TABLE spheres (
     sphere_id BIGSERIAL PRIMARY KEY,
+    sphere_apub_id TEXT UNIQUE NOT NULL CHECK (LENGTH(sphere_apub_id) <= 500),
+    instance_id BIGINT NOT NULL REFERENCES instances (instance_id),
     sphere_name TEXT UNIQUE NOT NULL CHECK (LENGTH(sphere_name) <= 20),
     normalized_sphere_name TEXT UNIQUE NOT NULL GENERATED ALWAYS AS (
         normalize_sphere_name(sphere_name)
@@ -83,9 +97,12 @@ CREATE TABLE spheres (
     ) STORED,
     is_nsfw BOOLEAN NOT NULL,
     is_banned BOOLEAN NOT NULL DEFAULT FALSE,
+    is_local BOOLEAN NOT NULL,
     icon_url TEXT,
     banner_url TEXT,
     num_members INT NOT NULL DEFAULT 0,
+    inbox TEXT NOT NULL,
+    public_key TEXT NOT NULL,
     creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     create_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -93,6 +110,11 @@ CREATE TABLE spheres (
 CREATE INDEX idx_search_sphere_name ON spheres(search_sphere_name);
 CREATE INDEX idx_sphere_document ON spheres USING GIN (sphere_document);
 CREATE INDEX idx_sphere_trigram ON spheres USING GIN (search_sphere_name gin_trgm_ops);
+
+CREATE TABLE local_sphere_infos (
+    sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
+    private_key TEXT NOT NULL
+);
 
 CREATE TABLE satellites (
     satellite_id BIGSERIAL PRIMARY KEY,
@@ -182,6 +204,7 @@ CREATE TABLE sphere_subscriptions (
 
 CREATE TABLE posts (
     post_id BIGSERIAL PRIMARY KEY,
+    post_apub_id TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL CHECK (LENGTH(title) <= 250),
     body TEXT NOT NULL CHECK (markdown_body IS NOT NULL OR LENGTH(body) <= 20000),
     markdown_body TEXT CHECK (LENGTH(markdown_body) <= 20000),
@@ -287,6 +310,7 @@ CREATE INDEX idx_post_document ON posts USING GIN (post_document);
 
 CREATE TABLE comments (
     comment_id BIGSERIAL PRIMARY KEY,
+    comment_apub_id TEXT UNIQUE NOT NULL,
     body TEXT NOT NULL CHECK (markdown_body IS NOT NULL OR LENGTH(body) <= 20000),
     markdown_body TEXT CHECK (LENGTH(markdown_body) <= 20000),
     comment_document TSVECTOR GENERATED ALWAYS AS (
@@ -353,8 +377,15 @@ CREATE INDEX idx_user_ban_sphere ON user_bans (sphere_id, person_id, delete_time
     WHERE user_bans.delete_timestamp IS NULL;
 
 -- add functional user
-INSERT INTO persons (username, display_name, federation_id, inbox, outbox, is_local, public_key)
-VALUES ('sphare-function-user', 'admin', 'www.sphare.space/', '', '', true, '');
+INSERT INTO instances (instance_apub_id, is_local, public_key, private_key)
+VALUES ('', TRUE, '', '');
+
+-- add functional user
+INSERT INTO persons (username, display_name, actor_id, instance_id, inbox, outbox, is_local, public_key)
+VALUES ('sphare-function-user', 'admin', '', 1, '', '', true, '');
+
+INSERT INTO users (person_id, oidc_id, email, admin_role, private_key, show_nsfw)
+VALUES (1, '', '', 'Admin', '', true);
 
 -- add base rules
 INSERT INTO rules (sphere_id, priority, title, description, markdown_description, person_id)

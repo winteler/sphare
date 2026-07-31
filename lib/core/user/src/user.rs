@@ -193,6 +193,7 @@ pub mod ssr {
     use sqlx::PgPool;
     use tokio::sync::Mutex;
     use url::Url;
+
     use sphare_core_common::checks::check_username;
     use sphare_core_common::constants::{RSA_KEY_SIZE, USER_FETCH_LIMIT};
     use sphare_core_common::errors::AppError;
@@ -487,15 +488,18 @@ pub mod ssr {
     ) -> Result<DbUser, AppError> {
         let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
         let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
-        let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::LF).map_err(to_app_error!("Failed to create private key pem"))?;
-        let pub_key = RsaPublicKey::from(&priv_key);
+        let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::default()).map_err(to_app_error!("Failed to create private key pem"))?;
+        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::LF).map_err(AppError::new)?;
 
         let db_user = sqlx::query_as!(
             DbUser,
             "WITH new_person AS (
                 INSERT INTO persons
-                    (username, display_name, federation_id, inbox, outbox, is_local, public_key)
-                VALUES ($1, $1, $2, $3, $4, $5, $6)
+                    (instance_id, username, display_name, actor_id, inbox, outbox, is_local, public_key)
+                VALUES (
+                    (SELECT instance_id FROM instances WHERE is_local = TRUE),
+                    $1, $1, $2, $3, $4, $5, $6
+                )
                 RETURNING *
             ), new_user AS (
                 INSERT INTO users (person_id, oidc_id, email, private_key)
@@ -509,7 +513,7 @@ pub mod ssr {
             User::get_user_inbox(username)?.to_string(),
             User::get_user_outbox(username)?.to_string(),
             true,
-            pub_key.to_public_key_pem(LineEnding::LF).map_err(AppError::new)?,
+            pub_key_pem,
             oidc_id,
             email,
             priv_key_pem.as_str(),

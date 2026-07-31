@@ -80,14 +80,14 @@ pub mod ssr {
     use sphare_core_common::constants::{COMMENT_BATCH_SIZE, MAX_CONTENT_LENGTH};
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
     use sphare_core_common::errors::AppError;
-    use sphare_core_sphere::sphere::ssr::get_post_sphere;
+    use sphare_core_common::routes::get_comment_link;
     use sphare_core_sphere::sphere::Sphere;
     use sphare_core_user::notification::NotificationType;
     use sphare_core_user::notification::ssr::create_notification;
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
 
-    use crate::post::ssr::increment_post_comment_count;
+    use crate::post::ssr::{get_post_with_sphere_info_by_id, increment_post_comment_count};
     use crate::ranking::{SortType, VoteValue};
     use crate::ranking::ssr::vote_on_content;
     use super::*;
@@ -478,33 +478,40 @@ pub mod ssr {
         user: &User,
         db_pool: &PgPool,
     ) -> Result<Comment, AppError> {
-        let sphere = get_post_sphere(post_id, &db_pool).await?;
-        user.check_can_publish_on_sphere(&sphere.sphere_name)?;
+        let post = get_post_with_sphere_info_by_id(post_id, db_pool).await?;
+        user.check_can_publish_on_sphere(&post.sphere_name)?;
         if comment.is_empty() {
             return Err(AppError::new("Cannot create empty comment."));
         }
         if is_pinned {
-            user.check_sphere_permissions_by_name(&sphere.sphere_name, PermissionLevel::Moderate)?;
+            user.check_sphere_permissions_by_name(&post.sphere_name, PermissionLevel::Moderate)?;
         }
+
+        let comment_id: i64 = sqlx::query_scalar!("SELECT nextval('comments_comment_id_seq')")
+            .fetch_one(db_pool)
+            .await?.ok_or(AppError::new("Got null for next comment id."))?;
+
         let comment = sqlx::query_as::<_, Comment>(
             r#"
             WITH new_comment AS (
                 INSERT INTO comments (
-                    body, markdown_body, parent_id, post_id, is_pinned, creator_id, is_creator_moderator
+                    comment_id, comment_apub_id, body, markdown_body, parent_id, post_id, is_pinned, creator_id, is_creator_moderator
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING *
             )
-            SELECT *, $8 as creator_name FROM new_comment
+            SELECT *, $10 as creator_name FROM new_comment
             "#,
         )
+            .bind(comment_id)
+            .bind(get_comment_link(&post.sphere_name, post.post.satellite_id, post.post.post_id, comment_id)?)
             .bind(comment)
             .bind(markdown_comment)
             .bind(parent_comment_id)
             .bind(post_id)
             .bind(is_pinned)
             .bind(user.person_id)
-            .bind(user.check_sphere_permissions_by_name(&sphere.sphere_name, PermissionLevel::Moderate).is_ok())
+            .bind(user.check_sphere_permissions_by_name(&post.sphere_name, PermissionLevel::Moderate).is_ok())
             .bind(user.username.clone())
             .fetch_one(db_pool)
             .await?;

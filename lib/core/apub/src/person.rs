@@ -1,37 +1,50 @@
-use activitypub_federation::config::Data;
-use activitypub_federation::fetch::object_id::ObjectId;
-use activitypub_federation::kinds::actor::PersonType;
-use activitypub_federation::protocol::public_key::PublicKey;
-use activitypub_federation::protocol::verification::verify_domains_match;
-use activitypub_federation::traits::{Actor, Object};
-use rsa::{RsaPrivateKey};
+use activitypub_federation::{
+    config::Data,
+    fetch::object_id::ObjectId,
+    kinds::actor::PersonType,
+    protocol::{
+        public_key::PublicKey,
+        verification::verify_domains_match
+    },
+    traits::{Actor, Object},
+};
 use rsa::pkcs1::LineEnding;
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
+use rsa::RsaPrivateKey;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use sqlx::PgPool;
 use url::Url;
+
 use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::to_app_error;
+use sphare_core_user::instance::ssr::get_or_insert_instance;
 
-#[derive(Deserialize, Serialize)]
+#[skip_serializing_none]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ApPerson {
+pub struct Person {
     #[serde(rename = "type")]
-    kind: PersonType,
-    username: String,
-    preferred_username: String,
-    id: ObjectId<Person>,
-    inbox: Url,
-    outbox: Url,
-    public_key: PublicKey,
+    pub(crate) kind: PersonType,
+    pub(crate) id: ObjectId<ApubPerson>,
+    /// username, set at account creation and usually fixed after that
+    pub(crate) preferred_username: String,
+    pub(crate) inbox: Url,
+    /// mandatory field in activitypub, sphare currently serves an empty outbox
+    pub(crate) outbox: Url,
+    pub(crate) public_key: PublicKey,
+    /// displayname
+    pub(crate) name: Option<String>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Person {
-    ap_id: ObjectId<Person>,
+pub struct ApubPerson {
+    apub_id: ObjectId<ApubPerson>,
+    /// username, set at account creation and usually fixed after that
     preferred_username: String,
-    username: String,
+    /// displayname
+    name: Option<String>,
     inbox: Url,
     outbox: Url,
     public_key: String,
@@ -41,10 +54,11 @@ pub struct Person {
 #[derive(sqlx::FromRow, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DbPerson {
     pub person_id: i64,
+    pub instance_id: i64,
     pub username: String,
-    pub display_name: String,
+    pub display_name: Option<String>,
     pub is_nsfw: bool,
-    pub federation_id: String,
+    pub actor_id: String,
     pub inbox: String,
     pub outbox: String,
     pub is_local: bool,
@@ -54,17 +68,17 @@ pub struct DbPerson {
     pub delete_timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl TryFrom<DbPerson> for Person {
+impl TryFrom<DbPerson> for ApubPerson {
     type Error = AppError;
     fn try_from(db_person: DbPerson) -> Result<Self, Self::Error> {
         let private_key = match db_person.private_key {
             Some(private_key_pem) => RsaPrivateKey::from_pkcs8_pem(&private_key_pem).ok(),
             None => None,
         };
-        Ok(Person {
-            username: db_person.username,
-            preferred_username: db_person.display_name,
-            ap_id: Url::parse(&db_person.federation_id)?.into(),
+        Ok(ApubPerson {
+            preferred_username: db_person.username,
+            name: db_person.display_name,
+            apub_id: Url::parse(&db_person.actor_id)?.into(),
             inbox: Url::parse(&db_person.inbox)?,
             outbox: Url::parse(&db_person.outbox)?,
             public_key: db_person.public_key,
@@ -73,7 +87,7 @@ impl TryFrom<DbPerson> for Person {
     }
 }
 
-impl Actor for Person {
+impl Actor for ApubPerson {
     fn public_key_pem(&self) -> &str {
         &self.public_key
     }
@@ -88,17 +102,17 @@ impl Actor for Person {
 }
 
 #[async_trait::async_trait]
-impl Object for Person {
+impl Object for ApubPerson {
     type DataType = ApHelper;
-    type Kind = ApPerson;
+    type Kind = Person;
     type Error = AppError;
 
     fn id(&self) -> &Url {
-        self.ap_id.inner()
+        self.apub_id.inner()
     }
 
-    async fn read_from_id(person_id: Url, data: &Data<Self::DataType>) -> Result<Option<Self>, Self::Error> {
-        let db_person = get_person_by_federation_id(&person_id, data.app_data().get_db_pool()).await?;
+    async fn read_from_id(actor_id: Url, data: &Data<Self::DataType>) -> Result<Option<Self>, Self::Error> {
+        let db_person = get_person_by_actor_id(&actor_id, data.app_data().get_db_pool()).await?;
         let person = match db_person {
             Some(db_person) => Some(db_person.try_into()?),
             None => None,
@@ -109,9 +123,9 @@ impl Object for Person {
     async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
         Ok(Self::Kind {
             kind: Default::default(),
-            username: self.username.clone(),
+            name: self.name.clone(),
             preferred_username: self.preferred_username.clone(),
-            id: self.ap_id.clone(),
+            id: self.apub_id.clone(),
             inbox: self.inbox.clone(),
             outbox: self.outbox.clone(),
             public_key: self.public_key(),
@@ -143,8 +157,8 @@ pub async fn get_person_by_username(
     Ok(person)
 }
 
-pub async fn get_person_by_federation_id(
-    federation_id: &Url,
+pub async fn get_person_by_actor_id(
+    actor_id: &Url,
     db_pool: &PgPool,
 ) -> Result<Option<DbPerson>, AppError> {
     let person = sqlx::query_as!(
@@ -152,10 +166,11 @@ pub async fn get_person_by_federation_id(
         r#"
         SELECT
             p.person_id as "person_id!",
+            p.instance_id as "instance_id!",
             p.username as "username!",
             p.display_name as "display_name!",
             p.is_nsfw as "is_nsfw!",
-            p.federation_id as "federation_id!",
+            p.actor_id as "actor_id!",
             p.inbox as "inbox!",
             p.outbox as "outbox!",
             p.is_local as "is_local!",
@@ -165,24 +180,28 @@ pub async fn get_person_by_federation_id(
             p.delete_timestamp as "delete_timestamp?"
         FROM persons p
         LEFT JOIN users u ON u.person_id = p.person_id
-        WHERE p.federation_id = $1
+        WHERE p.actor_id = $1
         "#,
-        federation_id.to_string(),
+        actor_id.to_string(),
     ).fetch_optional(db_pool).await?;
 
     Ok(person)
 }
 
 pub async fn insert_or_update_person(
-    ap_person: ApPerson,
+    person: Person,
     db_pool: &PgPool,
 ) -> Result<DbPerson, AppError> {
+
+    let instance = get_or_insert_instance(person.id.inner(), db_pool).await?;
     let person = sqlx::query_as!(
         DbPerson,
         "INSERT INTO persons
-        (username, display_name, federation_id, inbox, outbox, is_local, public_key)
-            VALUES ($1, $2, $3, $4, $5, FALSE, $6)
-        ON CONFLICT (federation_id) WHERE delete_timestamp IS NULL
+        (instance_id, username, display_name, actor_id, inbox, outbox, is_local, public_key)
+            VALUES (
+                $1, $2, $3, $4, $5, $6, FALSE, $7
+            )
+        ON CONFLICT (actor_id) WHERE delete_timestamp IS NULL
         DO UPDATE SET
             username = EXCLUDED.username,
             display_name = EXCLUDED.display_name,
@@ -191,12 +210,13 @@ pub async fn insert_or_update_person(
             public_key = EXCLUDED.public_key,
             last_refreshed_at = NOW()
         RETURNING *, NULL as private_key",
-        ap_person.username,
-        ap_person.preferred_username,
-        ap_person.id.inner().to_string(),
-        ap_person.inbox.to_string(),
-        ap_person.outbox.to_string(),
-        ap_person.public_key.public_key_pem,
+        instance.instance_id,
+        person.preferred_username,
+        person.name,
+        person.id.inner().to_string(),
+        person.inbox.to_string(),
+        person.outbox.to_string(),
+        person.public_key.public_key_pem,
     ).fetch_one(db_pool).await?;
 
     Ok(person)

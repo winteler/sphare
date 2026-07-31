@@ -6,6 +6,8 @@ use sphare_core_common::common::SphereHeader;
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Sphere {
     pub sphere_id: i64,
+    pub sphere_apub_id: String,
+    pub instance_id: i64,
     pub sphere_name: String,
     pub normalized_sphere_name: String,
     pub description: String,
@@ -15,6 +17,8 @@ pub struct Sphere {
     pub banner_url: Option<String>,
     pub num_members: i32,
     pub creator_id: i64,
+    pub inbox: String,
+    pub public_key: String,
     pub create_timestamp: chrono::DateTime<chrono::Utc>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
@@ -44,13 +48,20 @@ impl From<&Sphere> for SphereHeader {
 
 #[cfg(feature = "ssr")]
 pub mod ssr {
+    use rand::prelude::StdRng;
+    use rand::rngs::SysRng;
+    use rand::SeedableRng;
+    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use rsa::pkcs1::LineEnding;
+    use rsa::pkcs8::{EncodePublicKey};
     use sqlx::PgPool;
 
     use sphare_core_common::checks::{check_sphere_name, check_string_length};
-    use sphare_core_common::constants::MAX_SPHERE_DESCRIPTION_LENGTH;
+    use sphare_core_common::constants::{MAX_SPHERE_DESCRIPTION_LENGTH, RSA_KEY_SIZE};
     use sphare_core_common::errors::AppError;
     use sphare_core_common::errors::AppError::InternalServerError;
-    use sphare_core_common::routes::get_sphere_path;
+    use sphare_core_common::routes::{get_apub_shared_inbox, get_sphere_link, get_sphere_path};
+    use sphare_core_common::to_app_error;
     use sphare_core_user::role::ssr::init_sphere_leader;
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
@@ -85,23 +96,6 @@ pub mod ssr {
         )
             .bind(person_id)
             .bind(sphere_name)
-            .fetch_one(db_pool)
-            .await?;
-
-        Ok(sphere)
-    }
-
-    pub async fn get_post_sphere(
-        post_id: i64,
-        db_pool: &PgPool,
-    ) -> Result<Sphere, AppError> {
-        let sphere = sqlx::query_as::<_, Sphere>(
-            "SELECT s.*
-            FROM spheres s
-            JOIN posts p on p.sphere_id = s.sphere_id
-            WHERE p.post_id = $1"
-        )
-            .bind(post_id)
             .fetch_one(db_pool)
             .await?;
 
@@ -201,13 +195,27 @@ pub mod ssr {
         user.check_can_publish()?;
         check_sphere_name(name)?;
 
+        let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
+        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
+        // TODO let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::default()).map_err(to_app_error!("Failed to create private key pem"))?;
+        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::LF).map_err(AppError::new)?;
+
         let sphere = sqlx::query_as::<_, Sphere>(
-            "INSERT INTO spheres (sphere_name, description, is_nsfw, creator_id) VALUES ($1, $2, $3, $4) RETURNING *"
+            "INSERT INTO spheres (sphere_name, sphere_apub_id, instance_id, description, is_nsfw, creator_id, is_local, inbox, public_key)
+            VALUES (
+                $1, $2,
+                (SELECT instance_id FROM instances WHERE is_local = TRUE),
+                $3, $4, $5, TRUE, $6, $7
+            )
+            RETURNING *"
         )
             .bind(name)
+            .bind(get_sphere_link(name)?)
             .bind(description)
             .bind(is_nsfw)
             .bind(user.person_id)
+            .bind(get_apub_shared_inbox()?.to_string())
+            .bind(pub_key_pem)
             .fetch_one(db_pool)
             .await?;
 

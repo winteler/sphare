@@ -14,6 +14,7 @@ use crate::ranking::Vote;
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Post {
     pub post_id: i64,
+    pub post_apub_id: String,
     pub title: String,
     pub body: String,
     pub markdown_body: Option<String>,
@@ -153,7 +154,7 @@ pub mod ssr {
     use sphare_core_common::editor::clear_newlines;
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
     use sphare_core_common::errors::AppError;
-    use sphare_core_common::routes::get_post_path;
+    use sphare_core_common::routes::{get_post_link, get_post_path};
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
 
@@ -188,9 +189,9 @@ pub mod ssr {
         pub vote_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
 
-    impl PostJoinSphereInfo {
-        pub fn into_post_with_sphere_info(self) -> PostWithSphereInfo {
-            let sphere_category = match (self.category_name, self.category_color) {
+    impl From<PostJoinSphereInfo> for PostWithSphereInfo {
+        fn from(value: PostJoinSphereInfo) -> Self {
+            let sphere_category = match (value.category_name, value.category_color) {
                 (Some(category_name), Some(category_color)) => Some(SphereCategoryHeader {
                     category_name,
                     category_color,
@@ -198,27 +199,28 @@ pub mod ssr {
                 _ => None,
             };
             PostWithSphereInfo {
-                post: self.post,
-                sphere_name: self.sphere_name,
+                post: value.post,
+                sphere_name: value.sphere_name,
                 sphere_category,
-                sphere_icon_url: self.sphere_icon_url,
+                sphere_icon_url: value.sphere_icon_url,
             }
         }
     }
 
-    impl PostJoinInfo {
-        pub fn into_post_with_info(self) -> PostWithInfo {
-            let sphere_category = match (self.category_name, self.category_color) {
+    impl From<PostJoinInfo> for PostWithInfo {
+
+        fn from(post: PostJoinInfo) -> Self {
+            let sphere_category = match (post.category_name, post.category_color) {
                 (Some(category_name), Some(category_color)) => Some(SphereCategoryHeader {
                     category_name,
                     category_color,
                 }),
                 _ => None,
             };
-            let post_vote = match (self.vote_id, self.vote_person_id, self.value, self.vote_timestamp) {
+            let post_vote = match (post.vote_id, post.vote_person_id, post.value, post.vote_timestamp) {
                 (Some(vote_id), Some(vote_person_id), Some(value), Some(vote_timestamp)) => Some(Vote {
                     vote_id,
-                    post_id: self.post.post_id,
+                    post_id: post.post.post_id,
                     comment_id: None,
                     person_id: vote_person_id,
                     value: VoteValue::from(value),
@@ -228,7 +230,7 @@ pub mod ssr {
             };
 
             PostWithInfo {
-                post: self.post,
+                post: post.post,
                 sphere_category,
                 vote: post_vote,
             }
@@ -296,7 +298,32 @@ pub mod ssr {
             .fetch_one(db_pool)
             .await?;
 
-        Ok(post_join_vote.into_post_with_info())
+        Ok(post_join_vote.into())
+    }
+
+    pub async fn get_post_with_sphere_info_by_id(
+        post_id: i64,
+        db_pool: &PgPool,
+    ) -> Result<PostWithSphereInfo, AppError> {
+        let post = sqlx::query_as::<_, PostJoinSphereInfo>(
+            "SELECT
+                p.*,
+                pe.username AS creator_name,
+                c.category_name,
+                c.category_color,
+                s.icon_url AS sphere_icon_url,
+                s.sphere_name
+            FROM posts p
+            JOIN persons pe ON pe.person_id = p.creator_id
+            JOIN spheres s on s.sphere_id = p.sphere_id
+            LEFT JOIN sphere_categories c on c.category_id = p.category_id
+            WHERE p.post_id = $1",
+        )
+            .bind(post_id)
+            .fetch_one(db_pool)
+            .await?;
+
+        Ok(post.into())
     }
 
     pub async fn get_post_inherited_attributes(
@@ -317,23 +344,6 @@ pub mod ssr {
             .await?;
 
         Ok(inherited_attributes)
-    }
-
-    pub async fn get_post_sphere_name(
-        post_id: i64,
-        db_pool: &PgPool,
-    ) -> Result<String, AppError> {
-        let record = sqlx::query!(
-            "SELECT s.sphere_name
-            FROM spheres s
-            JOIN posts p on p.sphere_id = s.sphere_id
-            WHERE p.post_id = $1",
-            post_id
-        )
-            .fetch_one(db_pool)
-            .await?;
-
-        Ok(record.sphere_name)
     }
 
     pub async fn get_post_vec_by_sphere_name(
@@ -531,7 +541,7 @@ pub mod ssr {
             .fetch_all(db_pool)
             .await?;
 
-        let post_vec = post_vec.into_iter().map(PostJoinSphereInfo::into_post_with_sphere_info).collect();
+        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
 
         Ok(post_vec)
     }
@@ -642,7 +652,7 @@ pub mod ssr {
             post_vec.append(&mut additional_posts);
         }
 
-        let post_vec = post_vec.into_iter().map(PostJoinSphereInfo::into_post_with_sphere_info).collect();
+        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
 
         Ok(post_vec)
     }
@@ -701,21 +711,25 @@ pub mod ssr {
             user.check_sphere_permissions_by_name(sphere_name, PermissionLevel::Moderate)?;
         }
 
+        let post_id: i64 = sqlx::query_scalar!("SELECT nextval('posts_post_id_seq')")
+            .fetch_one(db_pool)
+            .await?.ok_or(AppError::new("Got null for next post id."))?;
+
         let post = sqlx::query_as::<_, Post>(
             "WITH new_post AS (
                     INSERT INTO posts (
-                        title, body, markdown_body, link_type, link_url, link_embed, link_thumbnail_url, is_nsfw, is_spoiler, category_id,
+                        post_id, post_apub_id, title, body, markdown_body, link_type, link_url, link_embed, link_thumbnail_url, is_nsfw, is_spoiler, category_id,
                         sphere_id, satellite_id, is_pinned, creator_id, is_creator_moderator
                     )
                     VALUES (
-                        $1, $2, $3, $4, $5, $6, $7,
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9,
                         (
                             CASE
-                                WHEN $8 THEN TRUE
+                                WHEN $10 THEN TRUE
                                 ELSE (
-                                    (SELECT is_nsfw FROM spheres s WHERE s.sphere_name = $11) OR
+                                    (SELECT is_nsfw FROM spheres s WHERE s.sphere_name = $13) OR
                                     COALESCE(
-                                        (SELECT is_nsfw FROM satellites sa WHERE sa.satellite_id = $12),
+                                        (SELECT is_nsfw FROM satellites sa WHERE sa.satellite_id = $14),
                                         FALSE
                                     )
                                 )
@@ -723,20 +737,22 @@ pub mod ssr {
                         ),
                         (
                             CASE
-                                WHEN $9 THEN TRUE
+                                WHEN $11 THEN TRUE
                                 ELSE COALESCE(
-                                    (SELECT is_spoiler FROM satellites sa WHERE sa.satellite_id = $12),
+                                    (SELECT is_spoiler FROM satellites sa WHERE sa.satellite_id = $14),
                                     FALSE
                                 )
                             END
                         ),
-                        $10,
-                        (SELECT sphere_id FROM spheres s WHERE s.sphere_name = $11),
-                        $12, $13, $14, $15
+                        $12,
+                        (SELECT sphere_id FROM spheres s WHERE s.sphere_name = $13),
+                        $14, $15, $16, $17
                 ) RETURNING *
             )
-            SELECT *, $16 as creator_name FROM new_post",
+            SELECT *, $18 as creator_name FROM new_post",
         )
+            .bind(post_id)
+            .bind(get_post_link(sphere_name, satellite_id, post_id)?)
             .bind(post_title)
             .bind(post_body)
             .bind(post_markdown_body)
@@ -806,8 +822,8 @@ pub mod ssr {
             ));
         }
         if post_tags.is_pinned {
-            let sphere_name = get_post_sphere_name(post_id, db_pool).await?;
-            user.check_sphere_permissions_by_name(&sphere_name, PermissionLevel::Moderate)?;
+            let post = get_post_with_sphere_info_by_id(post_id, db_pool).await?;
+            user.check_sphere_permissions_by_name(&post.sphere_name, PermissionLevel::Moderate)?;
         }
 
         let post = sqlx::query_as::<_, Post>(
@@ -955,7 +971,7 @@ pub mod ssr {
 
         use crate::embed::{EmbedType, Link, LinkType};
         use crate::post::ssr::{process_embed_link, PostJoinInfo};
-        use crate::post::Post;
+        use crate::post::{Post, PostWithInfo};
         use crate::ranking::VoteValue;
 
         #[test]
@@ -975,7 +991,7 @@ pub mod ssr {
                 value: None,
                 vote_timestamp: None,
             };
-            let user_post_with_info = user_post_without_vote.into_post_with_info();
+            let user_post_with_info: PostWithInfo = user_post_without_vote.into();
             assert_eq!(user_post_with_info.post, user_post);
             assert_eq!(user_post_with_info.sphere_category, None);
             assert_eq!(user_post_with_info.vote, None);
@@ -991,7 +1007,7 @@ pub mod ssr {
                 value: Some(1),
                 vote_timestamp: Some(user_post.create_timestamp),
             };
-            let user_post_with_info = user_post_with_vote.into_post_with_info();
+            let user_post_with_info: PostWithInfo = user_post_with_vote.into();
             let user_vote = user_post_with_info.vote.expect("PostWithInfo should contain vote.");
             assert_eq!(user_post_with_info.post, user_post);
             assert_eq!(user_post_with_info.sphere_category, None);
@@ -1014,7 +1030,7 @@ pub mod ssr {
                 value: Some(-1),
                 vote_timestamp: Some(other_post.create_timestamp),
             };
-            let other_post_with_info = other_post_with_vote.into_post_with_info();
+            let other_post_with_info: PostWithInfo = other_post_with_vote.into();
             let user_vote = other_post_with_info.vote.expect("PostWithInfo should contain vote.");
             let sphere_category = other_post_with_info.sphere_category.expect("PostWithInfo should contain category.");
             assert_eq!(other_post_with_info.post, other_post);
@@ -1066,6 +1082,7 @@ mod tests {
     fn create_post_with_category(title: &str, category_id: Option<i64>) -> Post {
         Post {
             post_id: 0,
+            post_apub_id: String::default(),
             title: title.to_string(),
             body: String::default(),
             markdown_body: None,

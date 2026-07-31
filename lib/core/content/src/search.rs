@@ -162,7 +162,7 @@ pub mod ssr {
             .fetch_all(db_pool)
             .await?;
 
-        let post_vec = post_vec.into_iter().map(PostJoinSphereInfo::into_post_with_sphere_info).collect();
+        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
 
         Ok(post_vec)
     }

@@ -1,0 +1,86 @@
+use serde::{Deserialize, Serialize};
+
+#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
+#[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
+pub struct Instance {
+    pub instance_id: i64,
+    pub instance_apub_id: String,
+    pub is_local: bool,
+    pub public_key: Option<String>,
+    pub private_key: Option<String>,
+    pub last_refreshed_at: chrono::DateTime<chrono::offset::Utc>,
+}
+
+#[cfg(feature = "ssr")]
+pub mod ssr {
+    use rand::prelude::StdRng;
+    use rand::rngs::SysRng;
+    use rand::SeedableRng;
+    use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
+    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use sqlx::PgPool;
+    use url::Url;
+    use sphare_core_common::constants::RSA_KEY_SIZE;
+    use sphare_core_common::errors::AppError;
+    use sphare_core_common::routes::get_app_origin;
+    use sphare_core_common::to_app_error;
+
+    use crate::instance::Instance;
+
+    pub async fn upsert_own_instance(db_pool: &PgPool) -> Result<Instance, AppError> {
+        let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
+        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
+        let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::default()).map_err(to_app_error!("Failed to create private key pem"))?;
+        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::default()).map_err(to_app_error!("Failed to generate public key pem"))?;
+
+        let person = sqlx::query_as!(
+            Instance,
+            "INSERT INTO instances (instance_apub_id, is_local, public_key, private_key)
+            VALUES ($1, TRUE, $2, $3)
+            ON CONFLICT (is_local) WHERE is_local = TRUE
+            DO UPDATE
+            SET instance_apub_id = EXCLUDED.instance_apub_id,
+                last_refreshed_at = NOW()
+            RETURNING *",
+            &get_app_origin()?,
+            pub_key_pem,
+            priv_key_pem.to_string()
+        ).fetch_one(db_pool).await?;
+
+        Ok(person)
+    }
+
+    pub async fn get_or_insert_instance(instance_url: &Url, db_pool: &PgPool) -> Result<Instance, AppError> {
+        let instance_apub_id = instance_url.host_str().ok_or(AppError::new("Instance url is missing a host name, cannot get or insert it."))?;
+        let instance = sqlx::query_as!(
+            Instance,
+            "SELECT * FROM instances
+            WHERE instance_apub_id = $1",
+            instance_apub_id,
+        ).fetch_optional(db_pool).await?;
+
+        match instance {
+            Some(instance) => Ok(instance),
+            None => {
+                let instance = sqlx::query_as!(
+                    Instance,
+                    "INSERT INTO instances (instance_apub_id, is_local, public_key, private_key)
+                    VALUES ($1, FALSE, NULL, NULL)
+                    RETURNING *",
+                    instance_apub_id,
+                ).fetch_one(db_pool).await?;
+                Ok(instance)
+            }
+        }
+    }
+
+    pub async fn get_instance_by_id(instance_id: i64, db_pool: &PgPool) -> Result<Instance, AppError> {
+        let instance = sqlx::query_as!(
+            Instance,
+            "SELECT * FROM instances
+            WHERE instance_id = $1",
+            instance_id,
+        ).fetch_one(db_pool).await?;
+        Ok(instance)
+    }
+}

@@ -1,58 +1,44 @@
 [package]
-name = "sphare_core_sphere"
+name = "sphare_core_apub"
 version = "0.1.0"
 edition = "2024"
-description = "Sphere related structs and functions"
+description = "ActivityPub structs and functions"
 
 [dependencies]
 sphare_core_common = { path = "../common", default-features = false }
 sphare_core_user = { path = "../user", default-features = false }
-
-leptos.workspace = true
-leptos_axum = { workspace = true, optional = true }
-
-leptos-fluent.workspace = true
+sphare_core_sphere = { path = "../sphere", default-features = false }
+sphare_core_content = { path = "../content", default-features = false }
 
 activitypub_federation = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 chrono.workspace = true
-http.workspace = true
-image = { workspace = true, optional = true }
-infer = { workspace = true, optional = true }
-log = { workspace = true, optional = true }
-object_store = { workspace = true, optional = true }
+log.workspace = true
 rand = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 rsa = { workspace = true, optional = true }
 serde.workspace = true
+serde_json.workspace = true
+serde_with.workspace = true
 sqlx = { workspace = true, optional = true }
 strum.workspace = true
 strum_macros.workspace = true
 tokio = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
-webp = { workspace = true, optional = true }
-
-[dev-dependencies]
-sealed_test = "1.1.0"
 
 [features]
 default = []
 ssr = [
-    "leptos/ssr",
-    "leptos-fluent/axum",
-    "leptos-fluent/ssr",
     "sphare_core_common/ssr",
     "sphare_core_user/ssr",
+    "sphare_core_sphere/ssr",
+    "sphare_core_content/ssr",
     "dep:activitypub_federation",
     "dep:async-trait",
-    "dep:image",
-    "dep:infer",
-    "dep:leptos_axum",
-    "dep:log",
-    "dep:object_store",
     "dep:rand",
+    "dep:reqwest",
     "dep:rsa",
     "dep:sqlx",
     "dep:tokio",
     "dep:url",
-    "dep:webp",
 ]

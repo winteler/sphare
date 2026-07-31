@@ -19,6 +19,7 @@ use tower::ServiceExt;
 
 use sphare_core_common::db_utils::create_db_pool;
 use sphare_core_common::env::ssr::LEPTOS_ENV;
+use sphare_core_user::instance::ssr::{upsert_own_instance};
 use sphare_core_user::session::ssr::{AuthSession};
 use sphare_core_user::user::ssr::UserLockCache;
 use sphare_core_user::user::User;
@@ -214,6 +215,8 @@ async fn main() {
         .run(&pool)
         .await
         .expect("Should be able to run SQLx migrations.");
+
+    upsert_own_instance(&pool).await.expect("Failed to upsert own-instance");
 
     let session_config = SessionConfig::default()
         .with_table_name("sessions")

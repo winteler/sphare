@@ -1,7 +1,7 @@
 use rand::RngExt;
 
 use sphare_core_common::common::SphereHeader;
-use sphare_core_common::db_utils::ssr::create_db_pool;
+use sphare_core_common::db_utils::create_db_pool;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::errors::AppError::InsufficientPrivileges;
 use sphare_core_sphere::sphere;

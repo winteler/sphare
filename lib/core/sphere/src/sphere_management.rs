@@ -336,6 +336,8 @@ pub mod ssr {
 
             let sphere = Sphere {
                 sphere_id: 0,
+                sphere_apub_id: "".to_string(),
+                instance_id: 0,
                 sphere_name: "a".to_string(),
                 normalized_sphere_name: "a".to_string(),
                 description: "b".to_string(),
@@ -345,12 +347,16 @@ pub mod ssr {
                 banner_url: Some("banner.jpg".to_string()),
                 num_members: 0,
                 creator_id: 0,
+                inbox: "".to_string(),
+                public_key: "".to_string(),
                 create_timestamp: Default::default(),
                 timestamp: Default::default(),
             };
 
             let sphere2 = Sphere {
                 sphere_id: 1,
+                sphere_apub_id: "".to_string(),
+                instance_id: 0,
                 sphere_name: "1".to_string(),
                 normalized_sphere_name: "1".to_string(),
                 description: "2".to_string(),
@@ -360,6 +366,8 @@ pub mod ssr {
                 banner_url: None,
                 num_members: 0,
                 creator_id: 0,
+                inbox: "".to_string(),
+                public_key: "".to_string(),
                 create_timestamp: Default::default(),
                 timestamp: Default::default(),
             };

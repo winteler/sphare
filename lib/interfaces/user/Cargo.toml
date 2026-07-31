@@ -7,6 +7,7 @@ description = "User related interfaces"
 [dependencies]
 sphare_core_common = { path = "../../core/common", default-features = false }
 sphare_core_user = { path = "../../core/user", default-features = false }
+sphare_core_apub = { path = "../../core/apub", default-features = false }
 
 leptos.workspace = true
 leptos_axum = { workspace = true, optional = true }
@@ -26,6 +27,7 @@ ssr = [
     "leptos/ssr",
     "sphare_core_common/ssr",
     "sphare_core_user/ssr",
+    "sphare_core_apub/ssr",
     "dep:activitypub_federation",
     "dep:axum",
     "dep:leptos_axum",

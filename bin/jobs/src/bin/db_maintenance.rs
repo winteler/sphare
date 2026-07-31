@@ -1,4 +1,4 @@
-use sphare_core_common::db_utils::ssr::create_db_pool;
+use sphare_core_common::db_utils::create_db_pool;
 use sphare_core_user::notification::ssr::delete_stale_notifications;
 
 

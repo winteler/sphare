@@ -13,14 +13,14 @@ use sphare_core_content::comment::ssr::create_comment;
 use sphare_core_content::embed::{Link, LinkType};
 use sphare_core_content::filter::{CategorySetFilter, SphereCategoryFilter};
 use sphare_core_content::moderation::ssr::moderate_post;
-use sphare_core_content::post::ssr::{create_post, create_post_and_vote, delete_post, edit_post, get_homepage_post_vec, get_post_by_id, get_post_inherited_attributes, get_post_vec_by_satellite_id, get_post_vec_by_sphere_name, get_post_with_info_by_id, get_sorted_post_vec, get_subscribed_post_vec, update_post, update_post_scores};
+use sphare_core_content::post::ssr::{create_post, create_post_and_vote, delete_post, edit_post, get_homepage_post_vec, get_post_by_id, get_post_inherited_attributes, get_post_vec_by_satellite_id, get_post_vec_by_sphere_name, get_post_with_info_by_id, get_post_with_sphere_info_by_id, get_sorted_post_vec, get_subscribed_post_vec, update_post, update_post_scores};
 use sphare_core_content::post::{PostDataInputs, PostLocation, PostTags, PostWithSphereInfo};
 use sphare_core_content::ranking::ssr::vote_on_content;
 use sphare_core_content::ranking::{PostSortType, SortType, VoteValue};
 use sphare_core_sphere::rule::ssr::add_rule;
 use sphare_core_sphere::satellite::ssr::create_satellite;
 use sphare_core_sphere::satellite::Satellite;
-use sphare_core_sphere::sphere::ssr::{create_sphere, get_post_sphere, subscribe};
+use sphare_core_sphere::sphere::ssr::{create_sphere, subscribe};
 use sphare_core_sphere::sphere::Sphere;
 use sphare_core_sphere::sphere_category::ssr::set_sphere_category;
 use sphare_core_user::user::User;
@@ -346,19 +346,20 @@ async fn test_get_post_inherited_attributes() -> Result<(), AppError> {
 }
 
 #[tokio::test]
-async fn test_get_post_sphere() -> Result<(), AppError> {
+async fn test_get_post_with_sphere_info_by_id() {
     let db_pool = get_db_pool().await;
     let user = create_test_user(&db_pool).await;
 
-    let sphere = create_sphere("a", "sphere", false, &user, &db_pool).await?;
-    let post = create_post(
+    let sphere = create_sphere("a", "sphere", false, &user, &db_pool).await.expect("Should create sphere");
+    let expected_post = create_post(
         &sphere.sphere_name, None, "1", "test", None, Link::default(),PostTags::default(), &user, &db_pool
     ).await.expect("Should be able to create post.");
 
-    let result_sphere = get_post_sphere(post.post_id, &db_pool).await.expect("Post sphere should be available.");
-    assert_eq!(result_sphere, sphere);
-
-    Ok(())
+    let post_with_sphere_info = get_post_with_sphere_info_by_id(expected_post.post_id, &db_pool).await.expect("Post sphere should be available.");
+    assert_eq!(post_with_sphere_info.post, expected_post);
+    assert_eq!(post_with_sphere_info.sphere_name, sphere.sphere_name);
+    assert_eq!(post_with_sphere_info.sphere_category, None);
+    assert_eq!(post_with_sphere_info.sphere_icon_url, None);
 }
 
 #[tokio::test]

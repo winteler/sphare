@@ -11,6 +11,7 @@ sphare_core_common = { path = "../common", default-features = false, features = 
 sphare_core_user = { path = "../user", default-features = false, features = ["ssr"] }
 sphare_core_sphere = { path = "../sphere", default-features = false, features = ["ssr"] }
 sphare_core_content = { path = "../content", default-features = false, features = ["ssr"] }
+sphare_core_apub = { path = "../apub", default-features = false, features = ["ssr"] }
 
 leptos.workspace = true
 leptos-fluent.workspace = true

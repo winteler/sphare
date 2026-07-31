@@ -1,5 +1,4 @@
 use sphare_core_common::errors::AppError;
-use sphare_core_common::routes::get_profile_link;
 use sphare_core_content::embed::Link;
 use sphare_core_content::moderation::ssr::ban_user_from_sphere;
 use sphare_core_content::post::PostTags;
@@ -10,7 +9,7 @@ use sphare_core_sphere::rule::ssr::add_rule;
 use sphare_core_sphere::sphere;
 use sphare_core_user::role::ssr::get_user_sphere_role;
 use sphare_core_user::role::{AdminRole, PermissionLevel};
-use sphare_core_user::user::ssr::{create_or_update_user, delete_user, get_person_by_username, set_user_settings, DbUser};
+use sphare_core_user::user::ssr::{create_or_update_user, delete_user, set_user_settings, DbUser};
 use sphare_core_user::user::{BanStatus, User};
 
 use crate::common::{create_test_user, create_user, get_db_pool};
@@ -107,23 +106,6 @@ async fn test_set_user_settings() {
     assert_eq!(user.is_nsfw, false);
     assert_eq!(user.show_nsfw, false);
     assert_eq!(user.days_hide_spoiler, None);
-}
-
-#[tokio::test]
-async fn test_get_person_by_username() {
-    let db_pool = get_db_pool().await;
-    let user = create_test_user(&db_pool).await;
-
-    let person = get_person_by_username(&user.username, &db_pool).await.expect("Should get person");
-    assert_eq!(person.person_id, user.person_id);
-    assert_eq!(person.username, user.username);
-    assert_eq!(person.display_name, user.username);
-    assert_eq!(person.is_nsfw, false);
-    assert_eq!(person.is_local, true);
-    assert_eq!(person.federation_id, get_profile_link(&user.username).expect("Should get profile link").to_string());
-    assert_eq!(person.inbox, User::get_user_inbox(&user.username).expect("Should get user inbox").to_string());
-    assert_eq!(person.outbox, User::get_user_outbox(&user.username).expect("Should get user outbox").to_string());
-    assert!(person.delete_timestamp.is_none());
 }
 
 #[tokio::test]
