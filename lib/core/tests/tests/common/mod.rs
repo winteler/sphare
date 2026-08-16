@@ -7,7 +7,6 @@ use leptos::prelude::*;
 use leptos::server_fn::const_format::formatcp;
 use leptos_fluent::{I18n, Language};
 
-use sphare_core_user::instance::ssr::upsert_own_instance;
 use sphare_core_user::user::ssr::create_or_update_user;
 use sphare_core_user::user::User;
 use sqlx::postgres::PgPoolOptions;
@@ -84,7 +83,6 @@ pub async fn get_db_pool() -> PgPool {
         .await
         .expect("SQLx migrations should be executed.");
 
-    upsert_own_instance(&db_pool).await.expect("Should create own instance");
     // Clear base rules that are created in migrations
     clear_base_rules(&db_pool).await;
 

@@ -10,6 +10,7 @@ leptos_router.workspace = true
 
 leptos-fluent.workspace = true
 
+activitypub_federation = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 chrono.workspace = true
@@ -41,6 +42,7 @@ sealed_test = "1.1.0"
 default = []
 ssr = [
     "leptos/ssr",
+    "dep:activitypub_federation",
     "dep:anyhow",
     "dep:axum",
     "dep:openidconnect",

@@ -30,6 +30,7 @@ pub enum AppError {
     InternalServerError(String),
     NotFound,
     PayloadTooLarge(usize),
+    ApubError(String),
 }
 
 impl AppError {
@@ -44,7 +45,7 @@ impl AppError {
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
             AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::InternalServerError(_) | AppError::ApubError(_)  => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::NotFound => StatusCode::NOT_FOUND,
             AppError::PayloadTooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
         }
@@ -72,7 +73,7 @@ impl AppError {
                 _ => move_tr!("internal-error-message"),
             },
             AppError::DatabaseError(_) => move_tr!("internal-error-message"),
-            AppError::InternalServerError(_) => move_tr!("internal-error-message"),
+            AppError::InternalServerError(_) | AppError::ApubError(_) => move_tr!("internal-error-message"),
             AppError::NotFound => move_tr!("not-found-message"),
             AppError::PayloadTooLarge(byte_limit) => {
                 let byte_limit = *byte_limit as f64 / 1024.0 / 1024.0;
@@ -91,6 +92,7 @@ impl AppError {
                 _ => self.user_message(),
             },
             AppError::InternalServerError(e) => e.clone().into(),
+            AppError::ApubError(e) => e.clone().into(),
             _ => self.user_message()
         }
     }
@@ -164,6 +166,7 @@ impl From<std::io::Error> for AppError {
 
 #[cfg(feature = "ssr")]
 mod ssr {
+    use activitypub_federation::error::Error;
     use axum::response::{IntoResponse, Response};
     use openidconnect::SignatureVerificationError;
     use sqlx;
@@ -224,6 +227,12 @@ mod ssr {
     impl From<reqwest::Error> for AppError {
         fn from(value: reqwest::Error) -> Self {
             AppError::InternalServerError(value.to_string())
+        }
+    }
+
+    impl From<activitypub_federation::error::Error> for AppError {
+        fn from(value: Error) -> Self {
+            AppError::InternalServerError(format!("ActivityPub error: {value}"))
         }
     }
 

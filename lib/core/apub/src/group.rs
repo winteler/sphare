@@ -26,6 +26,10 @@ use sphare_core_common::routes::get_sphere_link;
 use sphare_core_common::to_app_error;
 use sphare_core_sphere::sphere::Sphere;
 use sphare_core_user::instance::ssr::get_or_insert_instance;
+use sphare_core_user::role::PermissionLevel;
+use sphare_core_user::role::ssr::set_user_sphere_role;
+use sphare_core_user::user::ssr::get_admin_function_user;
+use crate::person::ApubPerson;
 use crate::utils::{generate_outbox_url, Endpoints, ImageObject, LanguageTag, Source};
 
 #[skip_serializing_none]
@@ -56,6 +60,8 @@ pub struct Group {
     pub image: Option<ImageObject>,
     // lemmy extension
     pub sensitive: Option<bool>,
+    #[serde(deserialize_with = "deserialize_skip_error", default)]
+    pub attributed_to: Option<Vec<ObjectId<ApubPerson>>>,
     // lemmy extension
     pub posting_restricted_to_mods: Option<bool>,
     pub inbox: Url,
@@ -163,6 +169,7 @@ impl Object for ApubSphere {
             icon: self.icon,
             image: self.banner,
             sensitive: Some(self.is_nsfw),
+            attributed_to: None,
             posting_restricted_to_mods: None,
             inbox: self.inbox,
             outbox: generate_outbox_url(self.apub_id.inner())?,
@@ -186,7 +193,15 @@ impl Object for ApubSphere {
     }
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+        let moderators = json.attributed_to.clone();
         let sphere = insert_or_update_sphere(json, data.app_data().get_db_pool()).await?;
+        let function_user = get_admin_function_user(data.app_data().get_db_pool()).await?;
+        if let Some(moderators) = moderators {
+            for moderator in moderators {
+                let person = moderator.dereference(data).await.map_err(to_app_error!("Failed to get moderator"))?;
+                set_user_sphere_role(&person.preferred_username, &sphere.sphere_name, PermissionLevel::Moderate, &function_user, data.app_data().get_db_pool()).await?;
+            }
+        }
         sphere.try_into()
     }
 }

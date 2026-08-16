@@ -74,11 +74,16 @@ CREATE TABLE users (
     oidc_id TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     private_key TEXT NOT NULL,
-    admin_role TEXT NOT NULL DEFAULT 'None' CHECK (admin_role IN ('None', 'Moderator', 'Admin')),
+    admin_role TEXT DEFAULT NULL CHECK (admin_role IN ('Moderator', 'Admin')),
+    function_user_type TEXT DEFAULT NULL CHECK (function_user_type IN ('AdminBot')),
     days_hide_spoiler INT CHECK (days_hide_spoiler > 0),
     show_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Ensure exactly one Admin Bot exists
+CREATE UNIQUE INDEX idx_unique_admin_bot ON users (function_user_type)
+    WHERE function_user_type = 'AdminBot';
 
 CREATE TABLE spheres (
     sphere_id BIGSERIAL PRIMARY KEY,
@@ -378,14 +383,14 @@ CREATE INDEX idx_user_ban_sphere ON user_bans (sphere_id, person_id, delete_time
 
 -- add functional user
 INSERT INTO instances (instance_apub_id, is_local, public_key, private_key)
-VALUES ('', TRUE, '', '');
+VALUES ('', TRUE, NULL, NULL);
 
 -- add functional user
 INSERT INTO persons (username, display_name, actor_id, instance_id, inbox, outbox, is_local, public_key)
 VALUES ('sphare-function-user', 'admin', '', 1, '', '', true, '');
 
-INSERT INTO users (person_id, oidc_id, email, admin_role, private_key, show_nsfw)
-VALUES (1, '', '', 'Admin', '', true);
+INSERT INTO users (person_id, oidc_id, email, admin_role, function_user_type, private_key, show_nsfw)
+VALUES (1, '', '', 'Admin', 'AdminBot', '', true);
 
 -- add base rules
 INSERT INTO rules (sphere_id, priority, title, description, markdown_description, person_id)

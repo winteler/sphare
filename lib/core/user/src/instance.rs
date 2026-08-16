@@ -22,12 +22,36 @@ pub mod ssr {
     use url::Url;
     use sphare_core_common::constants::RSA_KEY_SIZE;
     use sphare_core_common::errors::AppError;
-    use sphare_core_common::routes::get_app_origin;
     use sphare_core_common::to_app_error;
 
     use crate::instance::Instance;
 
-    pub async fn upsert_own_instance(db_pool: &PgPool) -> Result<Instance, AppError> {
+    /// Returns the ActivityPub instance id from a given url
+    ///
+    /// ```
+    /// use url::Url;
+    /// use sphare_core_user::instance::ssr::get_instance_apub_id_from_url;
+    ///
+    /// let url = Url::parse("https://mysite.com/some/path").expect("Should be valid url");
+    /// assert_eq!(get_instance_apub_id_from_url(url).to_string(), "https://mysite.com/");
+    /// ```
+    pub fn get_instance_apub_id_from_url(mut url: Url) -> Url {
+        url.set_fragment(None);
+        url.set_path("");
+        url.set_query(None);
+        url
+    }
+
+    pub async fn init_local_instance(instance_url: &Url, db_pool: &PgPool) -> Result<Instance, AppError> {
+        let existing = sqlx::query_as!(
+            Instance,
+            "SELECT * FROM instances WHERE is_local = TRUE"
+        ).fetch_optional(db_pool).await?;
+
+        if let Some(instance) = existing && !instance.instance_apub_id.is_empty() {
+            return Ok(instance);
+        }
+
         let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
         let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
         let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::default()).map_err(to_app_error!("Failed to create private key pem"))?;
@@ -40,9 +64,11 @@ pub mod ssr {
             ON CONFLICT (is_local) WHERE is_local = TRUE
             DO UPDATE
             SET instance_apub_id = EXCLUDED.instance_apub_id,
+                public_key = EXCLUDED.public_key,
+                private_key = EXCLUDED.private_key,
                 last_refreshed_at = NOW()
             RETURNING *",
-            &get_app_origin()?,
+            instance_url.to_string(),
             pub_key_pem,
             priv_key_pem.to_string()
         ).fetch_one(db_pool).await?;
@@ -51,7 +77,7 @@ pub mod ssr {
     }
 
     pub async fn get_or_insert_instance(instance_url: &Url, db_pool: &PgPool) -> Result<Instance, AppError> {
-        let instance_apub_id = instance_url.host_str().ok_or(AppError::new("Instance url is missing a host name, cannot get or insert it."))?;
+        let instance_apub_id = get_instance_apub_id_from_url(instance_url.clone()).to_string();
         let instance = sqlx::query_as!(
             Instance,
             "SELECT * FROM instances
@@ -72,15 +98,5 @@ pub mod ssr {
                 Ok(instance)
             }
         }
-    }
-
-    pub async fn get_instance_by_id(instance_id: i64, db_pool: &PgPool) -> Result<Instance, AppError> {
-        let instance = sqlx::query_as!(
-            Instance,
-            "SELECT * FROM instances
-            WHERE instance_id = $1",
-            instance_id,
-        ).fetch_one(db_pool).await?;
-        Ok(instance)
     }
 }

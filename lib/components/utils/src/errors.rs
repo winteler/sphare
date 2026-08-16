@@ -21,7 +21,7 @@ pub fn AppErrorIcon(
             _ => view! { <InternalErrorIcon/> }.into_any(),
         },
         AppError::DatabaseError(_) => view! { <InternalErrorIcon/> }.into_any(),
-        AppError::InternalServerError(_) => view! { <InternalErrorIcon/> }.into_any(),
+        AppError::InternalServerError(_) | AppError::ApubError(_) => view! { <InternalErrorIcon/> }.into_any(),
         AppError::NotFound => view! { <NotFoundIcon/> }.into_any(),
         AppError::PayloadTooLarge(_) => view! { <TooHeavyIcon/> }.into_any(),
     }

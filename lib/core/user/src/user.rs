@@ -1,8 +1,9 @@
 use std::cmp::max;
 use std::collections::HashMap;
 use std::default::Default;
-
+use std::str::FromStr;
 use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 use sphare_core_common::errors::AppError;
 
@@ -15,6 +16,22 @@ pub enum BanStatus {
     Permanent,
 }
 
+#[derive(Clone, Copy, Debug, Display, EnumString, Eq, IntoStaticStr, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "ssr", derive(sqlx::Type))]
+pub enum FunctionUserType {
+    None = 0,
+    AdminBot = 1,
+}
+
+impl From<Option<String>> for FunctionUserType {
+    fn from(value: Option<String>) -> FunctionUserType {
+        match value {
+            None => FunctionUserType::None,
+            Some(value) => FunctionUserType::from_str(&value).unwrap_or(FunctionUserType::None),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct User {
     pub user_id: i64,
@@ -24,6 +41,7 @@ pub struct User {
     pub email: String,
     pub is_nsfw: bool,
     pub admin_role: AdminRole,
+    pub function_user_type: FunctionUserType,
     pub days_hide_spoiler: Option<i32>,
     pub show_nsfw: bool,
     pub permission_by_sphere_name_map: HashMap<String, PermissionLevel>,
@@ -85,6 +103,7 @@ impl Default for User {
             email: String::default(),
             is_nsfw: false,
             admin_role: AdminRole::None,
+            function_user_type: FunctionUserType::None,
             show_nsfw: true,
             days_hide_spoiler: None,
             permission_by_sphere_name_map: HashMap::new(),
@@ -214,6 +233,7 @@ pub mod ssr {
         pub email: String,
         pub is_nsfw: bool,
         pub admin_role: AdminRole,
+        pub function_user_type: FunctionUserType,
         pub show_nsfw: bool,
         pub days_hide_spoiler: Option<i32>,
         pub private_key: String,
@@ -227,12 +247,12 @@ pub mod ssr {
             db_pool: &PgPool,
         ) -> Result<DbUser, AppError> {
             let db_user = sqlx::query_as!(
-            DbUser,
-            "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
-            JOIN persons p ON p.person_id = u.person_id
-            WHERE p.username = $1",
-            username,
-        )
+                DbUser,
+                "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
+                JOIN persons p ON p.person_id = u.person_id
+                WHERE p.username = $1",
+                username,
+            )
                 .fetch_one(db_pool)
                 .await?;
 
@@ -296,6 +316,7 @@ pub mod ssr {
                 email: self.email,
                 is_nsfw: self.is_nsfw,
                 admin_role: self.admin_role,
+                function_user_type: self.function_user_type,
                 show_nsfw: self.show_nsfw,
                 days_hide_spoiler: self.days_hide_spoiler,
                 permission_by_sphere_name_map,
@@ -433,6 +454,16 @@ pub mod ssr {
             .fetch_optional(db_pool)
             .await?;
         Ok(db_user)
+    }
+
+    pub async fn get_admin_function_user(db_pool: &PgPool) -> Result<User, AppError> {
+        let db_user = sqlx::query_as!(
+            DbUser,
+            "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
+            JOIN persons p ON p.person_id = u.person_id
+            WHERE u.function_user_type = 'AdminBot'",
+        ).fetch_one(db_pool).await?;
+        db_user.load_into_user(db_pool).await
     }
 
     pub async fn create_or_update_user(
@@ -747,6 +778,7 @@ pub mod ssr {
                 email: String::from("c"),
                 is_nsfw: false,
                 admin_role: AdminRole::None,
+                function_user_type: FunctionUserType::None,
                 show_nsfw: true,
                 days_hide_spoiler: None,
                 private_key: "".to_string(),

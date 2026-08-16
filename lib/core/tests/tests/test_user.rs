@@ -9,8 +9,8 @@ use sphare_core_sphere::rule::ssr::add_rule;
 use sphare_core_sphere::sphere;
 use sphare_core_user::role::ssr::get_user_sphere_role;
 use sphare_core_user::role::{AdminRole, PermissionLevel};
-use sphare_core_user::user::ssr::{create_or_update_user, delete_user, set_user_settings, DbUser};
-use sphare_core_user::user::{BanStatus, User};
+use sphare_core_user::user::ssr::{create_or_update_user, delete_user, get_admin_function_user, set_user_settings, DbUser};
+use sphare_core_user::user::{BanStatus, FunctionUserType, User};
 
 use crate::common::{create_test_user, create_user, get_db_pool};
 use crate::data_factory::{create_simple_post, create_sphere_with_post_and_comment};
@@ -48,6 +48,15 @@ async fn test_create_or_update_user() -> Result<(), AppError> {
     assert_eq!(loaded_user.delete_timestamp, None);
 
     Ok(())
+}
+
+#[tokio::test]
+async fn test_get_admin_function_user() {
+    let db_pool = get_db_pool().await;
+    let admin_function_user = get_admin_function_user(&db_pool).await.expect("Should get admin_function_user");
+    assert_eq!(admin_function_user.user_id, 1);
+    assert_eq!(admin_function_user.admin_role, AdminRole::Admin);
+    assert_eq!(admin_function_user.function_user_type, FunctionUserType::AdminBot);
 }
 
 #[tokio::test]

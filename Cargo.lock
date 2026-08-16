@@ -5441,6 +5441,7 @@ dependencies = [
  "tower-http 0.7.0",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -5881,6 +5882,7 @@ dependencies = [
 name = "sphare_core_common"
 version = "0.1.0"
 dependencies = [
+ "activitypub_federation",
  "anyhow",
  "axum",
  "chrono",
@@ -5974,6 +5976,7 @@ dependencies = [
 name = "sphare_core_tests"
 version = "0.1.0"
 dependencies = [
+ "activitypub_federation",
  "bytes",
  "chrono",
  "float-cmp",
@@ -5991,6 +5994,7 @@ dependencies = [
  "sphare_core_user",
  "sqlx",
  "tokio",
+ "url",
 ]
 
 [[package]]

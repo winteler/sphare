@@ -18,6 +18,7 @@ use sphare_core_content::post::PostWithSphereInfo;
 use sphare_core_content::ranking::{CommentSortType, PostSortType, Vote, VoteValue};
 use sphare_core_user::notification::Notification;
 use sphare_core_user::role::UserSphereRole;
+use sphare_core_user::instance::Instance;
 use sphare_core_user::user::UserBan;
 
 pub const POST_SORT_TYPE_ARRAY: [PostSortType; 4] = [
@@ -258,6 +259,18 @@ pub async fn get_notification(
         .await?;
 
     Ok(notification)
+}
+
+pub async fn get_local_instance(db_pool: &PgPool) -> Instance {
+    sqlx::query_as!(
+        Instance,
+        "SELECT *
+        FROM instances
+        WHERE is_local = TRUE",
+    )
+        .fetch_one(db_pool)
+        .await
+        .expect("Should get local instance")
 }
 
 pub async fn update_notification_timestamp(

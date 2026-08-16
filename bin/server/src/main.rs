@@ -16,10 +16,10 @@ use leptos::prelude::*;
 use leptos_axum::{generate_route_list, handle_server_fns_with_context, LeptosRoutes};
 use sqlx::PgPool;
 use tower::ServiceExt;
-
+use url::Url;
 use sphare_core_common::db_utils::create_db_pool;
 use sphare_core_common::env::ssr::LEPTOS_ENV;
-use sphare_core_user::instance::ssr::{upsert_own_instance};
+use sphare_core_user::instance::ssr::{init_local_instance};
 use sphare_core_user::session::ssr::{AuthSession};
 use sphare_core_user::user::ssr::UserLockCache;
 use sphare_core_user::user::User;
@@ -216,7 +216,9 @@ async fn main() {
         .await
         .expect("Should be able to run SQLx migrations.");
 
-    upsert_own_instance(&pool).await.expect("Failed to upsert own-instance");
+    let app_origin = &get_app_origin().expect("App origin should be set");
+    let instance_url = Url::parse(&app_origin).expect("App origin url should be valid");
+    init_local_instance(&instance_url, &pool).await.expect("Failed to upsert own-instance");
 
     let session_config = SessionConfig::default()
         .with_table_name("sessions")

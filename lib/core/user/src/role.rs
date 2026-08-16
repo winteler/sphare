@@ -47,9 +47,12 @@ impl AdminRole {
     }
 }
 
-impl From<String> for AdminRole {
-    fn from(value: String) -> AdminRole {
-        AdminRole::from_str(&value).unwrap_or(AdminRole::None)
+impl From<Option<String>> for AdminRole {
+    fn from(value: Option<String>) -> AdminRole {
+        match value {
+            None => AdminRole::None,
+            Some(value) => AdminRole::from_str(&value).unwrap_or(AdminRole::None),
+        }
     }
 }
 
@@ -236,7 +239,7 @@ pub mod ssr {
         sphere_name: &str,
         db_pool: &PgPool,
     ) -> Result<UserSphereRole, AppError> {
-        let sphere_role_vec = get_sphere_role_vec(&sphere_name, &db_pool).await?;
+        let sphere_role_vec = get_sphere_role_vec(sphere_name, db_pool).await?;
 
         if !sphere_role_vec.is_empty() {
             return Err(AppError::new("Cannot initialize sphere leader in sphere with existing roles."));
@@ -369,9 +372,9 @@ mod tests {
 
     #[test]
     fn test_admin_role_from_string() {
-        assert_eq!(AdminRole::from(String::from("None")), AdminRole::None);
-        assert_eq!(AdminRole::from(String::from("Moderator")), AdminRole::Moderator);
-        assert_eq!(AdminRole::from(String::from("Admin")), AdminRole::Admin);
-        assert_eq!(AdminRole::from(String::from("invalid")), AdminRole::None);
+        assert_eq!(AdminRole::from(None), AdminRole::None);
+        assert_eq!(AdminRole::from(Some(String::from("Moderator"))), AdminRole::Moderator);
+        assert_eq!(AdminRole::from(Some(String::from("Admin"))), AdminRole::Admin);
+        assert_eq!(AdminRole::from(Some(String::from("invalid"))), AdminRole::None);
     }
 }

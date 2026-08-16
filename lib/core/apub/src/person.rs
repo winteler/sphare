@@ -40,11 +40,11 @@ pub struct Person {
 
 #[derive(Clone, Debug)]
 pub struct ApubPerson {
-    apub_id: ObjectId<ApubPerson>,
+    pub apub_id: ObjectId<ApubPerson>,
     /// username, set at account creation and usually fixed after that
-    preferred_username: String,
+    pub preferred_username: String,
     /// displayname
-    name: Option<String>,
+    pub name: Option<String>,
     inbox: Url,
     outbox: Url,
     public_key: String,
