@@ -22,6 +22,7 @@ openidconnect = { workspace = true, optional = true }
 quick-xml.workspace = true
 rand = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
+rsa = { workspace = true, optional = true }
 serde.workspace = true
 sqlx = { workspace = true, optional = true }
 serde_json.workspace = true
@@ -48,6 +49,7 @@ ssr = [
     "dep:openidconnect",
     "dep:rand",
     "dep:reqwest",
+    "dep:rsa",
     "dep:sqlx",
     "dep:tokio",
 ]

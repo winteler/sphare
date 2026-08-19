@@ -1,6 +1,6 @@
 use url::Url;
 
-use sphare_core_user::instance::ssr::{get_or_insert_instance, init_local_instance};
+use sphare_core_common::instance::ssr::{get_or_insert_instance, init_local_instance};
 
 use crate::common::*;
 use crate::utils::get_local_instance;

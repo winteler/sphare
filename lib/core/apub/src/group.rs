@@ -1,8 +1,9 @@
-
+use activitypub_federation::protocol::verification::verify_domains_match;
+use activitypub_federation::traits::Actor;
 use activitypub_federation::{
     config::Data,
     fetch::object_id::ObjectId,
-    kinds::{actor::GroupType},
+    kinds::actor::GroupType,
     protocol::{
         helpers::{deserialize_last, deserialize_skip_error},
         public_key::PublicKey,
@@ -10,8 +11,6 @@ use activitypub_federation::{
     },
     traits::Object,
 };
-use activitypub_federation::protocol::verification::verify_domains_match;
-use activitypub_federation::traits::Actor;
 use chrono::{DateTime, Utc};
 use rsa::pkcs1::LineEnding;
 use rsa::pkcs8::EncodePrivateKey;
@@ -20,15 +19,17 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use sqlx::PgPool;
 use url::Url;
+
 use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::errors::AppError;
+use sphare_core_common::instance::ssr::get_or_insert_instance;
 use sphare_core_common::routes::get_sphere_link;
 use sphare_core_common::to_app_error;
 use sphare_core_sphere::sphere::Sphere;
-use sphare_core_user::instance::ssr::get_or_insert_instance;
-use sphare_core_user::role::PermissionLevel;
 use sphare_core_user::role::ssr::set_user_sphere_role;
+use sphare_core_user::role::PermissionLevel;
 use sphare_core_user::user::ssr::get_admin_function_user;
+
 use crate::person::ApubPerson;
 use crate::utils::{generate_outbox_url, Endpoints, ImageObject, LanguageTag, Source};
 

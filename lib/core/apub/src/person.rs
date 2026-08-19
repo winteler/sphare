@@ -18,8 +18,8 @@ use url::Url;
 
 use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::errors::AppError;
+use sphare_core_common::instance::ssr::get_or_insert_instance;
 use sphare_core_common::to_app_error;
-use sphare_core_user::instance::ssr::get_or_insert_instance;
 
 #[skip_serializing_none]
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -38,7 +38,7 @@ pub struct Person {
     pub(crate) name: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ApubPerson {
     pub apub_id: ObjectId<ApubPerson>,
     /// username, set at account creation and usually fixed after that

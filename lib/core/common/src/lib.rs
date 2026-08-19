@@ -9,6 +9,7 @@ pub mod db_utils;
 pub mod editor;
 pub mod env;
 pub mod errors;
+pub mod instance;
 pub mod routes;
 pub mod time;
 pub mod traits;

@@ -20,9 +20,10 @@ pub mod ssr {
     use rsa::{RsaPrivateKey, RsaPublicKey};
     use sqlx::PgPool;
     use url::Url;
-    use sphare_core_common::constants::RSA_KEY_SIZE;
-    use sphare_core_common::errors::AppError;
-    use sphare_core_common::to_app_error;
+
+    use crate::constants::RSA_KEY_SIZE;
+    use crate::errors::AppError;
+    use crate::to_app_error;
 
     use crate::instance::Instance;
 
@@ -30,7 +31,7 @@ pub mod ssr {
     ///
     /// ```
     /// use url::Url;
-    /// use sphare_core_user::instance::ssr::get_instance_apub_id_from_url;
+    /// use sphare_core_common::instance::ssr::get_instance_apub_id_from_url;
     ///
     /// let url = Url::parse("https://mysite.com/some/path").expect("Should be valid url");
     /// assert_eq!(get_instance_apub_id_from_url(url).to_string(), "https://mysite.com/");

@@ -5899,6 +5899,7 @@ dependencies = [
  "quick-xml 0.41.0",
  "rand 0.10.2",
  "reqwest 0.12.24",
+ "rsa 0.10.0-rc.18",
  "sealed_test",
  "serde",
  "serde_json",

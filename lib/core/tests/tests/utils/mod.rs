@@ -3,14 +3,18 @@ use std::cmp::Ordering;
 use std::convert::Infallible;
 use std::iter::zip;
 
+use activitypub_federation::config::FederationConfig;
 use bytes::Bytes;
 use float_cmp::approx_eq;
 use futures_util::stream::once;
 use leptos::server_fn::codec::MultipartData;
 use multer::Multipart;
 use sqlx::PgPool;
+use url::Url;
 
+use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::errors::AppError;
+use sphare_core_common::instance::{ssr::init_local_instance, Instance};
 use sphare_core_content::comment::Comment;
 use sphare_core_content::comment::{CommentWithChildren, CommentWithContext};
 use sphare_core_content::post::Post;
@@ -18,7 +22,6 @@ use sphare_core_content::post::PostWithSphereInfo;
 use sphare_core_content::ranking::{CommentSortType, PostSortType, Vote, VoteValue};
 use sphare_core_user::notification::Notification;
 use sphare_core_user::role::UserSphereRole;
-use sphare_core_user::instance::Instance;
 use sphare_core_user::user::UserBan;
 
 pub const POST_SORT_TYPE_ARRAY: [PostSortType; 4] = [
@@ -259,6 +262,19 @@ pub async fn get_notification(
         .await?;
 
     Ok(notification)
+}
+
+pub async fn init_local_instance_and_get_apub_config(db_pool: &PgPool) -> (Instance, FederationConfig<ApHelper>) {
+    let instance_url = Url::parse("https://www.sphare.space/").expect("App origin url should be valid");
+    let instance = init_local_instance(&instance_url, &db_pool).await.expect("Failed to upsert own-instance");
+    let database_handle = ApHelper::new(db_pool.clone(), instance_url.to_string());
+    let apub_config = FederationConfig::builder()
+        .domain(instance_url)
+        .app_data(database_handle)
+        .build()
+        .await
+        .expect("Failed to build config");
+    (instance, apub_config)
 }
 
 pub async fn get_local_instance(db_pool: &PgPool) -> Instance {

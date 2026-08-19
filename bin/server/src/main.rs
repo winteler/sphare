@@ -19,7 +19,7 @@ use tower::ServiceExt;
 use url::Url;
 use sphare_core_common::db_utils::create_db_pool;
 use sphare_core_common::env::ssr::LEPTOS_ENV;
-use sphare_core_user::instance::ssr::{init_local_instance};
+use sphare_core_common::instance::ssr::{init_local_instance};
 use sphare_core_user::session::ssr::{AuthSession};
 use sphare_core_user::user::ssr::UserLockCache;
 use sphare_core_user::user::User;
