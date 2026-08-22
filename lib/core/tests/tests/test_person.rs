@@ -1,4 +1,4 @@
-use activitypub_federation::traits::Object;
+use activitypub_federation::traits::{Actor, Object};
 use leptos::serde_json;
 use url::Url;
 
@@ -8,7 +8,7 @@ use sphare_core_common::routes::get_profile_link;
 use sphare_core_user::user::User;
 
 use crate::common::{create_test_user, get_db_pool};
-use crate::utils::init_local_instance_and_get_apub_config;
+use crate::utils::{get_apub_person, init_local_instance_and_get_apub_config};
 
 mod common;
 mod data_factory;
@@ -120,6 +120,12 @@ async fn test_insert_or_update_person() {
 }
 
 #[tokio::test]
+async fn test_apub_person_object_id() {
+    let apub_person = get_apub_person();
+    assert_eq!(apub_person.id(), apub_person.id());
+}
+
+#[tokio::test]
 async fn test_apub_person_object_read_from_id() {
     let db_pool = get_db_pool().await;
 
@@ -129,4 +135,111 @@ async fn test_apub_person_object_read_from_id() {
     let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
     let apub_data = apub_config.to_request_data();
     assert_eq!(ApubPerson::read_from_id(actor_id.clone(), &apub_data).await, Ok(None));
+
+    let person_json = r#"{
+        "id": "https://mastodon.social/users/SphareDev",
+        "type": "Person",
+        "preferredUsername": "SphareDev",
+        "name": "Sphare",
+        "inbox": "https://mastodon.social/users/SphareDev/inbox",
+        "outbox": "https://mastodon.social/users/SphareDev/outbox",
+        "publicKey": {
+            "id": "https://mastodon.social/users/SphareDev#main-key",
+            "owner": "https://mastodon.social/users/SphareDev",
+            "publicKeyPem": "12345"
+        }
+    }"#;
+    let person = serde_json::from_str(person_json).expect("Should deserialize Person");
+    let db_person = insert_or_update_person(person, &db_pool).await.expect("Should get person");
+    let apub_person = db_person.try_into().expect("Should convert to ApubPerson");
+    assert_eq!(ApubPerson::read_from_id(actor_id.clone(), &apub_data).await, Ok(Some(apub_person)));
+}
+
+#[tokio::test]
+async fn test_apub_person_object_into_json() {
+    let db_pool = get_db_pool().await;
+    let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
+    let apub_person = get_apub_person();
+    let public_key = apub_person.public_key_pem();
+    let person_json = apub_person.clone().into_json(&apub_config.to_request_data()).await.expect("Should get Person json");
+
+    let expected_json = serde_json::json!({
+        "type": "Person",
+        "id": "https://mastodon.social/users/SphareDev",
+        "preferredUsername": "SphareDev",
+        "name": "Sphare",
+        "inbox": "https://mastodon.social/users/SphareDev/inbox",
+        "outbox": "https://mastodon.social/users/SphareDev/outbox",
+        "publicKey": {
+            "id": "https://mastodon.social/users/SphareDev#main-key",
+            "owner": "https://mastodon.social/users/SphareDev",
+            "publicKeyPem": public_key
+        }
+    });
+    assert_eq!(
+        serde_json::to_string(&person_json).expect("Should serialize Person json"),
+        serde_json::to_string(&expected_json).expect("Should serialize expected_json")
+    );
+}
+
+#[tokio::test]
+async fn test_apub_person_object_verify() {
+    let db_pool = get_db_pool().await;
+    let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
+    let apub_data = apub_config.to_request_data();
+    let apub_person = get_apub_person();
+    let valid_url = apub_person.apub_id.inner().clone();
+    let person = apub_person.into_json(&apub_data).await.expect("Should get person");
+    let invalid_url = Url::parse("https://sample.net/abc").expect("Should be valid url");
+    assert!(ApubPerson::verify(&person, &valid_url, &apub_data).await.is_ok());
+    assert!(ApubPerson::verify(&person, &invalid_url, &apub_data).await.is_err());
+}
+
+#[tokio::test]
+async fn test_apub_person_object_from_json() {
+    let db_pool = get_db_pool().await;
+    let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
+    let apub_data = apub_config.to_request_data();
+
+    let actor_id_str = "https://mastodon.social/users/SphareDev";
+    let actor_id = Url::parse(actor_id_str).expect("Should be valid url");
+
+    assert!(get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").is_none());
+    let person_json = r#"{
+        "id": "https://mastodon.social/users/SphareDev",
+        "type": "Person",
+        "preferredUsername": "SphareDev",
+        "name": "Sphare",
+        "inbox": "https://mastodon.social/users/SphareDev/inbox",
+        "outbox": "https://mastodon.social/users/SphareDev/outbox",
+        "publicKey": {
+            "id": "https://mastodon.social/users/SphareDev#main-key",
+            "owner": "https://mastodon.social/users/SphareDev",
+            "publicKeyPem": "12345"
+        }
+    }"#;
+    let person = serde_json::from_str(person_json).expect("Should deserialize Person");
+
+    let apub_person = ApubPerson::from_json(person, &apub_data).await.expect("Should get person");
+    let db_person = get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").expect("Person should be some");
+    assert_eq!(apub_person, db_person.try_into().expect("Should convert to ApubPerson"));
+
+    let updated_person_json = r#"{
+        "id": "https://mastodon.social/users/SphareDev",
+        "type": "Person",
+        "preferredUsername": "SphareDev",
+        "name": "SphareUpdated",
+        "inbox": "https://mastodon.social/users/SphareDev/inbox",
+        "outbox": "https://mastodon.social/users/SphareDev/outbox",
+        "publicKey": {
+            "id": "https://mastodon.social/users/SphareDev#main-key",
+            "owner": "https://mastodon.social/users/SphareDev",
+            "publicKeyPem": "54321"
+        }
+    }"#;
+    let updated_person = serde_json::from_str(updated_person_json).expect("Should deserialize Person");
+
+    let updated_apub_person = insert_or_update_person(updated_person, &db_pool).await.expect("Should get person");
+    let db_person = get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").expect("Person should be some");
+    assert_eq!(updated_apub_person, db_person.try_into().expect("Should convert to ApubPerson"));
 }

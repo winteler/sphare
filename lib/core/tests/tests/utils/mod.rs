@@ -9,10 +9,17 @@ use float_cmp::approx_eq;
 use futures_util::stream::once;
 use leptos::server_fn::codec::MultipartData;
 use multer::Multipart;
+use rand::prelude::StdRng;
+use rand::rngs::SysRng;
+use rand::SeedableRng;
+use rsa::{RsaPrivateKey, RsaPublicKey};
+use rsa::pkcs1::LineEnding;
+use rsa::pkcs8::EncodePublicKey;
 use sqlx::PgPool;
 use url::Url;
-
+use sphare_core_apub::person::ApubPerson;
 use sphare_core_common::activity_pub::ApHelper;
+use sphare_core_common::constants::RSA_KEY_SIZE;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::{ssr::init_local_instance, Instance};
 use sphare_core_content::comment::Comment;
@@ -275,6 +282,22 @@ pub async fn init_local_instance_and_get_apub_config(db_pool: &PgPool) -> (Insta
         .await
         .expect("Failed to build config");
     (instance, apub_config)
+}
+
+pub fn get_apub_person() -> ApubPerson {
+    let mut rng = StdRng::try_from_rng(&mut SysRng).expect("Should get rng");
+    let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).expect("Should get private key");
+    let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::default()).expect("Should get public key pem");
+
+    ApubPerson::new(
+        Url::parse("https://mastodon.social/users/SphareDev").expect("Should be valid apub_id").into(),
+        String::from("SphareDev"),
+        Some(String::from("Sphare")),
+        Url::parse("https://mastodon.social/users/SphareDev/inbox").expect("Should be valid inbox url"),
+        Url::parse("https://mastodon.social/users/SphareDev/outbox").expect("Should be valid outbox url"),
+        pub_key_pem,
+        Some(priv_key),
+    )
 }
 
 pub async fn get_local_instance(db_pool: &PgPool) -> Instance {

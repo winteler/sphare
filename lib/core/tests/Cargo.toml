@@ -19,6 +19,7 @@ leptos-fluent.workspace = true
 activitypub_federation.workspace = true
 chrono.workspace = true
 object_store.workspace = true
+rsa.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 url.workspace = true

@@ -30,12 +30,12 @@ pub struct Person {
     pub(crate) id: ObjectId<ApubPerson>,
     /// username, set at account creation and usually fixed after that
     pub(crate) preferred_username: String,
+    /// displayname
+    pub(crate) name: Option<String>,
     pub(crate) inbox: Url,
     /// mandatory field in activitypub, sphare currently serves an empty outbox
     pub(crate) outbox: Url,
     pub(crate) public_key: PublicKey,
-    /// displayname
-    pub(crate) name: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,6 +66,28 @@ pub struct DbPerson {
     pub private_key: Option<String>,
     pub last_refreshed_at: chrono::DateTime<chrono::Utc>,
     pub delete_timestamp: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl ApubPerson {
+    pub fn new(
+        apub_id: ObjectId<ApubPerson>,
+        preferred_username: String,
+        name: Option<String>,
+        inbox: Url,
+        outbox: Url,
+        public_key: String,
+        private_key: Option<RsaPrivateKey>,
+    ) -> ApubPerson {
+        ApubPerson {
+            apub_id,
+            preferred_username,
+            name,
+            inbox,
+            outbox,
+            public_key,
+            private_key,
+        }
+    }
 }
 
 impl TryFrom<DbPerson> for ApubPerson {
@@ -220,4 +242,54 @@ pub async fn insert_or_update_person(
     ).fetch_one(db_pool).await?;
 
     Ok(person)
+}
+
+#[cfg(test)]
+mod tests {
+    use activitypub_federation::traits::{Actor};
+    use rand::prelude::StdRng;
+    use rand::rngs::SysRng;
+    use rand::SeedableRng;
+    use rsa::pkcs1::LineEnding;
+    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
+    use url::Url;
+    use sphare_core_common::constants::RSA_KEY_SIZE;
+    use crate::person::ApubPerson;
+
+    fn get_apub_person() -> ApubPerson {
+        let mut rng = StdRng::try_from_rng(&mut SysRng).expect("Should get rng");
+        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).expect("Should get private key");
+        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::default()).expect("Should get public key pem");
+
+        ApubPerson {
+            apub_id: Url::parse("https://mastodon.social/users/SphareDev").expect("Should be valid apub_id").into(),
+            preferred_username: "SphareDev".to_string(),
+            name: None,
+            inbox: Url::parse("https://mastodon.social/users/SphareDev/inbox").expect("Should be valid inbox url"),
+            outbox: Url::parse("https://mastodon.social/users/SphareDev/outbox").expect("Should be valid outbox url"),
+            public_key: pub_key_pem,
+            private_key: Some(priv_key),
+        }
+    }
+    #[test]
+    fn test_apub_person_actor_public_key_pem() {
+        let apub_person = get_apub_person();
+        assert_eq!(apub_person.public_key_pem(), apub_person.public_key);
+    }
+
+    #[test]
+    fn test_apub_person_actor_private_key_pem() {
+        let apub_person = get_apub_person();
+        assert_eq!(
+            apub_person.private_key_pem(),
+            apub_person.private_key.map(|private_key| private_key.to_pkcs8_pem(LineEnding::default()).expect("Should create private key pem").to_string())
+        );
+    }
+
+    #[test]
+    fn test_apub_person_actor_inbox() {
+        let apub_person = get_apub_person();
+        assert_eq!(apub_person.inbox(), apub_person.inbox);
+    }
 }
