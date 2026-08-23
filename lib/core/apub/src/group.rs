@@ -78,9 +78,9 @@ pub struct Group {
     pub(crate) discoverable: Option<bool>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ApubSphere {
-    apub_id: ObjectId<ApubSphere>,
+    pub apub_id: ObjectId<ApubSphere>,
     name: String,
     description: String,
     icon: Option<ImageObject>,
@@ -89,6 +89,30 @@ pub struct ApubSphere {
     inbox: Url,
     public_key: String,
     private_key: Option<RsaPrivateKey>,
+}
+
+impl ApubSphere {
+    pub fn new(
+        apub_id: ObjectId<ApubSphere>,
+        name: String,
+        description: String,
+        is_nsfw: bool,
+        inbox: Url,
+        public_key: String,
+        private_key: Option<RsaPrivateKey>,
+    ) -> Self {
+        Self {
+            apub_id,
+            name,
+            description,
+            icon: None,
+            banner: None,
+            is_nsfw,
+            inbox,
+            public_key,
+            private_key,
+        }
+    }
 }
 
 impl TryFrom<Sphere> for ApubSphere {
@@ -194,11 +218,15 @@ impl Object for ApubSphere {
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
         let moderators = json.attributed_to.clone();
-        let sphere = insert_or_update_sphere(json, data.app_data().get_db_pool()).await?;
+        println!("Insert or update sphere");
+        let sphere = insert_or_update_sphere(&json, data.app_data().get_db_pool()).await?;
+        println!("get_admin_function_user");
         let function_user = get_admin_function_user(data.app_data().get_db_pool()).await?;
         if let Some(moderators) = moderators {
             for moderator in moderators {
+                println!("get moderator");
                 let person = moderator.dereference(data).await.map_err(to_app_error!("Failed to get moderator"))?;
+                println!("set_user_sphere_role");
                 set_user_sphere_role(&person.preferred_username, &sphere.sphere_name, PermissionLevel::Moderate, &function_user, data.app_data().get_db_pool()).await?;
             }
         }
@@ -220,13 +248,13 @@ pub async fn get_sphere_by_apub_id(sphere_apub_id: &Url, db_pool: &PgPool) -> Re
 }
 
 pub async fn insert_or_update_sphere(
-    group: Group,
+    group: &Group,
     db_pool: &PgPool,
 ) -> Result<Sphere, AppError> {
     let instance = get_or_insert_instance(group.id.inner(), db_pool).await?;
-    let inbox = match group.endpoints {
-        Some(endpoints) => endpoints.shared_inbox,
-        None => group.inbox,
+    let inbox = match &group.endpoints {
+        Some(endpoints) => endpoints.shared_inbox.clone(),
+        None => group.inbox.clone(),
     };
     let sphere = sqlx::query_as::<_, Sphere>(
         "INSERT INTO spheres (sphere_name, sphere_apub_id, instance_id, description, is_nsfw, creator_id, is_local, inbox, public_key)
@@ -248,13 +276,65 @@ pub async fn insert_or_update_sphere(
         .bind(&group.preferred_username)
         .bind(group.id.inner().as_str())
         .bind(instance.instance_id)
-        .bind(group.description.unwrap_or_default())
-        .bind(group.sensitive)
+        .bind(group.description.clone().unwrap_or_default())
+        .bind(group.sensitive.unwrap_or(false))
         .bind(1)
         .bind(inbox.as_str())
-        .bind(group.public_key.public_key_pem)
+        .bind(group.public_key.public_key_pem.clone())
         .fetch_one(db_pool)
         .await?;
 
     Ok(sphere)
+}
+
+#[cfg(test)]
+mod tests {
+    use activitypub_federation::traits::{Actor};
+    use rand::prelude::StdRng;
+    use rand::rngs::SysRng;
+    use rand::SeedableRng;
+    use rsa::pkcs1::LineEnding;
+    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
+    use url::Url;
+    use sphare_core_common::constants::RSA_KEY_SIZE;
+    use crate::group::ApubSphere;
+
+    fn get_apub_sphere() -> ApubSphere {
+        let mut rng = StdRng::try_from_rng(&mut SysRng).expect("Should get rng");
+        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).expect("Should get private key");
+        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::default()).expect("Should get public key pem");
+
+        ApubSphere {
+            apub_id: Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid apub_id").into(),
+            name: String::from("SomeSphere"),
+            description: String::from("The description"),
+            icon: None,
+            banner: None,
+            is_nsfw: false,
+            inbox: Url::parse("https://www.sphare.space/inbox").expect("Should be valid inbox").into(),
+            public_key: pub_key_pem,
+            private_key: Some(priv_key),
+        }
+    }
+    #[test]
+    fn test_apub_sphere_actor_public_key_pem() {
+        let apub_sphere = get_apub_sphere();
+        assert_eq!(apub_sphere.public_key_pem(), apub_sphere.public_key);
+    }
+
+    #[test]
+    fn test_apub_sphere_actor_private_key_pem() {
+        let apub_sphere = get_apub_sphere();
+        assert_eq!(
+            apub_sphere.private_key_pem(),
+            apub_sphere.private_key.map(|private_key| private_key.to_pkcs8_pem(LineEnding::default()).expect("Should create private key pem").to_string())
+        );
+    }
+
+    #[test]
+    fn test_apub_sphere_actor_inbox() {
+        let apub_sphere = get_apub_sphere();
+        assert_eq!(apub_sphere.inbox(), apub_sphere.inbox);
+    }
 }

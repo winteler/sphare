@@ -17,6 +17,7 @@ use rsa::pkcs1::LineEnding;
 use rsa::pkcs8::EncodePublicKey;
 use sqlx::PgPool;
 use url::Url;
+use sphare_core_apub::group::ApubSphere;
 use sphare_core_apub::person::ApubPerson;
 use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::constants::RSA_KEY_SIZE;
@@ -295,6 +296,22 @@ pub fn get_apub_person() -> ApubPerson {
         Some(String::from("Sphare")),
         Url::parse("https://mastodon.social/users/SphareDev/inbox").expect("Should be valid inbox url"),
         Url::parse("https://mastodon.social/users/SphareDev/outbox").expect("Should be valid outbox url"),
+        pub_key_pem,
+        Some(priv_key),
+    )
+}
+
+pub fn get_apub_sphere() -> ApubSphere {
+    let mut rng = StdRng::try_from_rng(&mut SysRng).expect("Should get rng");
+    let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).expect("Should get private key");
+    let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::default()).expect("Should get public key pem");
+
+    ApubSphere::new(
+        Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid apub_id").into(),
+        String::from("SomeSphere"),
+        String::from("The description"),
+        false,
+        Url::parse("https://www.sphare.space/inbox").expect("Should be valid inbox"),
         pub_key_pem,
         Some(priv_key),
     )

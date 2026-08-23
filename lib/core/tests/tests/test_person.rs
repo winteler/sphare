@@ -75,7 +75,7 @@ async fn test_insert_or_update_person() {
     }"#;
     let person = serde_json::from_str(person_json).expect("Should deserialize Person");
 
-    let db_person = insert_or_update_person(person, &db_pool).await.expect("Should get person");
+    let db_person = insert_or_update_person(&person, &db_pool).await.expect("Should get person");
     assert_eq!(db_person.username, "SphareDev");
     assert_eq!(db_person.display_name.as_deref(), Some("Sphare"));
     assert_eq!(db_person.is_nsfw, false);
@@ -104,7 +104,7 @@ async fn test_insert_or_update_person() {
     }"#;
     let updated_person = serde_json::from_str(updated_person_json).expect("Should deserialize Person");
 
-    let updated_db_person = insert_or_update_person(updated_person, &db_pool).await.expect("Should get person");
+    let updated_db_person = insert_or_update_person(&updated_person, &db_pool).await.expect("Should get person");
     assert_eq!(updated_db_person.username, "SphareDev");
     assert_eq!(updated_db_person.display_name.as_deref(), Some("SphareUpdated"));
     assert_eq!(updated_db_person.is_nsfw, false);
@@ -150,7 +150,7 @@ async fn test_apub_person_object_read_from_id() {
         }
     }"#;
     let person = serde_json::from_str(person_json).expect("Should deserialize Person");
-    let db_person = insert_or_update_person(person, &db_pool).await.expect("Should get person");
+    let db_person = insert_or_update_person(&person, &db_pool).await.expect("Should get person");
     let apub_person = db_person.try_into().expect("Should convert to ApubPerson");
     assert_eq!(ApubPerson::read_from_id(actor_id.clone(), &apub_data).await, Ok(Some(apub_person)));
 }
@@ -239,7 +239,7 @@ async fn test_apub_person_object_from_json() {
     }"#;
     let updated_person = serde_json::from_str(updated_person_json).expect("Should deserialize Person");
 
-    let updated_apub_person = insert_or_update_person(updated_person, &db_pool).await.expect("Should get person");
+    let updated_apub_person = insert_or_update_person(&updated_person, &db_pool).await.expect("Should get person");
     let db_person = get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").expect("Person should be some");
     assert_eq!(updated_apub_person, db_person.try_into().expect("Should convert to ApubPerson"));
 }

@@ -159,7 +159,7 @@ impl Object for ApubPerson {
     }
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
-        let db_person = insert_or_update_person(json, data.app_data().get_db_pool()).await?;
+        let db_person = insert_or_update_person(&json, data.app_data().get_db_pool()).await?;
         db_person.try_into()
     }
 }
@@ -211,7 +211,7 @@ pub async fn get_person_by_actor_id(
 }
 
 pub async fn insert_or_update_person(
-    person: Person,
+    person: &Person,
     db_pool: &PgPool,
 ) -> Result<DbPerson, AppError> {
 
