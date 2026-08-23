@@ -23,7 +23,6 @@ use url::Url;
 use sphare_core_common::activity_pub::ApHelper;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::ssr::get_or_insert_instance;
-use sphare_core_common::routes::get_sphere_link;
 use sphare_core_common::to_app_error;
 use sphare_core_sphere::sphere::Sphere;
 use sphare_core_user::role::ssr::set_user_sphere_role;
@@ -234,15 +233,25 @@ pub async fn insert_or_update_sphere(
             VALUES (
                 $1, $2, $3, $4, $5, $6, TRUE, $7, $8
             )
+            ON CONFLICT (sphere_apub_id)
+            DO UPDATE SET
+                sphere_name = EXCLUDED.sphere_name,
+                instance_id = EXCLUDED.instance_id,
+                description = EXCLUDED.description,
+                is_nsfw = EXCLUDED.is_nsfw,
+                creator_id = EXCLUDED.creator_id,
+                inbox = EXCLUDED.inbox,
+                public_key = EXCLUDED.public_key,
+                timestamp = NOW()
             RETURNING *"
     )
         .bind(&group.preferred_username)
-        .bind(get_sphere_link(&group.preferred_username)?)
+        .bind(group.id.inner().as_str())
         .bind(instance.instance_id)
-        .bind(group.description.unwrap())
+        .bind(group.description.unwrap_or_default())
         .bind(group.sensitive)
         .bind(1)
-        .bind(inbox.to_string())
+        .bind(inbox.as_str())
         .bind(group.public_key.public_key_pem)
         .fetch_one(db_pool)
         .await?;
