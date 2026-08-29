@@ -19,7 +19,7 @@ use sqlx::PgPool;
 use url::Url;
 use sphare_core_apub::group::ApubSphere;
 use sphare_core_apub::person::ApubPerson;
-use sphare_core_common::activity_pub::ApHelper;
+use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::constants::RSA_KEY_SIZE;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::{ssr::init_local_instance, Instance};
@@ -272,10 +272,10 @@ pub async fn get_notification(
     Ok(notification)
 }
 
-pub async fn init_local_instance_and_get_apub_config(db_pool: &PgPool) -> (Instance, FederationConfig<ApHelper>) {
+pub async fn init_local_instance_and_get_apub_config(db_pool: &PgPool) -> (Instance, FederationConfig<ApubHelper>) {
     let instance_url = Url::parse("https://www.sphare.space/").expect("App origin url should be valid");
     let instance = init_local_instance(&instance_url, &db_pool).await.expect("Failed to upsert own-instance");
-    let database_handle = ApHelper::new(db_pool.clone(), instance_url.to_string());
+    let database_handle = ApubHelper::new(db_pool.clone(), instance_url.to_string());
     let apub_config = FederationConfig::builder()
         .domain(instance_url)
         .app_data(database_handle)

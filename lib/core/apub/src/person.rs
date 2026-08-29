@@ -16,7 +16,7 @@ use serde_with::skip_serializing_none;
 use sqlx::PgPool;
 use url::Url;
 
-use sphare_core_common::activity_pub::ApHelper;
+use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::ssr::get_or_insert_instance;
 use sphare_core_common::to_app_error;
@@ -27,15 +27,15 @@ use sphare_core_common::to_app_error;
 pub struct Person {
     #[serde(rename = "type")]
     pub(crate) kind: PersonType,
-    pub(crate) id: ObjectId<ApubPerson>,
+    pub id: ObjectId<ApubPerson>,
     /// username, set at account creation and usually fixed after that
-    pub(crate) preferred_username: String,
+    pub preferred_username: String,
     /// displayname
-    pub(crate) name: Option<String>,
-    pub(crate) inbox: Url,
+    pub name: Option<String>,
+    pub inbox: Url,
     /// mandatory field in activitypub, sphare currently serves an empty outbox
-    pub(crate) outbox: Url,
-    pub(crate) public_key: PublicKey,
+    pub outbox: Url,
+    pub public_key: PublicKey,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -125,7 +125,7 @@ impl Actor for ApubPerson {
 
 #[async_trait::async_trait]
 impl Object for ApubPerson {
-    type DataType = ApHelper;
+    type DataType = ApubHelper;
     type Kind = Person;
     type Error = AppError;
 

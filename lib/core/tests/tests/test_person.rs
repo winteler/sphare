@@ -1,8 +1,9 @@
+use std::fs::File;
 use activitypub_federation::traits::{Actor, Object};
 use leptos::serde_json;
 use url::Url;
 
-use sphare_core_apub::person::ApubPerson;
+use sphare_core_apub::person::{ApubPerson, Person};
 use sphare_core_apub::person::{get_person_by_actor_id, get_person_by_username, insert_or_update_person};
 use sphare_core_common::routes::get_profile_link;
 use sphare_core_user::user::User;
@@ -56,66 +57,40 @@ async fn test_get_person_by_actor_id() {
 async fn test_insert_or_update_person() {
     let db_pool = get_db_pool().await;
 
-    let actor_id_str = "https://mastodon.social/users/SphareDev";
-    let actor_id = Url::parse(actor_id_str).expect("Should be valid url");
+    let person_file = File::open("assets/apub/lemmy/person.json").expect("Should open group.json");
+    let mut person: Person = serde_json::from_reader(person_file).expect("Should deserialize Group");
+    let person_id = person.id.inner();
 
-    assert!(get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").is_none());
-    let person_json = r#"{
-        "id": "https://mastodon.social/users/SphareDev",
-        "type": "Person",
-        "preferredUsername": "SphareDev",
-        "name": "Sphare",
-        "inbox": "https://mastodon.social/users/SphareDev/inbox",
-        "outbox": "https://mastodon.social/users/SphareDev/outbox",
-        "publicKey": {
-            "id": "https://mastodon.social/users/SphareDev#main-key",
-            "owner": "https://mastodon.social/users/SphareDev",
-            "publicKeyPem": "12345"
-        }
-    }"#;
-    let person = serde_json::from_str(person_json).expect("Should deserialize Person");
+    assert!(get_person_by_actor_id(person_id, &db_pool).await.expect("Should get option").is_none());
 
     let db_person = insert_or_update_person(&person, &db_pool).await.expect("Should get person");
-    assert_eq!(db_person.username, "SphareDev");
-    assert_eq!(db_person.display_name.as_deref(), Some("Sphare"));
+    assert_eq!(db_person.username, person.preferred_username);
+    assert_eq!(db_person.display_name, person.name);
     assert_eq!(db_person.is_nsfw, false);
     assert_eq!(db_person.is_local, false);
-    assert_eq!(db_person.actor_id, "https://mastodon.social/users/SphareDev");
-    assert_eq!(db_person.inbox, "https://mastodon.social/users/SphareDev/inbox");
-    assert_eq!(db_person.outbox, "https://mastodon.social/users/SphareDev/outbox");
-    assert_eq!(db_person.public_key, "12345");
+    assert_eq!(db_person.actor_id, person.id.inner().to_string());
+    assert_eq!(db_person.inbox, person.inbox.to_string());
+    assert_eq!(db_person.outbox, person.outbox.to_string());
+    assert_eq!(db_person.public_key, person.public_key.public_key_pem);
     assert!(db_person.delete_timestamp.is_none());
 
-    let result_person = get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").expect("Person should be some");
+    let result_person = get_person_by_actor_id(person_id, &db_pool).await.expect("Should get option").expect("Person should be some");
     assert_eq!(result_person, db_person);
 
-    let updated_person_json = r#"{
-        "id": "https://mastodon.social/users/SphareDev",
-        "type": "Person",
-        "preferredUsername": "SphareDev",
-        "name": "SphareUpdated",
-        "inbox": "https://mastodon.social/users/SphareDev/inbox",
-        "outbox": "https://mastodon.social/users/SphareDev/outbox",
-        "publicKey": {
-            "id": "https://mastodon.social/users/SphareDev#main-key",
-            "owner": "https://mastodon.social/users/SphareDev",
-            "publicKeyPem": "54321"
-        }
-    }"#;
-    let updated_person = serde_json::from_str(updated_person_json).expect("Should deserialize Person");
+    person.name = Some(String::from("Updated"));
 
-    let updated_db_person = insert_or_update_person(&updated_person, &db_pool).await.expect("Should get person");
-    assert_eq!(updated_db_person.username, "SphareDev");
-    assert_eq!(updated_db_person.display_name.as_deref(), Some("SphareUpdated"));
+    let updated_db_person = insert_or_update_person(&person, &db_pool).await.expect("Should get person");
+    assert_eq!(updated_db_person.username, person.preferred_username);
+    assert_eq!(updated_db_person.display_name, person.name);
     assert_eq!(updated_db_person.is_nsfw, false);
     assert_eq!(updated_db_person.is_local, false);
-    assert_eq!(updated_db_person.actor_id, "https://mastodon.social/users/SphareDev");
-    assert_eq!(updated_db_person.inbox, "https://mastodon.social/users/SphareDev/inbox");
-    assert_eq!(updated_db_person.outbox, "https://mastodon.social/users/SphareDev/outbox");
-    assert_eq!(updated_db_person.public_key, "54321");
+    assert_eq!(db_person.actor_id, person.id.inner().to_string());
+    assert_eq!(db_person.inbox, person.inbox.to_string());
+    assert_eq!(db_person.outbox, person.outbox.to_string());
+    assert_eq!(db_person.public_key, person.public_key.public_key_pem);
     assert!(updated_db_person.delete_timestamp.is_none());
 
-    let result_updated_person = get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").expect("Person should be some");
+    let result_updated_person = get_person_by_actor_id(person_id, &db_pool).await.expect("Should get option").expect("Person should be some");
     assert_eq!(result_updated_person, updated_db_person);
 }
 
@@ -241,5 +216,5 @@ async fn test_apub_person_object_from_json() {
 
     let updated_apub_person = insert_or_update_person(&updated_person, &db_pool).await.expect("Should get person");
     let db_person = get_person_by_actor_id(&actor_id, &db_pool).await.expect("Should get option").expect("Person should be some");
-    assert_eq!(updated_apub_person, db_person.try_into().expect("Should convert to ApubPerson"));
+    assert_eq!(updated_apub_person, db_person);
 }

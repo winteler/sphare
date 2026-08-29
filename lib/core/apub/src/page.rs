@@ -7,7 +7,7 @@ use activitypub_federation::{
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
-use sphare_core_common::activity_pub::ApHelper;
+use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::to_app_error;
 use sphare_core_content::post::Post;
@@ -48,7 +48,7 @@ impl TryFrom<Post> for ApPost {
 
 #[async_trait::async_trait]
 impl Object for ApPost {
-    type DataType = ApHelper;
+    type DataType = ApubHelper;
     type Kind = Page;
     type Error = AppError;
 

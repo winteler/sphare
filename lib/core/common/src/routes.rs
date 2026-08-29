@@ -40,6 +40,8 @@ pub const GITHUB_REPO_URL: &str = "https://github.com/winteler/sphare";
 
 pub const ACTIVITY_PUB_INBOX_PATH: &str = "/inbox";
 pub const ACTIVITY_PUB_OUTBOX_PATH: &str = "/outbox";
+pub const ACTIVITY_PUB_MODERATORS_PATH: &str = "/moderators";
+pub const ACTIVITY_PUB_FOLLOWERS_PATH: &str = "/followers";
 
 #[cfg(feature = "ssr")]
 static APP_ORIGIN: LazyLock<Result<Url, AppError>> = LazyLock::new(|| {

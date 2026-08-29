@@ -203,21 +203,14 @@ pub mod ssr {
     use async_trait::async_trait;
     use axum_session_auth::Authentication;
     use lru::LruCache;
-    use rand::prelude::StdRng;
-    use rand::rngs::SysRng;
-    use rand::SeedableRng;
-    use rsa::{RsaPrivateKey, RsaPublicKey};
-    use rsa::pkcs1::LineEnding;
-    use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
     use sqlx::PgPool;
     use tokio::sync::Mutex;
     use url::Url;
-
+    use sphare_core_common::activity_pub::generate_rsa_keys_pem;
     use sphare_core_common::checks::check_username;
-    use sphare_core_common::constants::{RSA_KEY_SIZE, USER_FETCH_LIMIT};
+    use sphare_core_common::constants::{USER_FETCH_LIMIT};
     use sphare_core_common::errors::AppError;
     use sphare_core_common::routes::{get_profile_link, ACTIVITY_PUB_INBOX_PATH, ACTIVITY_PUB_OUTBOX_PATH};
-    use sphare_core_common::to_app_error;
     use crate::role::ssr::get_user_sphere_role;
     use crate::role::UserSphereRole;
 
@@ -407,6 +400,7 @@ pub mod ssr {
         pub fn get_user_inbox(
             username: &str,
         ) -> Result<Url, AppError> {
+            // TODO check shared inbox?
             get_profile_link(username)?.join(ACTIVITY_PUB_INBOX_PATH).map_err(AppError::from)
         }
 
@@ -517,10 +511,7 @@ pub mod ssr {
         email: &str,
         db_pool: &PgPool,
     ) -> Result<DbUser, AppError> {
-        let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
-        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
-        let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::default()).map_err(to_app_error!("Failed to create private key pem"))?;
-        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::LF).map_err(AppError::new)?;
+        let (pub_key_pem, priv_key_pem) = generate_rsa_keys_pem()?;
 
         let db_user = sqlx::query_as!(
             DbUser,

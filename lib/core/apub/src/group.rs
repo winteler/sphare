@@ -20,16 +20,15 @@ use serde_with::skip_serializing_none;
 use sqlx::PgPool;
 use url::Url;
 
-use sphare_core_common::activity_pub::ApHelper;
+use sphare_core_common::activity_pub::{ApubHelper, AttributedTo};
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::ssr::get_or_insert_instance;
 use sphare_core_common::to_app_error;
 use sphare_core_sphere::sphere::Sphere;
-use sphare_core_user::role::ssr::set_user_sphere_role;
-use sphare_core_user::role::PermissionLevel;
+use sphare_core_user::role::{AdminRole};
 use sphare_core_user::user::ssr::get_admin_function_user;
+use sphare_core_user::user::User;
 
-use crate::person::ApubPerson;
 use crate::utils::{generate_outbox_url, Endpoints, ImageObject, LanguageTag, Source};
 
 #[skip_serializing_none]
@@ -46,7 +45,7 @@ pub struct Group {
     /// title / display name
     pub name: Option<String>,
     // short description
-    pub(crate) description: Option<String>,
+    pub description: Option<String>,
     /// sidebar
     #[serde(deserialize_with = "deserialize_skip_error", default)]
     pub source: Option<Source>,
@@ -61,7 +60,7 @@ pub struct Group {
     // lemmy extension
     pub sensitive: Option<bool>,
     #[serde(deserialize_with = "deserialize_skip_error", default)]
-    pub attributed_to: Option<Vec<ObjectId<ApubPerson>>>,
+    pub attributed_to: Option<AttributedTo>,
     // lemmy extension
     pub posting_restricted_to_mods: Option<bool>,
     pub inbox: Url,
@@ -158,7 +157,7 @@ impl Actor for ApubSphere {
 
 #[async_trait::async_trait]
 impl Object for ApubSphere {
-    type DataType = ApHelper;
+    type DataType = ApubHelper;
     type Kind = Group;
     type Error = AppError;
 
@@ -196,6 +195,7 @@ impl Object for ApubSphere {
             attributed_to: None,
             posting_restricted_to_mods: None,
             inbox: self.inbox,
+            // TODO check for external entities? Already have a nullable column?
             outbox: generate_outbox_url(self.apub_id.inner())?,
             endpoints: None,
             featured: None,
@@ -218,18 +218,11 @@ impl Object for ApubSphere {
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
         let moderators = json.attributed_to.clone();
-        println!("Insert or update sphere");
-        let sphere = insert_or_update_sphere(&json, data.app_data().get_db_pool()).await?;
-        println!("get_admin_function_user");
         let function_user = get_admin_function_user(data.app_data().get_db_pool()).await?;
-        if let Some(moderators) = moderators {
-            for moderator in moderators {
-                println!("get moderator");
-                let person = moderator.dereference(data).await.map_err(to_app_error!("Failed to get moderator"))?;
-                println!("set_user_sphere_role");
-                set_user_sphere_role(&person.preferred_username, &sphere.sphere_name, PermissionLevel::Moderate, &function_user, data.app_data().get_db_pool()).await?;
-            }
-        }
+        let sphere = insert_or_update_sphere(&json, &function_user, data.app_data().get_db_pool()).await?;
+
+        println!("moderators: {moderators:?}");
+        // TODO handle collections
         sphere.try_into()
     }
 }
@@ -249,17 +242,19 @@ pub async fn get_sphere_by_apub_id(sphere_apub_id: &Url, db_pool: &PgPool) -> Re
 
 pub async fn insert_or_update_sphere(
     group: &Group,
+    function_user: &User,
     db_pool: &PgPool,
 ) -> Result<Sphere, AppError> {
+    function_user.check_admin_role(AdminRole::Admin)?;
     let instance = get_or_insert_instance(group.id.inner(), db_pool).await?;
     let inbox = match &group.endpoints {
         Some(endpoints) => endpoints.shared_inbox.clone(),
         None => group.inbox.clone(),
     };
     let sphere = sqlx::query_as::<_, Sphere>(
-        "INSERT INTO spheres (sphere_name, sphere_apub_id, instance_id, description, is_nsfw, creator_id, is_local, inbox, public_key)
+        "INSERT INTO spheres (sphere_name, sphere_apub_id, instance_id, description, is_nsfw, creator_id, is_local, inbox, followers_endpoint, moderators_endpoint, public_key)
             VALUES (
-                $1, $2, $3, $4, $5, $6, TRUE, $7, $8
+                $1, $2, $3, $4, $5, $6, TRUE, $7, $8, $9, $10
             )
             ON CONFLICT (sphere_apub_id)
             DO UPDATE SET
@@ -278,8 +273,10 @@ pub async fn insert_or_update_sphere(
         .bind(instance.instance_id)
         .bind(group.description.clone().unwrap_or_default())
         .bind(group.sensitive.unwrap_or(false))
-        .bind(1)
+        .bind(function_user.user_id)
         .bind(inbox.as_str())
+        .bind(group.followers.clone().map(|url| url.to_string()))
+        .bind(group.attributed_to.clone().and_then(AttributedTo::url_string))
         .bind(group.public_key.public_key_pem.clone())
         .fetch_one(db_pool)
         .await?;

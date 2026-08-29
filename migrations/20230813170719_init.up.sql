@@ -107,6 +107,8 @@ CREATE TABLE spheres (
     banner_url TEXT,
     num_members INT NOT NULL DEFAULT 0,
     inbox TEXT NOT NULL,
+    followers_endpoint TEXT,
+    moderators_endpoint TEXT,
     public_key TEXT NOT NULL,
     creator_id BIGINT NOT NULL REFERENCES persons (person_id),
     create_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),

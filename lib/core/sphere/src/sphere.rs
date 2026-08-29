@@ -18,6 +18,8 @@ pub struct Sphere {
     pub num_members: i32,
     pub creator_id: i64,
     pub inbox: String,
+    pub followers_endpoint: Option<String>,
+    pub moderators_endpoint: Option<String>,
     pub public_key: String,
     pub create_timestamp: chrono::DateTime<chrono::Utc>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -48,25 +50,31 @@ impl From<&Sphere> for SphereHeader {
 
 #[cfg(feature = "ssr")]
 pub mod ssr {
-    use rand::prelude::StdRng;
-    use rand::rngs::SysRng;
-    use rand::SeedableRng;
-    use rsa::{RsaPrivateKey, RsaPublicKey};
-    use rsa::pkcs1::LineEnding;
-    use rsa::pkcs8::{EncodePublicKey};
     use sqlx::PgPool;
-
+    use url::Url;
+    use sphare_core_common::activity_pub::{generate_rsa_keys_pem};
     use sphare_core_common::checks::{check_sphere_name, check_string_length};
-    use sphare_core_common::constants::{MAX_SPHERE_DESCRIPTION_LENGTH, RSA_KEY_SIZE};
+    use sphare_core_common::constants::{MAX_SPHERE_DESCRIPTION_LENGTH};
     use sphare_core_common::errors::AppError;
     use sphare_core_common::errors::AppError::InternalServerError;
-    use sphare_core_common::routes::{get_apub_shared_inbox, get_sphere_link, get_sphere_path};
-    use sphare_core_common::to_app_error;
+    use sphare_core_common::routes::{get_apub_shared_inbox, get_sphere_link, get_sphere_path, ACTIVITY_PUB_MODERATORS_PATH, ACTIVITY_PUB_FOLLOWERS_PATH};
     use sphare_core_user::role::ssr::init_sphere_leader;
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
 
     use crate::sphere::{Sphere, SphereHeader, SphereWithUserInfo};
+
+    impl Sphere {
+        pub fn get_moderators_endpoint(sphere_link: &str) -> Result<Url, AppError> {
+            let moderators_endpoint = Url::parse(sphere_link)?.join(ACTIVITY_PUB_MODERATORS_PATH)?;
+            Ok(moderators_endpoint)
+        }
+
+        pub fn get_followers_endpoint(sphere_link: &str) -> Result<Url, AppError> {
+            let followers_endpoint = Url::parse(sphere_link)?.join(ACTIVITY_PUB_FOLLOWERS_PATH)?;
+            Ok(followers_endpoint)
+        }
+    }
 
     pub async fn get_sphere_by_name(sphere_name: &str, db_pool: &PgPool) -> Result<Sphere, AppError> {
         check_sphere_name(sphere_name)?;
@@ -195,31 +203,32 @@ pub mod ssr {
         user.check_can_publish()?;
         check_sphere_name(name)?;
 
-        let mut rng = StdRng::try_from_rng(&mut SysRng).map_err(to_app_error!("Failed to get rng"))?;
-        let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).map_err(to_app_error!("Failed to generate private key"))?;
-        // TODO let priv_key_pem = priv_key.to_pkcs8_pem(LineEnding::default()).map_err(to_app_error!("Failed to create private key pem"))?;
-        let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::LF).map_err(AppError::new)?;
+        let sphere_link = get_sphere_link(name)?;
+        // TODO store private key
+        let (pub_key_pem, _priv_key_pem) = generate_rsa_keys_pem()?;
 
         let sphere = sqlx::query_as::<_, Sphere>(
-            "INSERT INTO spheres (sphere_name, sphere_apub_id, instance_id, description, is_nsfw, creator_id, is_local, inbox, public_key)
+            "INSERT INTO spheres (sphere_name, sphere_apub_id, instance_id, description, is_nsfw, creator_id, is_local, inbox, followers_endpoint, moderators_endpoint, public_key)
             VALUES (
                 $1, $2,
                 (SELECT instance_id FROM instances WHERE is_local = TRUE),
-                $3, $4, $5, TRUE, $6, $7
+                $3, $4, $5, TRUE, $6, $7, $8, $9
             )
             RETURNING *"
         )
             .bind(name)
-            .bind(get_sphere_link(name)?)
+            .bind(&sphere_link)
             .bind(description)
             .bind(is_nsfw)
             .bind(user.person_id)
             .bind(get_apub_shared_inbox()?.to_string())
+            .bind(Sphere::get_moderators_endpoint(&sphere_link)?.to_string())
+            .bind(Sphere::get_followers_endpoint(&sphere_link)?.to_string())
             .bind(pub_key_pem)
             .fetch_one(db_pool)
             .await?;
 
-        init_sphere_leader(user.person_id, &sphere.sphere_name, &db_pool).await?;
+        init_sphere_leader(user.person_id, &sphere.sphere_name, db_pool).await?;
 
         Ok(sphere)
     }

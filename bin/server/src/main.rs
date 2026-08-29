@@ -27,7 +27,7 @@ use sphare_core_user::user::User;
 use sphare_iface_user::user::ssr::http_get_user;
 
 use sphare_app::app::*;
-use sphare_core_common::activity_pub::ApHelper;
+use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::routes::{get_app_origin};
 
 use crate::fallback::file_and_error_handler;
@@ -89,8 +89,8 @@ pub fn get_user_lock_cache_size() -> NonZeroUsize {
     }
 }
 
-async fn get_federation_config(db_pool: PgPool) -> Result<FederationConfig<ApHelper>, Error> {
-    let database_handle = ApHelper::new(db_pool, get_app_origin()?);
+async fn get_federation_config(db_pool: PgPool) -> Result<FederationConfig<ApubHelper>, Error> {
+    let database_handle = ApubHelper::new(db_pool, get_app_origin()?);
     let config = FederationConfig::builder()
         .domain(get_app_origin()?)
         .app_data(database_handle)

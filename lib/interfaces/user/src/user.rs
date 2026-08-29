@@ -56,14 +56,14 @@ pub mod ssr {
     use activitypub_federation::traits::Object;
     use axum::extract::Path;
     use leptos::serde_json;
-    use sphare_core_common::activity_pub::ApHelper;
+    use sphare_core_common::activity_pub::ApubHelper;
     use sphare_core_common::errors::AppError;
     use sphare_core_common::to_app_error;
     use sphare_core_apub::person::{get_person_by_username, ApubPerson};
 
     pub async fn http_get_user(
         Path(name): Path<String>,
-        data: Data<ApHelper>,
+        data: Data<ApubHelper>,
     ) -> Result<String, AppError> {
         let person = get_person_by_username(&name, data.app_data().get_db_pool()).await?;
         let person: ApubPerson = person.try_into()?;

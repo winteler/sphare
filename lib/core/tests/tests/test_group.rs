@@ -2,8 +2,9 @@ use std::fs::File;
 use activitypub_federation::traits::{Actor, Object};
 use leptos::serde_json;
 use url::Url;
-use sphare_core_apub::group::{get_sphere_by_apub_id, insert_or_update_sphere, ApubSphere};
+use sphare_core_apub::group::{get_sphere_by_apub_id, insert_or_update_sphere, ApubSphere, Group};
 use sphare_core_sphere::sphere::ssr::create_sphere;
+use sphare_core_user::user::ssr::get_admin_function_user;
 use crate::common::{create_test_user, get_db_pool};
 use crate::utils::{get_apub_sphere, init_local_instance_and_get_apub_config};
 
@@ -28,6 +29,7 @@ async fn test_get_sphere_by_apub_id() {
 #[tokio::test]
 async fn test_insert_or_update_sphere() {
     let db_pool = get_db_pool().await;
+    let function_user = get_admin_function_user(&db_pool).await.expect("Should get admin");
 
     let group_id_str = "https://enterprise.lemmy.ml/c/tenforward";
     let group_id = Url::parse(group_id_str).expect("Should be valid url");
@@ -36,27 +38,30 @@ async fn test_insert_or_update_sphere() {
     let group_file = File::open("assets/apub/lemmy/group.json").expect("Should open group.json");
     let mut group = serde_json::from_reader(group_file).expect("Should deserialize Group");
 
-    let sphere = insert_or_update_sphere(&group, &db_pool).await.expect("Should get Sphere");
-    assert_eq!(sphere.sphere_name, "tenforward");
-    assert_eq!(sphere.sphere_apub_id, "https://enterprise.lemmy.ml/c/tenforward");
-    assert_eq!(sphere.description, "A description of ten forward.");
-    assert_eq!(sphere.is_nsfw, false);
-    assert_eq!(sphere.inbox, "https://enterprise.lemmy.ml/inbox");
-    assert_eq!(sphere.public_key, "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzRjKTNtvDCmugplwEh+g\nx1bhKm6BHUZfXfpscgMMm7tXFswSDzUQirMgfkxa9ubfr1PDFKffA2vQ9x6CyuO/\n70xTafdOHyV1tSqzgKz0ZvFZ/VCOo6qy1mYWVkrtBm/fKzM+87MdkKYB/zI4VyEJ\nLfLQgjwxBAEYUH3CBG71U0gO0TwbimWNN0vqlfp0QfThNe1WYObF88ZVzMLgFbr7\nRHBItZjlZ/d8foPDidlIR3l2dJjy0EsD8F9JM340jtX7LXqFmU4j1AQKNHTDLnUF\nwYVhzuQGNJ504l5LZkFG54XfIFT7dx2QwuuM9bSnfPv/98RYrq1Si6tCkxEt1cVe\n4wIDAQAB\n-----END PUBLIC KEY-----\n");
+    let sphere = insert_or_update_sphere(&group, &function_user, &db_pool).await.expect("Should get Sphere");
+    assert_eq!(sphere.sphere_name, group.preferred_username);
+    assert_eq!(sphere.sphere_apub_id, group.id.inner().to_string());
+    assert_eq!(sphere.description, group.description.clone().expect("Should have a description"));
+    assert_eq!(sphere.is_nsfw, group.sensitive.unwrap_or_default());
+    assert_eq!(sphere.inbox, group.endpoints.clone().expect("Should have an endpoint").shared_inbox.to_string());
+    assert_eq!(sphere.followers_endpoint, group.followers.clone().map(|url| url.to_string()));
+    assert_eq!(sphere.moderators_endpoint, group.attributed_to.clone().expect("Should get group moderators").url_string());
+    assert_eq!(sphere.public_key, group.public_key.public_key_pem);
 
     let result_sphere = get_sphere_by_apub_id(&group_id, &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(result_sphere, sphere);
 
     group.preferred_username = String::from("tenforward_updated");
 
-    let updated_sphere = insert_or_update_sphere(&group, &db_pool).await.expect("Should get sphere");
-    assert_eq!(updated_sphere.sphere_name, "tenforward_updated");
-    assert_eq!(updated_sphere.sphere_apub_id, "https://enterprise.lemmy.ml/c/tenforward");
-    assert_eq!(updated_sphere.description, "A description of ten forward.");
-    assert_eq!(updated_sphere.is_nsfw, false);
-    assert_eq!(updated_sphere.inbox, "https://enterprise.lemmy.ml/inbox");
-    assert_eq!(sphere.public_key, "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzRjKTNtvDCmugplwEh+g\nx1bhKm6BHUZfXfpscgMMm7tXFswSDzUQirMgfkxa9ubfr1PDFKffA2vQ9x6CyuO/\n70xTafdOHyV1tSqzgKz0ZvFZ/VCOo6qy1mYWVkrtBm/fKzM+87MdkKYB/zI4VyEJ\nLfLQgjwxBAEYUH3CBG71U0gO0TwbimWNN0vqlfp0QfThNe1WYObF88ZVzMLgFbr7\nRHBItZjlZ/d8foPDidlIR3l2dJjy0EsD8F9JM340jtX7LXqFmU4j1AQKNHTDLnUF\nwYVhzuQGNJ504l5LZkFG54XfIFT7dx2QwuuM9bSnfPv/98RYrq1Si6tCkxEt1cVe\n4wIDAQAB\n-----END PUBLIC KEY-----\n");
-
+    let updated_sphere = insert_or_update_sphere(&group, &function_user, &db_pool).await.expect("Should get sphere");
+    assert_eq!(updated_sphere.sphere_name, group.preferred_username);
+    assert_eq!(updated_sphere.sphere_apub_id, group.id.inner().to_string());
+    assert_eq!(updated_sphere.description, group.description.clone().expect("Should have a description"));
+    assert_eq!(updated_sphere.is_nsfw, group.sensitive.unwrap_or_default());
+    assert_eq!(updated_sphere.inbox, group.endpoints.clone().expect("Should have an endpoint").shared_inbox.to_string());
+    assert_eq!(updated_sphere.followers_endpoint, group.followers.clone().map(|url| url.to_string()));
+    assert_eq!(updated_sphere.moderators_endpoint, group.attributed_to.clone().expect("Should get group moderators").url_string());
+    assert_eq!(updated_sphere.public_key, group.public_key.public_key_pem);
 
     let result_updated_sphere = get_sphere_by_apub_id(&group_id, &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(result_updated_sphere, updated_sphere);
@@ -71,6 +76,7 @@ async fn test_apub_sphere_object_id() {
 #[tokio::test]
 async fn test_apub_sphere_object_read_from_id() {
     let db_pool = get_db_pool().await;
+    let function_user = get_admin_function_user(&db_pool).await.expect("Should get admin");
 
     let group_id_str = "https://www.sphare.space/c/Sphare";
     let group_id = Url::parse(group_id_str).expect("Should be valid url");
@@ -93,7 +99,7 @@ async fn test_apub_sphere_object_read_from_id() {
         }
     }"#;
     let group = serde_json::from_str(group_json).expect("Should deserialize Group");
-    let sphere = insert_or_update_sphere(&group, &db_pool).await.expect("Should get Sphere");
+    let sphere = insert_or_update_sphere(&group, &function_user, &db_pool).await.expect("Should get Sphere");
     let apub_sphere = sphere.try_into().expect("Should convert to ApubSphere");
     assert_eq!(ApubSphere::read_from_id(group_id.clone(), &apub_data).await, Ok(Some(apub_sphere)));
 }
@@ -143,48 +149,23 @@ async fn test_apub_sphere_object_verify() {
 #[tokio::test]
 async fn test_apub_sphere_object_from_json() {
     let db_pool = get_db_pool().await;
+    let function_user = get_admin_function_user(&db_pool).await.expect("Should get admin");
     let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
     let apub_data = apub_config.to_request_data();
 
-    let group_id_str = "https://mastodon.social/users/SphareDev";
-    let group_id = Url::parse(group_id_str).expect("Should be valid url");
+    let group_file = File::open("assets/apub/lemmy/group.json").expect("Should open group.json");
+    let group: Group = serde_json::from_reader(group_file).expect("Should deserialize Group");
 
-    assert!(get_sphere_by_apub_id(&group_id, &db_pool).await.expect("Should get option").is_none());
-    let group_json = r#"{
-        "id": "https://mastodon.social/users/SphareDev",
-        "type": "Group",
-        "preferredUsername": "SphareDev",
-        "name": "Sphare",
-        "inbox": "https://mastodon.social/users/SphareDev/inbox",
-        "outbox": "https://mastodon.social/users/SphareDev/outbox",
-        "publicKey": {
-            "id": "https://mastodon.social/users/SphareDev#main-key",
-            "owner": "https://mastodon.social/users/SphareDev",
-            "publicKeyPem": "12345"
-        }
-    }"#;
-    let group = serde_json::from_str(group_json).expect("Should deserialize Group");
+    assert!(get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").is_none());
 
-    let apub_sphere = ApubSphere::from_json(group, &apub_data).await.expect("Should get ApubSphere");
-    let sphere = get_sphere_by_apub_id(&group_id, &db_pool).await.expect("Should get option").expect("Sphere should be some");
+    let apub_sphere = ApubSphere::from_json(group.clone(), &apub_data).await.expect("Should get ApubSphere");
+    let sphere = get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(apub_sphere, sphere.try_into().expect("Should convert to ApubSphere"));
 
-    let updated_group_json = r#"{
-        "id": "https://mastodon.social/users/SphareDev",
-        "type": "Group",
-        "preferredUsername": "SphareDev",
-        "name": "SphareUpdated",
-        "inbox": "https://mastodon.social/users/SphareDev/inbox",
-        "outbox": "https://mastodon.social/users/SphareDev/outbox",
-        "publicKey": {
-            "id": "https://mastodon.social/users/SphareDev#main-key",
-            "owner": "https://mastodon.social/users/SphareDev",
-            "publicKeyPem": "54321"
-        }
-    }"#;
-    let updated_group = serde_json::from_str(updated_group_json).expect("Should deserialize group");
+    let group_file = File::open("assets/apub/lemmy/group.json").expect("Should open group.json");
+    let updated_group = serde_json::from_reader(group_file).expect("Should deserialize Group");
 
-    let updated_apub_sphere = insert_or_update_sphere(&updated_group, &db_pool).await.expect("Should get sphere");
-    let sphere = get_sphere_by_apub_id(&group_id, &db_pool).await.expect("Should get option").expect("Sphere should be some");
+    let updated_apub_sphere = insert_or_update_sphere(&updated_group, &function_user, &db_pool).await.expect("Should get sphere");
+    let sphere = get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(updated_apub_sphere, sphere);
 }

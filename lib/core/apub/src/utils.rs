@@ -33,7 +33,7 @@ pub struct Endpoints {
 }
 
 pub fn generate_outbox_url(apub_id: &Url) -> Result<Url, AppError> {
-    Ok(Url::parse(&format!("{apub_id}/outbox"))?.into())
+    Ok(Url::parse(&format!("{apub_id}/outbox"))?)
 }
 
 impl ImageObject {
