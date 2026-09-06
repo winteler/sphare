@@ -31,6 +31,7 @@ fluent-templates = "0.14.0"
 futures-util = "0.3.32"
 multer = "3.1.0"
 rand = "0.10.2"
+wiremock = "0.6"
 
 [features]
 default = [

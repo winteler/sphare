@@ -6,3 +6,5 @@ pub mod page;*/
 pub mod person;
 #[cfg(feature = "ssr")]
 mod utils;
+#[cfg(feature = "ssr")]
+mod community_moderator;

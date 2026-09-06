@@ -9,3 +9,4 @@ DROP TABLE user_bans;
 DROP TABLE user_sphere_roles;
 DROP TABLE users;
 DROP TABLE votes;
+DROP TABLE instances;

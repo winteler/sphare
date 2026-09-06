@@ -11,6 +11,7 @@ use activitypub_federation::{
     },
     traits::Object,
 };
+use activitypub_federation::fetch::collection_id::CollectionId;
 use chrono::{DateTime, Utc};
 use rsa::pkcs1::LineEnding;
 use rsa::pkcs8::EncodePrivateKey;
@@ -20,7 +21,7 @@ use serde_with::skip_serializing_none;
 use sqlx::PgPool;
 use url::Url;
 
-use sphare_core_common::activity_pub::{ApubHelper, AttributedTo};
+use sphare_core_common::activity_pub::{ApubHelper, AttributedTo, PersonOrGroupType};
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::ssr::get_or_insert_instance;
 use sphare_core_common::to_app_error;
@@ -28,7 +29,8 @@ use sphare_core_sphere::sphere::Sphere;
 use sphare_core_user::role::{AdminRole};
 use sphare_core_user::user::ssr::get_admin_function_user;
 use sphare_core_user::user::User;
-
+use crate::community_moderator::{handle_community_moderators, ApubCommunityModerators};
+use crate::person::ApubPerson;
 use crate::utils::{generate_outbox_url, Endpoints, ImageObject, LanguageTag, Source};
 
 #[skip_serializing_none]
@@ -224,6 +226,27 @@ impl Object for ApubSphere {
         println!("moderators: {moderators:?}");
         // TODO handle collections
         sphere.try_into()
+    }
+}
+
+impl ApubSphere {
+    pub async fn load_collections(&self, group: &Group, data: &Data<ApubHelper>) -> Result<(), AppError> {
+        if let Some(moderators) = &group.attributed_to {
+            if let AttributedTo::Forum(f) = moderators {
+                let moderators: CollectionId<ApubCommunityModerators> = f.moderators().into();
+                moderators.dereference(self, data).await.ok();
+            } else if let AttributedTo::Peertube(p) = moderators {
+                let new_mods = p
+                    .iter()
+                    .filter(|p| p.kind == PersonOrGroupType::Person)
+                    .map(|p| ObjectId::<ApubPerson>::from(p.id.clone()))
+                    .collect();
+                handle_community_moderators(&new_mods, self, data)
+                    .await
+                    .ok();
+            }
+        }
+        Ok(())
     }
 }
 

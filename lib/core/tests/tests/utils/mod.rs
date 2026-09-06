@@ -274,11 +274,12 @@ pub async fn get_notification(
 
 pub async fn init_local_instance_and_get_apub_config(db_pool: &PgPool) -> (Instance, FederationConfig<ApubHelper>) {
     let instance_url = Url::parse("https://www.sphare.space/").expect("App origin url should be valid");
-    let instance = init_local_instance(&instance_url, &db_pool).await.expect("Failed to upsert own-instance");
+    let instance = init_local_instance(&instance_url, db_pool).await.expect("Failed to upsert own-instance");
     let database_handle = ApubHelper::new(db_pool.clone(), instance_url.to_string());
     let apub_config = FederationConfig::builder()
         .domain(instance_url)
         .app_data(database_handle)
+        .debug(true)
         .build()
         .await
         .expect("Failed to build config");

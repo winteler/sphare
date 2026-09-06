@@ -392,11 +392,11 @@ pub mod ssr {
             );
             let no_file_url = "https://storage.com/image/just/an/url";
             assert_eq!(
-                get_file_name_from_url(&no_file_url),
+                get_file_name_from_url(no_file_url),
                 Ok(None)
             );
             let not_an_url = "This is just text";
-            assert!(get_file_name_from_url(&not_an_url).is_err());
+            assert!(get_file_name_from_url(not_an_url).is_err());
         }
     }
 }

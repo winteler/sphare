@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use rand::prelude::StdRng;
 use rand::{SeedableRng};
 use rand::rngs::SysRng;
@@ -40,6 +41,26 @@ pub struct AttributedToPeertube {
 pub enum AttributedTo {
     Forum(PersonOrGroupModerators),
     Peertube(Vec<AttributedToPeertube>),
+}
+
+impl Deref for PersonOrGroupModerators {
+    type Target = Url;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Url> for PersonOrGroupModerators {
+    fn from(value: Url) -> Self {
+        PersonOrGroupModerators(value)
+    }
+}
+
+impl PersonOrGroupModerators {
+    pub fn moderators(&self) -> Url {
+        self.deref().clone()
+    }
 }
 
 impl ApubHelper {

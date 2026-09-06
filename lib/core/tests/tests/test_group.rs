@@ -2,6 +2,8 @@ use std::fs::File;
 use activitypub_federation::traits::{Actor, Object};
 use leptos::serde_json;
 use url::Url;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, ResponseTemplate};
 use sphare_core_apub::group::{get_sphere_by_apub_id, insert_or_update_sphere, ApubSphere, Group};
 use sphare_core_sphere::sphere::ssr::create_sphere;
 use sphare_core_user::user::ssr::get_admin_function_user;
@@ -149,12 +151,18 @@ async fn test_apub_sphere_object_verify() {
 #[tokio::test]
 async fn test_apub_sphere_object_from_json() {
     let db_pool = get_db_pool().await;
-    let function_user = get_admin_function_user(&db_pool).await.expect("Should get admin");
     let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
     let apub_data = apub_config.to_request_data();
 
+    let server = wiremock::MockServer::start().await; // binds 127.0.0.1:<ephemeral port>
+    Mock::given(method("GET"))
+        .and(path("/c/foo/moderators"))
+        .respond_with(ResponseTemplate::new(200).set_body_json("test"))
+        .mount(&server)
+        .await;
+
     let group_file = File::open("assets/apub/lemmy/group.json").expect("Should open group.json");
-    let group: Group = serde_json::from_reader(group_file).expect("Should deserialize Group");
+    let mut group: Group = serde_json::from_reader(group_file).expect("Should deserialize Group");
 
     assert!(get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").is_none());
 
@@ -162,10 +170,9 @@ async fn test_apub_sphere_object_from_json() {
     let sphere = get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(apub_sphere, sphere.try_into().expect("Should convert to ApubSphere"));
 
-    let group_file = File::open("assets/apub/lemmy/group.json").expect("Should open group.json");
-    let updated_group = serde_json::from_reader(group_file).expect("Should deserialize Group");
+    group.preferred_username = String::from("updated_username");
 
-    let updated_apub_sphere = insert_or_update_sphere(&updated_group, &function_user, &db_pool).await.expect("Should get sphere");
+    let updated_apub_sphere = ApubSphere::from_json(group.clone(), &apub_data).await.expect("Should get sphere");
     let sphere = get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").expect("Sphere should be some");
-    assert_eq!(updated_apub_sphere, sphere);
+    assert_eq!(updated_apub_sphere, sphere.try_into().expect("Should convert to ApubSphere"));
 }
