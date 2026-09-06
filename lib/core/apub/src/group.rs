@@ -114,6 +114,31 @@ impl ApubSphere {
             private_key,
         }
     }
+
+    pub async fn load_collections(&self, group: &Group, data: &Data<ApubHelper>) -> Result<(), AppError> {
+        self.load_moderators(group, data).await?;
+        // pinned posts
+        // initial content
+        // categories
+        Ok(())
+    }
+
+    async fn load_moderators(&self, group: &Group, data: &Data<ApubHelper>) -> Result<(), AppError> {
+        if let Some(moderators) = &group.attributed_to {
+            if let AttributedTo::Forum(f) = moderators {
+                let moderators: CollectionId<ApubCommunityModerators> = f.moderators().into();
+                moderators.dereference(self, data).await?;
+            } else if let AttributedTo::Peertube(p) = moderators {
+                let new_mods = p
+                    .iter()
+                    .filter(|p| p.kind == PersonOrGroupType::Person)
+                    .map(|p| ObjectId::<ApubPerson>::from(p.id.clone()))
+                    .collect();
+                handle_community_moderators(&new_mods, self, data).await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<Sphere> for ApubSphere {
@@ -219,34 +244,14 @@ impl Object for ApubSphere {
     }
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
-        let moderators = json.attributed_to.clone();
         let function_user = get_admin_function_user(data.app_data().get_db_pool()).await?;
         let sphere = insert_or_update_sphere(&json, &function_user, data.app_data().get_db_pool()).await?;
 
-        println!("moderators: {moderators:?}");
-        // TODO handle collections
-        sphere.try_into()
-    }
-}
-
-impl ApubSphere {
-    pub async fn load_collections(&self, group: &Group, data: &Data<ApubHelper>) -> Result<(), AppError> {
-        if let Some(moderators) = &group.attributed_to {
-            if let AttributedTo::Forum(f) = moderators {
-                let moderators: CollectionId<ApubCommunityModerators> = f.moderators().into();
-                moderators.dereference(self, data).await.ok();
-            } else if let AttributedTo::Peertube(p) = moderators {
-                let new_mods = p
-                    .iter()
-                    .filter(|p| p.kind == PersonOrGroupType::Person)
-                    .map(|p| ObjectId::<ApubPerson>::from(p.id.clone()))
-                    .collect();
-                handle_community_moderators(&new_mods, self, data)
-                    .await
-                    .ok();
-            }
+        let apub_sphere: ApubSphere = sphere.try_into()?;
+        if let Err(e) = apub_sphere.load_collections(&json, data).await {
+            log::warn!("Failed to load collections for ApubSphere {}, error: {e}", apub_sphere.apub_id)
         }
-        Ok(())
+        Ok(apub_sphere)
     }
 }
 

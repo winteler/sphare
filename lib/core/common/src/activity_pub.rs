@@ -9,6 +9,7 @@ use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use url::Url;
+
 use crate::constants::RSA_KEY_SIZE;
 use crate::errors::AppError;
 use crate::to_app_error;

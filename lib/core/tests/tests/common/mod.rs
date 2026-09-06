@@ -9,6 +9,9 @@ use leptos_fluent::{I18n, Language};
 
 use sphare_core_user::user::ssr::create_or_update_user;
 use sphare_core_user::user::User;
+use sphare_core_apub::person::DbPerson;
+use sphare_core_apub::person::get_person_by_username;
+
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{AssertSqlSafe, PgPool};
 
@@ -102,6 +105,19 @@ pub async fn create_user(
         .expect("Should be possible to create user.");
     User::get(db_user.person_id, db_pool).await.expect("New user should be available in DB.")
 }
+
+pub async fn create_user_and_get_person(
+    test_id: &str,
+    db_pool: &PgPool
+) -> (User, DbPerson) {
+    let db_user = create_or_update_user(test_id, test_id, test_id, db_pool)
+        .await
+        .expect("Should be possible to create user.");
+    let user = User::get(db_user.person_id, db_pool).await.expect("New user should be available in DB.");
+    let person = get_person_by_username(&user.username, db_pool).await.expect("New person should be available in DB.");
+    (user, person)
+}
+
 
 pub fn get_i18n() -> I18n {
     static_loader! {

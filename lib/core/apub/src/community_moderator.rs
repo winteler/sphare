@@ -9,7 +9,9 @@ use url::Url;
 
 use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::errors::AppError;
+use sphare_core_user::role::PermissionLevel;
 use sphare_core_user::user::ssr::get_admin_function_user;
+
 use crate::group::ApubSphere;
 use crate::person::{ApubPerson, DbPerson};
 
@@ -32,14 +34,14 @@ impl Collection for ApubCommunityModerators {
     type Error = AppError;
 
     async fn read_local(owner: &Self::Owner, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
-        let moderator_vec = get_sphere_moderators(&owner, data.get_db_pool()).await?;
+        let moderator_vec = get_sphere_moderators(owner, data.get_db_pool()).await?;
         let ordered_items = moderator_vec
             .into_iter()
-            .map(|m| ObjectId::<ApubPerson>::from(m.apub_id))
+            .map(|m| m.apub_id)
             .collect();
         Ok(GroupModerators {
             r#type: OrderedCollectionType::OrderedCollection,
-            apub_id: generate_moderators_url(&owner.apub_id)?.into(),
+            apub_id: generate_moderators_url(&owner.apub_id)?,
             ordered_items,
         })
     }
@@ -94,7 +96,7 @@ pub async fn get_sphere_moderators(apub_sphere: &ApubSphere, db_pool: &PgPool) -
     Ok(sphere_mod_vec)
 }
 
-pub(crate) async fn handle_community_moderators(
+pub async fn handle_community_moderators(
     new_mod_vec: &Vec<ObjectId<ApubPerson>>,
     community: &ApubSphere,
     context: &Data<ApubHelper>,
@@ -125,9 +127,9 @@ pub(crate) async fn handle_community_moderators(
         ),
         upserted_mods AS (
             INSERT INTO user_sphere_roles (person_id, sphere_id, permission_level, grantor_id)
-            SELECT u.person_id, s.sphere_id, 'manage', $3
+            SELECT u.person_id, s.sphere_id, $3, $4
             FROM user_ids u, remote_sphere s
-            ON CONFLICT (sphere_id, person_id) DO UPDATE
+            ON CONFLICT (sphere_id, person_id) WHERE delete_timestamp IS NULL DO UPDATE
             SET permission_level = EXCLUDED.permission_level,
                 grantor_id = EXCLUDED.grantor_id
             RETURNING person_id
@@ -137,10 +139,24 @@ pub(crate) async fn handle_community_moderators(
         "#,
         &person_apub_id_vec,
         community.apub_id.inner().to_string(),
+        PermissionLevel::Manage.to_string(),
         functional_user.user_id,
     )
         .execute(context.get_db_pool())
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::community_moderator::generate_moderators_url;
+    use url::Url;
+
+    #[test]
+    fn test_generate_moderators_url() {
+        let sphere_url = Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid group url");
+        let sphere_apub_id = sphere_url.clone().into();
+        assert_eq!(generate_moderators_url(&sphere_apub_id), Ok(sphere_url.join("/moderators").expect("Should be valid moderators url")));
+    }
 }
