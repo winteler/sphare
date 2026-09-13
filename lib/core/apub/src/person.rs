@@ -190,7 +190,7 @@ pub async fn get_person_by_actor_id(
             p.person_id as "person_id!",
             p.instance_id as "instance_id!",
             p.username as "username!",
-            p.display_name as "display_name!",
+            p.display_name as "display_name?",
             p.is_nsfw as "is_nsfw!",
             p.actor_id as "actor_id!",
             p.inbox as "inbox!",

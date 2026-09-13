@@ -18,13 +18,13 @@ use crate::person::{ApubPerson, DbPerson};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupModerators {
-    pub(crate) r#type: OrderedCollectionType,
-    pub(crate) apub_id: Url,
-    pub(crate) ordered_items: Vec<ObjectId<ApubPerson>>,
+    pub r#type: OrderedCollectionType,
+    pub apub_id: Url,
+    pub ordered_items: Vec<ObjectId<ApubPerson>>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ApubCommunityModerators(());
+pub struct ApubCommunityModerators(());
 
 #[async_trait::async_trait]
 impl Collection for ApubCommunityModerators {
@@ -104,6 +104,7 @@ pub async fn handle_community_moderators(
     // Fetch moderators
     for new_mod in new_mod_vec {
         let fetch_result = new_mod.dereference(context).await;
+        println!("Dereferenced mod: {fetch_result:?}");
         if let Err(e) = fetch_result {
             log::warn!("Failed to dereference community moderator {}: {}", new_mod.inner(), e);
         }

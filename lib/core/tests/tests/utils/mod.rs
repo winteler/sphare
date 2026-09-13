@@ -318,6 +318,26 @@ pub fn get_apub_sphere() -> ApubSphere {
     )
 }
 
+pub fn get_mocked_apub_sphere(mock_server_uri: &str) -> ApubSphere {
+    let mut rng = StdRng::try_from_rng(&mut SysRng).expect("Should get rng");
+    let priv_key = RsaPrivateKey::new(&mut rng, RSA_KEY_SIZE).expect("Should get private key");
+    let pub_key_pem = RsaPublicKey::from(&priv_key).to_public_key_pem(LineEnding::default()).expect("Should get public key pem");
+
+    let mock_server_url = Url::parse(mock_server_uri).expect("Mock server uri should be valid");
+    let apub_sphere_url = mock_server_url.join("/c/SomeSphere").expect("Should join sphere path");
+    let inbox_url = mock_server_url.join("/inbox").expect("Should join inbox path");
+
+    ApubSphere::new(
+        apub_sphere_url.into(),
+        String::from("SomeSphere"),
+        String::from("The description"),
+        false,
+        inbox_url,
+        pub_key_pem,
+        Some(priv_key),
+    )
+}
+
 pub async fn get_local_instance(db_pool: &PgPool) -> Instance {
     sqlx::query_as!(
         Instance,
