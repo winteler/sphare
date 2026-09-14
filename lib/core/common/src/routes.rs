@@ -76,6 +76,28 @@ pub fn get_current_url() -> Signal<String> {
 /// # Returns the path to a user's profile
 ///
 /// ```
+/// use url::Url;
+/// use sphare_core_common::routes::append_path_segment_to_url;
+///
+/// assert_eq!(
+///     append_path_segment_to_url(Url::parse("https://www.sphare.space/test").expect("Should parse 1st url"), "append").to_string(),
+///     "https://www.sphare.space/test/append"
+/// );
+/// assert_eq!(
+///     append_path_segment_to_url(Url::parse("https://www.sphare.space/test/").expect("Should parse 2nd url"), "append").to_string(),
+///     "https://www.sphare.space/test/append"
+/// );
+/// ```
+pub fn append_path_segment_to_url(mut url: Url, segment: &str) -> Url {
+    let path = url.path();
+    let separator = if path.ends_with('/') { "" } else { "/" };
+    url.set_path(&format!("{}{}{}", path, separator, segment));
+    url
+}
+
+/// # Returns the path to a user's profile
+///
+/// ```
 /// use sphare_core_common::routes::get_profile_path;
 ///
 /// assert_eq!(get_profile_path("test"), "/users/test");

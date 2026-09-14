@@ -9,6 +9,7 @@ use url::Url;
 
 use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::errors::AppError;
+use sphare_core_common::routes::append_path_segment_to_url;
 use sphare_core_user::role::PermissionLevel;
 use sphare_core_user::user::ssr::get_admin_function_user;
 
@@ -68,7 +69,7 @@ impl Collection for ApubCommunityModerators {
 }
 
 fn generate_moderators_url(sphere_apub_id: &ObjectId<ApubSphere>) -> Result<Url, AppError> {
-    let url = sphere_apub_id.inner().clone().join("/moderators")?;
+    let url = append_path_segment_to_url(sphere_apub_id.inner().clone(), "moderators");
     Ok(url)
 }
 
@@ -158,6 +159,6 @@ mod tests {
     fn test_generate_moderators_url() {
         let sphere_url = Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid group url");
         let sphere_apub_id = sphere_url.clone().into();
-        assert_eq!(generate_moderators_url(&sphere_apub_id), Ok(sphere_url.join("/moderators").expect("Should be valid moderators url")));
+        assert_eq!(generate_moderators_url(&sphere_apub_id).expect("Should generate moderator url").to_string(), "https://www.sphare.space/c/SomeSphere/moderators");
     }
 }

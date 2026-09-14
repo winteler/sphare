@@ -63,8 +63,7 @@ async fn test_get_sphere_by_name() -> Result<(), AppError> {
         false,
         &test_user,
         &db_pool,
-    )
-    .await?;
+    ).await?;
 
     let sphere = sphere::ssr::get_sphere_by_name(sphere_name, &db_pool).await?;
 
