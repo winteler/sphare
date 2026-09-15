@@ -68,7 +68,17 @@ impl Collection for ApubCommunityModerators {
     }
 }
 
-fn generate_moderators_url(sphere_apub_id: &ObjectId<ApubSphere>) -> Result<Url, AppError> {
+/// # Returns the moderator endpoint for a given community
+///
+/// ```
+/// use url::Url;
+/// use sphare_core_apub::community_moderator::generate_moderators_url;
+///
+/// let sphere_url = Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid group url");
+/// let sphere_apub_id = sphere_url.clone().into();///
+/// assert_eq!(generate_moderators_url(&sphere_apub_id).expect("Should generate moderator url").to_string(), "https://www.sphare.space/c/SomeSphere/moderators");
+/// ```
+pub fn generate_moderators_url(sphere_apub_id: &ObjectId<ApubSphere>) -> Result<Url, AppError> {
     let url = append_path_segment_to_url(sphere_apub_id.inner().clone(), "moderators");
     Ok(url)
 }
@@ -148,17 +158,4 @@ pub async fn handle_community_moderators(
         .await?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::community_moderator::generate_moderators_url;
-    use url::Url;
-
-    #[test]
-    fn test_generate_moderators_url() {
-        let sphere_url = Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid group url");
-        let sphere_apub_id = sphere_url.clone().into();
-        assert_eq!(generate_moderators_url(&sphere_apub_id).expect("Should generate moderator url").to_string(), "https://www.sphare.space/c/SomeSphere/moderators");
-    }
 }

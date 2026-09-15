@@ -1,24 +1,24 @@
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::kinds::collection::OrderedCollectionType;
 use activitypub_federation::traits::{Collection, Object};
-use leptos::serde_json::json;
-use sphare_core_apub::community_moderator::{handle_community_moderators, ApubCommunityModerators, GroupModerators};
+use url::Url;
+use wiremock::{MockServer};
+
+use sphare_core_apub::community_moderator::{ApubCommunityModerators, GroupModerators, handle_community_moderators};
+use sphare_core_apub::group::insert_or_update_sphere;
+use sphare_core_apub::person::{ApubPerson, DbPerson, get_person_by_actor_id};
+use sphare_core_sphere::sphere::Sphere;
 use sphare_core_sphere::sphere::ssr::create_sphere;
 use sphare_core_user::role::ssr::{get_sphere_role_vec, set_user_sphere_role};
-use url::Url;
-use wiremock::{Mock, MockServer, ResponseTemplate};
-use wiremock::matchers::{method, path};
-use sphare_core_apub::group::{insert_or_update_sphere};
-use sphare_core_apub::person::{get_person_by_actor_id, ApubPerson, DbPerson};
-use sphare_core_common::activity_pub::generate_rsa_keys_pem;
-use sphare_core_sphere::sphere::Sphere;
 use sphare_core_user::role::{PermissionLevel, UserSphereRole};
-use sphare_core_user::user::ssr::get_admin_function_user;
 use sphare_core_user::user::User;
+use sphare_core_user::user::ssr::get_admin_function_user;
+use crate::apub_factory::{get_mock_server_url, mock_apub_persons};
 use crate::common::{create_user_and_get_person, get_db_pool};
 use crate::utils::{get_mocked_apub_sphere, init_local_instance_and_get_apub_config};
 
 mod common;
+mod apub_factory;
 mod data_factory;
 mod utils;
 
@@ -33,7 +33,6 @@ fn test_apub_role(
     assert_eq!(role.username, person.username);
     assert_eq!(role.permission_level, PermissionLevel::Manage);
     assert!(role.delete_timestamp.is_none());
-
 }
 
 #[tokio::test]
@@ -65,40 +64,10 @@ async fn test_community_moderators_from_json() {
     let apub_data = apub_config.to_request_data();
 
     let mock_server = MockServer::start().await;
-    let mock_server_url = Url::parse(&format!("http://localhost:{}", mock_server.address().port())).expect("Mock server uri should be valid");
+    let mock_server_url = get_mock_server_url(&mock_server);
 
     let actor_name_vec = ["alice", "bob"];
-    let actor_id_vec: Vec<ObjectId<ApubPerson>> = actor_name_vec
-        .iter()
-        .map(|name| mock_server_url.join(&format!("/actors/{}", name)).expect("Should join actor path").into())
-        .collect();
-
-    println!("Actor id vec: {actor_id_vec:?}");
-
-    for (name, actor_id) in actor_name_vec.iter().zip(actor_id_vec.iter()) {
-        let (pub_key_pem, _priv_key_pem) = generate_rsa_keys_pem().expect("Should get keys");
-        let actor_json = json!({
-            "id": actor_id.inner().to_string(),
-            "type": "Person",
-            "preferredUsername": name,
-            "inbox": format!("{}/inbox", actor_id),
-            "outbox": format!("{}/outbox", actor_id),
-            "publicKey": {
-                "id": format!("{}/#main-key", actor_id),
-                "owner": actor_id,
-                "publicKeyPem": pub_key_pem,
-            },
-        });
-
-        Mock::given(method("GET"))
-            .and(path(format!("/actors/{}", name)))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_raw(actor_json.to_string(), "application/activity+json")
-            )
-            .mount(&mock_server)
-            .await;
-    }
+    let actor_id_vec: Vec<ObjectId<ApubPerson>> = mock_apub_persons(&actor_name_vec, &mock_server).await;
 
     let group_moderators = GroupModerators {
         r#type: Default::default(),
