@@ -20,7 +20,7 @@ use crate::person::{ApubPerson, DbPerson};
 #[serde(rename_all = "camelCase")]
 pub struct GroupModerators {
     pub r#type: OrderedCollectionType,
-    pub apub_id: Url,
+    pub id: Url,
     pub ordered_items: Vec<ObjectId<ApubPerson>>,
 }
 
@@ -42,7 +42,7 @@ impl Collection for ApubCommunityModerators {
             .collect();
         Ok(GroupModerators {
             r#type: OrderedCollectionType::OrderedCollection,
-            apub_id: generate_moderators_url(&owner.apub_id)?,
+            id: generate_moderators_url(&owner.apub_id)?,
             ordered_items,
         })
     }
@@ -52,7 +52,7 @@ impl Collection for ApubCommunityModerators {
         expected_domain: &Url,
         _data: &Data<Self::DataType>,
     ) -> Result<(), Self::Error> {
-        verify_domains_match(&group_moderators.apub_id, expected_domain)?;
+        verify_domains_match(&group_moderators.id, expected_domain)?;
         Ok(())
     }
 
@@ -75,7 +75,7 @@ impl Collection for ApubCommunityModerators {
 /// use sphare_core_apub::community_moderator::generate_moderators_url;
 ///
 /// let sphere_url = Url::parse("https://www.sphare.space/c/SomeSphere").expect("Should be valid group url");
-/// let sphere_apub_id = sphere_url.clone().into();///
+/// let sphere_apub_id = sphere_url.clone().into();
 /// assert_eq!(generate_moderators_url(&sphere_apub_id).expect("Should generate moderator url").to_string(), "https://www.sphare.space/c/SomeSphere/moderators");
 /// ```
 pub fn generate_moderators_url(sphere_apub_id: &ObjectId<ApubSphere>) -> Result<Url, AppError> {
@@ -115,7 +115,6 @@ pub async fn handle_community_moderators(
     // Fetch moderators
     for new_mod in new_mod_vec {
         let fetch_result = new_mod.dereference(context).await;
-        println!("Dereferenced mod: {fetch_result:?}");
         if let Err(e) = fetch_result {
             log::warn!("Failed to dereference community moderator {}: {}", new_mod.inner(), e);
         }

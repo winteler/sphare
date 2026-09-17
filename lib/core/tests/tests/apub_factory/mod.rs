@@ -18,7 +18,7 @@ pub fn get_mock_server_url(mock_server: &MockServer) -> Url {
 pub async fn mock_apub_group(mock_server: &MockServer) -> Group {
     let mock_server_url = get_mock_server_url(mock_server);
     let group_json = json!({
-        "id": format!("{mock_server_url}/c/tenforward"),
+        "id": format!("{mock_server_url}c/tenforward"),
         "type": "Group",
         "preferredUsername": "tenforward",
         "name": "Ten Forward",
@@ -32,24 +32,24 @@ pub async fn mock_apub_group(mock_server: &MockServer) -> Group {
         "sensitive": false,
         "icon": {
             "type": "Image",
-            "url": format!("{mock_server_url}/pictrs/image/waqyZwLAy4.webp")
+            "url": format!("{mock_server_url}pictrs/image/waqyZwLAy4.webp")
         },
         "image": {
             "type": "Image",
-            "url": format!("{mock_server_url}/pictrs/image/Wt8zoMcCmE.jpg")
+            "url": format!("{mock_server_url}pictrs/image/Wt8zoMcCmE.jpg")
         },
-        "inbox": format!("{mock_server_url}/c/tenforward/inbox"),
-        "followers": format!("{mock_server_url}/c/tenforward/followers"),
-        "attributedTo": format!("{mock_server_url}/c/tenforward/moderators"),
-        "featured": format!("{mock_server_url}/c/tenforward//featured"),
+        "inbox": format!("{mock_server_url}c/tenforward/inbox"),
+        "followers": format!("{mock_server_url}c/tenforward/followers"),
+        "attributedTo": format!("{mock_server_url}c/tenforward/moderators"),
+        "featured": format!("{mock_server_url}c/tenforward//featured"),
         "postingRestrictedToMods": false,
         "endpoints": {
-            "sharedInbox": format!("{mock_server_url}/inbox")
+            "sharedInbox": format!("{mock_server_url}inbox")
         },
-        "outbox": format!("{mock_server_url}/c/tenforward/outbox"),
+        "outbox": format!("{mock_server_url}c/tenforward/outbox"),
         "publicKey": {
-            "id": format!("{mock_server_url}/c/tenforward#main-key"),
-            "owner": format!("{mock_server_url}/c/tenforward"),
+            "id": format!("{mock_server_url}c/tenforward#main-key"),
+            "owner": format!("{mock_server_url}c/tenforward"),
             "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzRjKTNtvDCmugplwEh+g\nx1bhKm6BHUZfXfpscgMMm7tXFswSDzUQirMgfkxa9ubfr1PDFKffA2vQ9x6CyuO/\n70xTafdOHyV1tSqzgKz0ZvFZ/VCOo6qy1mYWVkrtBm/fKzM+87MdkKYB/zI4VyEJ\nLfLQgjwxBAEYUH3CBG71U0gO0TwbimWNN0vqlfp0QfThNe1WYObF88ZVzMLgFbr7\nRHBItZjlZ/d8foPDidlIR3l2dJjy0EsD8F9JM340jtX7LXqFmU4j1AQKNHTDLnUF\nwYVhzuQGNJ504l5LZkFG54XfIFT7dx2QwuuM9bSnfPv/98RYrq1Si6tCkxEt1cVe\n4wIDAQAB\n-----END PUBLIC KEY-----\n"
         },
         "language": [
@@ -65,7 +65,7 @@ pub async fn mock_apub_group(mock_server: &MockServer) -> Group {
         "tag": [
             {
                 "type": "CommunityPostTag",
-                "id": format!("{mock_server_url}/c/tenforward/tag/news"),
+                "id": format!("{mock_server_url}c/tenforward/tag/news"),
                 "preferredUsername": "news"
             }
         ],
@@ -87,23 +87,18 @@ pub async fn mock_apub_group(mock_server: &MockServer) -> Group {
 
 pub async fn mock_apub_group_moderators(
     sphere_apub_id: &ObjectId<ApubSphere>,
-    username_vec: &[&str],
+    actor_id_vec: &[ObjectId<ApubPerson>],
     mock_server: &MockServer
 ) -> GroupModerators {
-    let mock_server_url = get_mock_server_url(mock_server);
-    let actor_id_vec: Vec<ObjectId<ApubPerson>> = username_vec
-        .iter()
-        .map(|name| mock_server_url.join(&format!("/actors/{}", name)).expect("Should join actor path").into())
-        .collect();
     let group_moderator = GroupModerators {
         r#type: Default::default(),
-        apub_id: generate_moderators_url(sphere_apub_id).expect("Should generate moderators url"),
-        ordered_items: actor_id_vec,
+        id: generate_moderators_url(sphere_apub_id).expect("Should generate moderators url"),
+        ordered_items: actor_id_vec.to_vec(),
     };
     let group_moderator_json = serde_json::to_string(&group_moderator).expect("Should serialize group moderators");
 
     Mock::given(method("GET"))
-        .and(path(group_moderator.apub_id.to_string()))
+        .and(path(group_moderator.id.path()))
         .respond_with(
             ResponseTemplate::new(200)
                 .set_body_raw(group_moderator_json.to_string(), "application/activity+json")

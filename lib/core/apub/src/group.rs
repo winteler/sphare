@@ -249,7 +249,7 @@ impl Object for ApubSphere {
 
         let apub_sphere: ApubSphere = sphere.try_into()?;
         if let Err(e) = apub_sphere.load_collections(&json, data).await {
-            log::warn!("Failed to load collections for ApubSphere {}, error: {e}", apub_sphere.apub_id)
+            log::warn!("Failed to load collections for ApubSphere {}, error: {e}", apub_sphere.apub_id);
         }
         Ok(apub_sphere)
     }
