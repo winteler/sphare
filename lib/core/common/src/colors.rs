@@ -2,9 +2,10 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter};
 
 #[repr(i16)]
-#[derive(Clone, Copy, Debug, Display, EnumIter, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Display, EnumIter, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "ssr", derive(sqlx::Type))]
 pub enum Color {
+    #[default]
     None = -1,
     Blue = 0,
     Purple = 1,

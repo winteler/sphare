@@ -451,11 +451,13 @@ pub mod ssr {
     }
 
     pub async fn get_admin_function_user(db_pool: &PgPool) -> Result<User, AppError> {
+        let function_user_type: &'static str = FunctionUserType::AdminBot.into();
         let db_user = sqlx::query_as!(
             DbUser,
             "SELECT u.*, p.username, p.is_nsfw, p.delete_timestamp FROM users u
             JOIN persons p ON p.person_id = u.person_id
-            WHERE u.function_user_type = 'AdminBot'",
+            WHERE u.function_user_type = $1",
+            function_user_type,
         ).fetch_one(db_pool).await?;
         db_user.load_into_user(db_pool).await
     }

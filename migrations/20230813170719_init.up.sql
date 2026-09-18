@@ -187,6 +187,7 @@ CREATE UNIQUE INDEX idx_unique_rule_key ON rules (rule_key)
 
 CREATE TABLE sphere_categories (
     category_id BIGSERIAL PRIMARY KEY,
+    category_apub_id TEXT UNIQUE NOT NULL CHECK (LENGTH(category_apub_id) <= 500),
     sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
     category_name TEXT NOT NULL CHECK (LENGTH(category_name) <= 50),
     category_color SMALLINT NOT NULL,

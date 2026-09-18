@@ -1,3 +1,5 @@
+use sphare_core_user::user::FunctionUserType;
+use sphare_core_user::role::PermissionLevel;
 use activitypub_federation::config::Data;
 use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::kinds::collection::OrderedCollectionType;
@@ -10,8 +12,6 @@ use url::Url;
 use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::routes::append_path_segment_to_url;
-use sphare_core_user::role::PermissionLevel;
-use sphare_core_user::user::ssr::get_admin_function_user;
 
 use crate::group::ApubSphere;
 use crate::person::{ApubPerson, DbPerson};
@@ -119,9 +119,11 @@ pub async fn handle_community_moderators(
             log::warn!("Failed to dereference community moderator {}: {}", new_mod.inner(), e);
         }
     }
-    let functional_user = get_admin_function_user(context.get_db_pool()).await?;
 
     let person_apub_id_vec: Vec<String> = new_mod_vec.iter().map(|i| i.inner().to_string()).collect();
+
+    let permission_level: &'static str = PermissionLevel::Manage.into();
+    let function_user_type: &'static str = FunctionUserType::AdminBot.into();
 
     // Upsert mods and delete those no longer presents
     sqlx::query!(
@@ -138,7 +140,15 @@ pub async fn handle_community_moderators(
         ),
         upserted_mods AS (
             INSERT INTO user_sphere_roles (person_id, sphere_id, permission_level, grantor_id)
-            SELECT u.person_id, s.sphere_id, $3, $4
+            SELECT
+                u.person_id,
+                s.sphere_id,
+                $3,
+                (
+                    SELECT p.person_id FROM persons p
+                    JOIN users u ON u.person_id = p.person_id
+                    WHERE function_user_type = $4
+                )
             FROM user_ids u, remote_sphere s
             ON CONFLICT (sphere_id, person_id) WHERE delete_timestamp IS NULL DO UPDATE
             SET permission_level = EXCLUDED.permission_level,
@@ -150,8 +160,8 @@ pub async fn handle_community_moderators(
         "#,
         &person_apub_id_vec,
         community.apub_id.inner().to_string(),
-        PermissionLevel::Manage.to_string(),
-        functional_user.user_id,
+        permission_level,
+        function_user_type,
     )
         .execute(context.get_db_pool())
         .await?;

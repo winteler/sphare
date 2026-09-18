@@ -150,12 +150,12 @@ pub fn get_sphere_path(
 }
 
 /// # Returns the link to a sphere given its name
-pub fn get_sphere_link(
+pub fn get_sphere_url(
     sphere_name: &str,
-) -> Result<String, AppError> {
+) -> Result<Url, AppError> {
     let base_url = get_app_origin().unwrap_or_default();
     let sphere_path = get_sphere_path(sphere_name);
-    let sphere_url = url::Url::parse(&base_url)?.join(&sphere_path)?.to_string();
+    let sphere_url = Url::parse(&base_url)?.join(&sphere_path)?;
     Ok(sphere_url)
 }
 
