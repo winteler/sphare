@@ -131,7 +131,8 @@ async fn test_apub_sphere_object_into_json() {
         "sensitive": false,
         "inbox": "https://www.sphare.space/inbox",
         "outbox": "https://www.sphare.space/c/SomeSphere/outbox",
-        "language": []
+        "language": [],
+        "tags": [],
     });
     assert_eq!(
         serde_json::to_string(&group_json).expect("Should serialize Group json"),

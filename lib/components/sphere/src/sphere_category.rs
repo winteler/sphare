@@ -225,6 +225,7 @@ mod tests {
     fn test_get_sphere_category_header_map() {
         let category_1 = SphereCategory {
             category_id: 0,
+            category_apub_id: String::new(),
             sphere_id: 0,
             category_name: "a".to_string(),
             category_color: Color::None,
@@ -236,6 +237,7 @@ mod tests {
         };
         let category_2 = SphereCategory {
             category_id: 1,
+            category_apub_id: String::new(),
             sphere_id: 1,
             category_name: "b".to_string(),
             category_color: Color::None,

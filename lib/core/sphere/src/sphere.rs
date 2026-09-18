@@ -57,7 +57,7 @@ pub mod ssr {
     use sphare_core_common::constants::{MAX_SPHERE_DESCRIPTION_LENGTH};
     use sphare_core_common::errors::AppError;
     use sphare_core_common::errors::AppError::InternalServerError;
-    use sphare_core_common::routes::{get_apub_shared_inbox, get_sphere_link, get_sphere_path, ACTIVITY_PUB_MODERATORS_PATH, ACTIVITY_PUB_FOLLOWERS_PATH};
+    use sphare_core_common::routes::{get_apub_shared_inbox, get_sphere_url, get_sphere_path, ACTIVITY_PUB_MODERATORS_PATH, ACTIVITY_PUB_FOLLOWERS_PATH};
     use sphare_core_user::role::ssr::init_sphere_leader;
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
@@ -203,7 +203,7 @@ pub mod ssr {
         user.check_can_publish()?;
         check_sphere_name(name)?;
 
-        let sphere_link = get_sphere_link(name)?;
+        let sphere_link = get_sphere_url(name)?.to_string();
         // TODO store private key
         let (pub_key_pem, _priv_key_pem) = generate_rsa_keys_pem()?;
 

@@ -26,11 +26,13 @@ use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::ssr::get_or_insert_instance;
 use sphare_core_common::to_app_error;
 use sphare_core_sphere::sphere::Sphere;
+use sphare_core_sphere::sphere_category::ssr::get_sphere_category_vec;
 use sphare_core_user::role::{AdminRole};
 use sphare_core_user::user::ssr::get_admin_function_user;
 use sphare_core_user::user::User;
 use crate::community_moderator::{handle_community_moderators, ApubCommunityModerators};
 use crate::person::ApubPerson;
+use crate::tag::ApubCommunityTag;
 use crate::utils::{generate_outbox_url, Endpoints, ImageObject, LanguageTag, Source};
 
 #[skip_serializing_none]
@@ -77,6 +79,8 @@ pub struct Group {
     pub updated: Option<DateTime<Utc>>,
     /// https://docs.joinmastodon.org/spec/activitypub/#discoverable
     pub(crate) discoverable: Option<bool>,
+    #[serde(deserialize_with = "deserialize_skip_error", default)]
+    pub(crate) tags: Vec<ApubCommunityTag>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -204,7 +208,9 @@ impl Object for ApubSphere {
         Ok(sphere)
     }
 
-    async fn into_json(self, _data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
+    async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
+        let sphere_category_vec = get_sphere_category_vec(&self.name, data.app_data().get_db_pool()).await?;
+        let tags = sphere_category_vec.into_iter().filter_map(|sphere_category| sphere_category.try_into().ok()).collect();
         Ok(Self::Kind {
             kind: Default::default(),
             id: self.apub_id.clone(),
@@ -231,6 +237,7 @@ impl Object for ApubSphere {
             published: None,
             updated: None,
             discoverable: None,
+            tags,
         })
     }
 

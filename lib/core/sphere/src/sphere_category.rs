@@ -7,6 +7,7 @@ use sphare_core_common::common::SphereCategoryHeader;
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct SphereCategory {
     pub category_id: i64,
+    pub category_apub_id: String,
     pub sphere_id: i64,
     pub category_name: String,
     pub category_color: Color,
@@ -38,16 +39,27 @@ impl From<&SphereCategory> for SphereCategoryHeader {
 #[cfg(feature = "ssr")]
 pub mod ssr {
     use sqlx::PgPool;
+    use url::Url;
     use sphare_core_common::checks::{check_sphere_name, check_string_length};
     use sphare_core_common::colors::Color;
     use sphare_core_common::constants::{MAX_CATEGORY_DESCRIPTION_LENGTH, MAX_CATEGORY_NAME_LENGTH};
     use sphare_core_common::errors::AppError;
+    use sphare_core_common::routes::{append_path_segment_to_url, get_sphere_url};
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
 
     use crate::sphere_category::SphereCategory;
 
     pub const CATEGORY_NOT_DELETED_STR: &str = "Category was not deleted, it either doesn't exist or is used.";
+
+    pub fn get_sphere_category_apub_id(
+        sphere_name: &str,
+        category_name: &str,
+    ) -> Result<Url, AppError> {
+        let sphere_url = get_sphere_url(sphere_name)?;
+        let sphere_category_url = append_path_segment_to_url(sphere_url, &format!("category/{}", category_name));
+        Ok(sphere_category_url)
+    }
 
     pub async fn get_sphere_category_vec(
         sphere_name: &str,
@@ -85,16 +97,18 @@ pub mod ssr {
         let category = sqlx::query_as!(
             SphereCategory,
             "INSERT INTO sphere_categories
-            (sphere_id, category_name, category_color, description, is_active, creator_id)
+            (category_apub_id, sphere_id, category_name, category_color, description, is_active, creator_id)
             VALUES (
-                (SELECT sphere_id FROM spheres WHERE sphere_name = $1),
-                $2, $3, $4, $5, $6
+                $1,
+                (SELECT sphere_id FROM spheres WHERE sphere_name = $2),
+                $3, $4, $5, $6, $7
             ) ON CONFLICT (sphere_id, category_name) DO UPDATE
                 SET description = EXCLUDED.description,
                     category_color = EXCLUDED.category_color,
                     is_active = EXCLUDED.is_active,
                     timestamp = NOW()
             RETURNING *",
+            get_sphere_category_apub_id(sphere_name, category_name)?.to_string(),
             sphere_name,
             category_name,
             category_color as i32,
