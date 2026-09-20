@@ -7,8 +7,8 @@ use sphare_core_apub::group::{get_sphere_by_apub_id, insert_or_update_sphere, Ap
 use sphare_core_apub::person::ApubPerson;
 use sphare_core_sphere::sphere::ssr::create_sphere;
 use sphare_core_user::user::ssr::get_admin_function_user;
-use crate::apub_factory::{mock_apub_group, mock_apub_group_moderators, mock_apub_persons};
-use crate::apub_utils::test_sphere_role_vec;
+use crate::apub_factory::{get_apub_community_tag, get_mock_server_url, mock_apub_group, mock_apub_group_moderators, mock_apub_persons};
+use crate::apub_utils::{test_sphere_category_vec, test_sphere_role_vec};
 use crate::common::{create_test_user, get_db_pool};
 use crate::utils::{get_apub_sphere, init_local_instance_and_get_apub_config};
 
@@ -174,6 +174,7 @@ async fn test_apub_sphere_object_from_json() {
     let sphere = get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(apub_sphere, sphere.clone().try_into().expect("Should convert to ApubSphere"));
     test_sphere_role_vec(&sphere, &mod_name_vec[0..2], &mod_apub_id_vec[0..2], &db_pool).await;
+    test_sphere_category_vec(&sphere, &group.tags, &db_pool).await;
 
     mock_server.reset().await;
 
@@ -181,9 +182,11 @@ async fn test_apub_sphere_object_from_json() {
     mock_apub_group_moderators(&group.id, &mod_apub_id_vec[1..3], &mock_server).await;
 
     group.preferred_username = String::from("updated_username");
+    group.tags.push(get_apub_community_tag("funny", "For funny content", &get_mock_server_url(&mock_server)));
 
     let updated_apub_sphere = ApubSphere::from_json(group.clone(), &apub_data).await.expect("Should get sphere");
     let sphere = get_sphere_by_apub_id(group.id.inner(), &db_pool).await.expect("Should get option").expect("Sphere should be some");
     assert_eq!(updated_apub_sphere, sphere.clone().try_into().expect("Should convert to ApubSphere"));
     test_sphere_role_vec(&sphere, &mod_name_vec[1..3], &mod_apub_id_vec[1..3], &db_pool).await;
+    test_sphere_category_vec(&sphere, &group.tags, &db_pool).await;
 }

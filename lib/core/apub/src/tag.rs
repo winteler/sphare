@@ -7,7 +7,6 @@ use sphare_core_common::colors::Color;
 use sphare_core_common::errors::AppError;
 use sphare_core_sphere::sphere_category::SphereCategory;
 use sphare_core_user::user::FunctionUserType;
-use crate::group::Group;
 
 /// Possible values in the `tag` field of a federated post or comment. Note that we don't support
 /// hashtags or community tags in comments, but its easier to use the same struct for both
@@ -35,8 +34,8 @@ pub struct ApubCommunityTag {
     #[serde(rename = "type")]
     kind: CommunityTagType,
     pub id: Url,
-    pub name: Option<String>,
-    pub preferred_username: String,
+    pub name: String,
+    pub display_name: Option<String>,
     pub content: Option<String>,
     pub color: Option<Color>,
 }
@@ -47,8 +46,8 @@ impl TryFrom<SphereCategory> for ApubCommunityTag {
     fn try_from(value: SphereCategory) -> Result<Self, Self::Error> {
         Ok(Self {
             id: Url::parse(&value.category_apub_id)?,
-            name: None,
-            preferred_username: value.category_name,
+            name: value.category_name,
+            display_name: None,
             content: Some(value.description),
             color: Some(value.category_color),
             kind: Default::default(),
@@ -57,14 +56,15 @@ impl TryFrom<SphereCategory> for ApubCommunityTag {
 }
 
 pub async fn load_group_categories(
-    group: &Group,
+    sphere_apub_id: &Url,
+    community_tag_vec: &[ApubCommunityTag],
     context: &Data<ApubHelper>,
 ) -> Result<(), AppError> {
 
-    let apub_id_vec: Vec<String> = group.tags.iter().map(|t| t.id.to_string()).collect();
-    let category_name_vec: Vec<String> = group.tags.iter().map(|t| t.preferred_username.clone()).collect();
-    let color_vec: Vec<i16> = group.tags.iter().map(|t| t.color.unwrap_or_default() as i16).collect();
-    let description_vec: Vec<String> = group.tags.iter().map(|t| t.content.clone().unwrap_or_default()).collect();
+    let apub_id_vec: Vec<String> = community_tag_vec.iter().map(|t| t.id.to_string()).collect();
+    let category_name_vec: Vec<String> = community_tag_vec.iter().map(|t| t.name.clone()).collect();
+    let color_vec: Vec<i16> = community_tag_vec.iter().map(|t| t.color.unwrap_or_default() as i16).collect();
+    let description_vec: Vec<String> = community_tag_vec.iter().map(|t| t.content.clone().unwrap_or_default()).collect();
 
     let function_user_type: &'static str = FunctionUserType::AdminBot.into();
 
@@ -112,7 +112,7 @@ pub async fn load_group_categories(
         &category_name_vec,
         &color_vec,
         &description_vec,
-        group.id.inner().to_string(),
+        sphere_apub_id.to_string(),
         function_user_type,
     )
         .execute(context.get_db_pool())
@@ -143,8 +143,8 @@ mod tests {
         };
 
         let apub_community_tag = ApubCommunityTag::try_from(sphere_category.clone()).expect("Should convert SphereCategory to ApubCommunityTag");
-        assert_eq!(apub_community_tag.preferred_username, sphere_category.category_name);
-        assert_eq!(apub_community_tag.name, None);
+        assert_eq!(apub_community_tag.name, sphere_category.category_name);
+        assert_eq!(apub_community_tag.display_name, None);
         assert_eq!(apub_community_tag.content, Some(sphere_category.description));
         assert_eq!(apub_community_tag.color, Some(sphere_category.category_color));
         assert_eq!(apub_community_tag.kind, CommunityTagType::default());

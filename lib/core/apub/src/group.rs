@@ -32,7 +32,7 @@ use sphare_core_user::user::ssr::get_admin_function_user;
 use sphare_core_user::user::User;
 use crate::community_moderator::{handle_community_moderators, ApubCommunityModerators};
 use crate::person::ApubPerson;
-use crate::tag::ApubCommunityTag;
+use crate::tag::{load_group_categories, ApubCommunityTag};
 use crate::utils::{generate_outbox_url, Endpoints, ImageObject, LanguageTag, Source};
 
 #[skip_serializing_none]
@@ -80,7 +80,7 @@ pub struct Group {
     /// https://docs.joinmastodon.org/spec/activitypub/#discoverable
     pub(crate) discoverable: Option<bool>,
     #[serde(deserialize_with = "deserialize_skip_error", default)]
-    pub(crate) tags: Vec<ApubCommunityTag>,
+    pub tags: Vec<ApubCommunityTag>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -119,11 +119,11 @@ impl ApubSphere {
         }
     }
 
-    pub async fn load_collections(&self, group: &Group, context: &Data<ApubHelper>) -> Result<(), AppError> {
+    async fn load_collections(&self, group: &Group, context: &Data<ApubHelper>) -> Result<(), AppError> {
         self.load_moderators(group, context).await?;
+        load_group_categories(group.id.inner(), &group.tags, context).await?;
         // pinned posts
         // initial content
-        // categories
         Ok(())
     }
 
@@ -344,7 +344,7 @@ mod tests {
             icon: None,
             banner: None,
             is_nsfw: false,
-            inbox: Url::parse("https://www.sphare.space/inbox").expect("Should be valid inbox").into(),
+            inbox: Url::parse("https://www.sphare.space/inbox").expect("Should be valid inbox"),
             public_key: pub_key_pem,
             private_key: Some(priv_key),
         }

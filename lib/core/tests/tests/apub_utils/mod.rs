@@ -1,8 +1,12 @@
+#![allow(dead_code)]
+
 use activitypub_federation::fetch::object_id::ObjectId;
 use sqlx::PgPool;
 
 use sphare_core_apub::person::{get_person_by_actor_id, DbPerson, ApubPerson};
+use sphare_core_apub::tag::ApubCommunityTag;
 use sphare_core_sphere::sphere::Sphere;
+use sphare_core_sphere::sphere_category::ssr::get_sphere_category_vec;
 use sphare_core_user::role::{PermissionLevel, UserSphereRole};
 use sphare_core_user::role::ssr::get_sphere_role_vec;
 
@@ -36,5 +40,27 @@ pub async fn test_sphere_role_vec(
         assert_eq!(person.username, *username);
 
         test_moderator(&person, sphere, &sphere_mod_vec);
+    }
+}
+
+pub async fn test_sphere_category_vec(
+    sphere: &Sphere,
+    expected_sphere_categories: &[ApubCommunityTag],
+    db_pool: &PgPool,
+) {
+    println!("Testing sphere categories {expected_sphere_categories:?}");
+    let sphere_category_vec = get_sphere_category_vec(&sphere.sphere_name, db_pool).await.expect("Should get sphere categories");
+    assert_eq!(sphere_category_vec.len(), expected_sphere_categories.len());
+
+    // Test persons and corresponding roles were created
+    for expected_category in expected_sphere_categories {
+        let sphere_category = sphere_category_vec.iter().find(
+            |category| category.category_apub_id == expected_category.id.to_string()
+        ).expect("Should find sphere category");
+        println!("Testing sphere category {} with apub id {}", sphere_category.category_name, sphere_category.category_apub_id);
+        assert_eq!(sphere_category.category_apub_id, expected_category.id.to_string());
+        assert_eq!(sphere_category.category_name, expected_category.name);
+        assert_eq!(sphere_category.description, expected_category.content.clone().unwrap_or_default());
+        assert_eq!(sphere_category.category_color, expected_category.color.unwrap_or_default());
     }
 }

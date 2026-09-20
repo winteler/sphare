@@ -9,6 +9,7 @@ use wiremock::matchers::{method, path};
 use sphare_core_apub::community_moderator::{generate_moderators_url, GroupModerators};
 use sphare_core_apub::group::{ApubSphere, Group};
 use sphare_core_apub::person::ApubPerson;
+use sphare_core_apub::tag::ApubCommunityTag;
 use sphare_core_common::activity_pub::generate_rsa_keys_pem;
 
 pub fn get_mock_server_url(mock_server: &MockServer) -> Url {
@@ -62,11 +63,11 @@ pub async fn mock_apub_group(mock_server: &MockServer) -> Group {
                 "name": "Deutsch"
             }
         ],
-        "tag": [
+        "tags": [
             {
                 "type": "CommunityPostTag",
                 "id": format!("{mock_server_url}c/tenforward/tag/news"),
-                "preferredUsername": "news"
+                "name": "news",
             }
         ],
         "published": "2019-06-02T16:43:50.799554Z",
@@ -145,4 +146,20 @@ pub async fn mock_apub_persons(
     }
 
     actor_ids
+}
+
+pub fn get_apub_community_tag(
+    category_name: &str,
+    category_description: &str,
+    sphere_apub_id: &Url
+) -> ApubCommunityTag {
+    let tag_json = json!(
+        {
+            "type": "CommunityPostTag",
+            "id": format!("{sphere_apub_id}/tag/{category_name}"),
+            "name": category_name,
+            "content": category_description,
+        }
+    );
+    serde_json::from_value(tag_json).expect("Should deserialize community tag")
 }
