@@ -28,6 +28,7 @@ pub struct Post {
     pub satellite_id: Option<i64>,
     pub creator_id: i64,
     pub creator_name: String,
+    pub creator_apub_id: String,
     pub is_creator_moderator: bool,
     pub moderator_message: Option<String>,
     pub infringed_rule_id: Option<i64>,
@@ -244,7 +245,8 @@ pub mod ssr {
         let post = sqlx::query_as::<_, Post>(
             "SELECT
                 p.*,
-                COALESCE(pe.username, '') as creator_name,
+                pe.username as creator_name,
+                pe.actor_id as creator_apub_id,
                 m.username as moderator_name,
                 r.title as infringed_rule_title,
                 r.sphere_id IS NOT NULL AS is_sphere_rule
@@ -270,7 +272,8 @@ pub mod ssr {
 
         let post_join_vote = sqlx::query_as::<_, PostJoinInfo>(
             "SELECT p.*,
-                COALESCE(pe.username, '') as creator_name,
+                pe.username as creator_name,
+                pe.actor_id as creator_apub_id,
                 m.username as moderator_name,
                 r.title as infringed_rule_title,
                 r.sphere_id IS NOT NULL AS is_sphere_rule,
@@ -283,7 +286,7 @@ pub mod ssr {
                 v.value,
                 v.timestamp as vote_timestamp
             FROM posts p
-            LEFT JOIN persons pe ON pe.person_id = p.creator_id AND p.delete_timestamp IS NULL
+            JOIN persons pe ON pe.person_id = p.creator_id AND p.delete_timestamp IS NULL
             LEFT JOIN persons m ON m.person_id = p.moderator_id AND p.delete_timestamp IS NULL
             LEFT JOIN rules r ON r.rule_id = p.infringed_rule_id AND p.delete_timestamp IS NULL
             LEFT JOIN sphere_categories c on c.category_id = p.category_id
@@ -309,6 +312,7 @@ pub mod ssr {
             "SELECT
                 p.*,
                 pe.username AS creator_name,
+                pe.actor_id as creator_apub_id,
                 c.category_name,
                 c.category_color,
                 s.icon_url AS sphere_icon_url,
@@ -360,7 +364,7 @@ pub mod ssr {
         let post_vec = sqlx::query_as::<_, Post>(
             AssertSqlSafe(format!(
                 "WITH base_posts AS NOT MATERIALIZED (
-                    SELECT p.*, pe.username as creator_name
+                    SELECT p.*, pe.username as creator_name, pe.actor_id as creator_apub_id
                     FROM posts p
                     JOIN persons pe ON pe.person_id = p.creator_id
                     JOIN spheres s on s.sphere_id = p.sphere_id
@@ -428,7 +432,7 @@ pub mod ssr {
         let post_vec = sqlx::query_as::<_, Post>(
             AssertSqlSafe(format!(
                 "WITH base_posts AS NOT MATERIALIZED (
-                    SELECT p.*, pe.username as creator_name
+                    SELECT p.*, pe.username as creator_name, pe.actor_id as creator_apub_id
                     FROM posts p
                     JOIN persons pe ON pe.person_id = p.creator_id
                     JOIN satellites s ON s.satellite_id = p.satellite_id
@@ -510,6 +514,7 @@ pub mod ssr {
                 "SELECT
                     p.*,
                     pe.username as creator_name,
+                    pe.actor_id as creator_apub_id,
                     c.category_name,
                     c.category_color,
                     s.icon_url as sphere_icon_url,
@@ -560,6 +565,7 @@ pub mod ssr {
                 "SELECT
                     p.*,
                     pe.username AS creator_name,
+                    pe.actor_id as creator_apub_id,
                     c.category_name,
                     c.category_color,
                     s.icon_url AS sphere_icon_url,
@@ -616,6 +622,7 @@ pub mod ssr {
                     SELECT
                         p.*,
                         pe.username as creator_name,
+                        pe.actor_id as creator_apub_id,
                         c.category_name,
                         c.category_color,
                         s.icon_url as sphere_icon_url,
@@ -749,7 +756,15 @@ pub mod ssr {
                         $14, $15, $16, $17
                 ) RETURNING *
             )
-            SELECT *, $18 as creator_name FROM new_post",
+            SELECT
+                *,
+                $18 as creator_name,
+                (
+                    SELECT p.actor_id as creator_apub_id FROM persons p
+                    JOIN users u ON u.person_id = p.person_id
+                    WHERE u.user_id = $19
+                )
+            FROM new_post",
         )
             .bind(post_id)
             .bind(get_post_link(sphere_name, satellite_id, post_id)?)
@@ -769,6 +784,7 @@ pub mod ssr {
             .bind(user.person_id)
             .bind(user.check_sphere_permissions_by_name(sphere_name, PermissionLevel::Moderate).is_ok())
             .bind(user.username.clone())
+            .bind(user.user_id)
             .fetch_one(db_pool)
             .await?;
 
@@ -867,7 +883,14 @@ pub mod ssr {
                     delete_timestamp IS NULL
                 RETURNING *
             )
-            SELECT *, $14 as creator_name
+            SELECT
+                *,
+                $14 as creator_name,
+                (
+                    SELECT p.actor_id FROM persons p
+                    JOIN users u ON u.person_id = p.person_id
+                    WHERE u.username = $19
+                )
             FROM updated_post",
         )
             .bind(post_title)
@@ -917,7 +940,7 @@ pub mod ssr {
                     moderator_id IS NULL
                 RETURNING *
             )
-            SELECT *, '' AS creator_name
+            SELECT *, '' AS creator_name, '' AS creator_apub_id
             FROM deleted_post"
         )
             .bind(post_id)
@@ -1095,6 +1118,7 @@ mod tests {
             satellite_id: None,
             creator_id: 0,
             creator_name: String::default(),
+            creator_apub_id: String::default(),
             is_creator_moderator: false,
             moderator_message: None,
             infringed_rule_id: None,

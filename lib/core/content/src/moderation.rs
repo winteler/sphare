@@ -132,6 +132,7 @@ pub mod ssr {
                 SELECT
                     mp.*,
                     p.username as creator_name,
+                    p.actor_id as creator_apub_id,
                     $5 as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule
@@ -168,6 +169,7 @@ pub mod ssr {
                 SELECT
                     mp.*,
                     p.username as creator_name,
+                    p.actor_id as creator_apub_id,
                     $5 as moderator_name,
                     r.title as infringed_rule_title,
                     r.sphere_id IS NOT NULL AS is_sphere_rule

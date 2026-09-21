@@ -4,8 +4,8 @@ use sphare_core_apub::tag::load_group_categories;
 use sphare_core_sphere::sphere::ssr::create_sphere;
 use crate::apub_factory::get_apub_community_tag;
 use crate::apub_utils::test_sphere_category_vec;
-use crate::common::{create_test_user, create_user, get_db_pool};
-use crate::utils::{get_apub_sphere, init_local_instance_and_get_apub_config};
+use crate::common::{create_test_user, get_db_pool};
+use crate::utils::{init_local_instance_and_get_apub_config};
 
 mod apub_factory;
 mod apub_utils;
