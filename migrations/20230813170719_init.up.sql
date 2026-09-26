@@ -125,6 +125,7 @@ CREATE TABLE local_sphere_infos (
 
 CREATE TABLE satellites (
     satellite_id BIGSERIAL PRIMARY KEY,
+    satellite_apub_id TEXT UNIQUE NOT NULL CHECK (LENGTH(satellite_apub_id) <= 500),
     satellite_name TEXT NOT NULL CHECK (LENGTH(satellite_name) <= 50),
     sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
     body TEXT NOT NULL CHECK (markdown_body IS NOT NULL OR LENGTH(body) <= 20000),

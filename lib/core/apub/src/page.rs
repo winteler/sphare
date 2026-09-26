@@ -79,7 +79,6 @@ pub struct Page {
     // If there is inReplyTo field this is actually a comment and must not be parsed
     #[serde(deserialize_with = "deserialize_skip_error", default)]
     pub(crate) in_reply_to: Option<String>,
-
     pub(crate) name: Option<String>,
     #[serde(deserialize_with = "deserialize_one_or_many", default)]
     pub(crate) cc: Vec<Url>,
@@ -97,6 +96,7 @@ pub struct Page {
     pub(crate) updated: Option<DateTime<Utc>>,
     pub(crate) language: Option<LanguageTag>,
     pub(crate) audience: Option<ObjectId<ApubSphere>>,
+    // TODO add field for sattelite
     /// Contains hashtags and post tags.
     /// https://www.w3.org/TR/activitystreams-vocabulary/#dfn-tag
     #[serde(deserialize_with = "deserialize_skip_error", default)]
@@ -188,6 +188,7 @@ impl Object for ApubPost {
         _data: &Data<Self::DataType>,
     ) -> Result<(), Self::Error> {
         verify_domains_match(json.id.inner(), expected_domain).map_err(to_app_error!("Failed domain verification"))?;
+        json.check_valid_post()?;
         Ok(())
     }
 
@@ -195,6 +196,24 @@ impl Object for ApubPost {
         let function_user = get_admin_function_user(data.app_data().get_db_pool()).await?;
         let post = insert_or_update_post(&json, &function_user, data.app_data().get_db_pool()).await?;
         Ok(post.try_into()?)
+    }
+}
+
+impl Page {
+    pub fn check_valid_post(&self) -> Result<(), AppError> {
+        match self.name {
+            None | Some(name) if name.is_empty() => return Err(AppError::new("Invalid apub post: title missing.")),
+            _ => ()
+        };
+        self.check_valid_post_content()
+    }
+
+    fn check_valid_post_content(&self) -> Result<(), AppError> {
+        match (self.content, self.media_type) {
+            (None, _) | (Some(content), _) if content.is_empty() => Err(AppError::new("Post without content, abort load.")),
+            (_, None) | (_, Some(MediaTypeMarkdownOrHtml::Markdown)) => Ok(()),
+            (_, Some(MediaTypeMarkdownOrHtml::Html)) => Err(AppError::new("Post with html content, abort load."))
+        }
     }
 }
 
@@ -222,18 +241,15 @@ pub async fn insert_or_update_post(
     db_pool: &PgPool,
 ) -> Result<PostJoinApubInfo, AppError> {
     // TODO dereference sphere, sphere category and person(s)
-    let post_id: i64 = sqlx::query_scalar!("SELECT nextval('posts_post_id_seq')")
-        .fetch_one(db_pool)
-        .await?.ok_or(AppError::new("Got null for next post id."))?;
 
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
         "WITH upserted_post AS (
                 INSERT INTO posts (
-                    post_id, post_apub_id, title, body, markdown_body, link_type, link_url, link_embed, link_thumbnail_url, is_nsfw, is_spoiler, category_id,
+                    post_apub_id, title, body, markdown_body, link_type, link_url, link_embed, link_thumbnail_url, is_nsfw, is_spoiler, category_id,
                     sphere_id, satellite_id, is_pinned, creator_id, is_creator_moderator
                 )
                 VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    $1, $2, $3, $4, $5, $6, $7, $8,
                     (
                         CASE
                             WHEN $10 THEN TRUE
@@ -283,7 +299,9 @@ pub async fn insert_or_update_post(
             JOIN spheres s ON p.sphere_id = s.sphere_id
             LEFT JOIN sphere_categories sc ON p.sphere_id = sc.category_id",
     )
-        .bind(post_id)
+        .bind(page.id.inner().to_string())
+        .bind(page.name.ok_or(AppError::new("Apub post is missing a title."))?)
+        .bind(page.content.ok_or(AppError::new("Apub post is missing a title."))?)
         .fetch_one(db_pool)
         .await?;
 

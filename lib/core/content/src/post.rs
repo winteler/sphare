@@ -718,6 +718,7 @@ pub mod ssr {
             user.check_sphere_permissions_by_name(sphere_name, PermissionLevel::Moderate)?;
         }
 
+        // Generate post id so that its apub id can already be compute
         let post_id: i64 = sqlx::query_scalar!("SELECT nextval('posts_post_id_seq')")
             .fetch_one(db_pool)
             .await?.ok_or(AppError::new("Got null for next post id."))?;
