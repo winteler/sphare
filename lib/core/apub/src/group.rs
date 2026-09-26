@@ -130,7 +130,7 @@ impl ApubSphere {
     async fn load_moderators(&self, group: &Group, context: &Data<ApubHelper>) -> Result<(), AppError> {
         if let Some(moderators) = &group.attributed_to {
             if let AttributedTo::Forum(f) = moderators {
-                let moderators: CollectionId<ApubCommunityModerators> = f.moderators().into();
+                let moderators: CollectionId<ApubCommunityModerators> = f.url().into();
                 moderators.dereference(self, context).await?;
             } else if let AttributedTo::Peertube(p) = moderators {
                 let new_mods = p

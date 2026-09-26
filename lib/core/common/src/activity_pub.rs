@@ -59,7 +59,7 @@ impl From<Url> for PersonOrGroupModerators {
 }
 
 impl PersonOrGroupModerators {
-    pub fn moderators(&self) -> Url {
+    pub fn url(&self) -> Url {
         self.deref().clone()
     }
 }

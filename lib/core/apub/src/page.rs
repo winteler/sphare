@@ -2,14 +2,13 @@ use activitypub_federation::protocol::helpers::deserialize_one_or_many;
 use activitypub_federation::{
     config::Data,
     fetch::object_id::ObjectId,
-    kinds::{object::PageType},
     protocol::{
         helpers::{deserialize_skip_error},
         verification::verify_domains_match
     },
     traits::Object,
 };
-use activitypub_federation::kinds::link::LinkType;
+use activitypub_federation::kinds::link::LinkType as ApubLinkType;
 use activitypub_federation::kinds::object::{DocumentType, ImageType};
 use activitypub_federation::protocol::values::MediaTypeMarkdownOrHtml;
 use chrono::{DateTime, Utc};
@@ -17,24 +16,33 @@ use serde::{Deserialize, Serialize};
 use serde_with::{skip_serializing_none};
 use sqlx::PgPool;
 use url::Url;
-use sphare_core_common::activity_pub::{ApubHelper, AttributedTo};
+use sphare_core_common::activity_pub::{ApubHelper, AttributedTo, PersonOrGroupType};
+use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::to_app_error;
+use sphare_core_content::embed::{Link, LinkType};
 use sphare_core_content::post::Post;
-use sphare_core_user::user::ssr::get_admin_function_user;
-use sphare_core_user::user::User;
+use sphare_core_sphere::sphere_category::SphereCategory;
 use crate::group::{ApubSphere};
 use crate::person::ApubPerson;
 use crate::tag::ApubTag;
 use crate::utils::{ImageObject, LanguageTag, Source};
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum PageType {
+    Page,
+    Article,
+    Note,
+    Video,
+    Event,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApubLink {
     href: Url,
     media_type: Option<String>,
-    r#type: LinkType,
+    r#type: ApubLinkType,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -92,6 +100,7 @@ pub struct Page {
     pub(crate) attachment: Vec<Attachment>,
     pub(crate) image: Option<ImageObject>,
     pub(crate) sensitive: Option<bool>,
+    pub(crate) spoiler: Option<bool>,
     pub(crate) published: Option<DateTime<Utc>>,
     pub(crate) updated: Option<DateTime<Utc>>,
     pub(crate) language: Option<LanguageTag>,
@@ -160,7 +169,7 @@ impl Object for ApubPost {
     async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
         let creator = self.person_id.dereference_local(data).await.map_err(to_app_error!("Failed domain verification"))?;
         Ok(Page {
-            kind: Default::default(),
+            kind: PageType::Page,
             id: self.apub_id,
             attributed_to: AttributedTo::Forum(creator.apub_id.inner().clone().into()),
             to: vec![],
@@ -173,6 +182,7 @@ impl Object for ApubPost {
             attachment: vec![],
             image: None,
             sensitive: None,
+            spoiler: None,
             published: None,
             updated: None,
             language: None,
@@ -193,27 +203,93 @@ impl Object for ApubPost {
     }
 
     async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
-        let function_user = get_admin_function_user(data.app_data().get_db_pool()).await?;
-        let post = insert_or_update_post(&json, &function_user, data.app_data().get_db_pool()).await?;
+        let creator = json.creator()?.dereference(data).await?;
+        let apub_sphere = json.apub_sphere_id()?.dereference(data).await?;
+        let post = insert_or_update_post(&json, &creator, &apub_sphere, data.app_data().get_db_pool()).await?;
         Ok(post.try_into()?)
     }
 }
 
 impl Page {
     pub fn check_valid_post(&self) -> Result<(), AppError> {
-        match self.name {
-            None | Some(name) if name.is_empty() => return Err(AppError::new("Invalid apub post: title missing.")),
-            _ => ()
-        };
+        self.check_is_post()?;
+        self.check_valid_post_title()?;
         self.check_valid_post_content()
     }
 
+    fn check_is_post(&self) -> Result<(), AppError> {
+        match self.in_reply_to {
+            Some(_) => Err(AppError::new("Page is a comment, not a post.")),
+            None => Ok(()),
+        }
+    }
+
+    fn check_valid_post_title(&self) -> Result<(), AppError> {
+        match &self.name {
+            None => Err(AppError::new("Invalid apub post: title missing.")),
+            Some(name) if name.is_empty() => Err(AppError::new("Invalid apub post: title missing.")),
+            _ => Ok(())
+        }
+    }
+
     fn check_valid_post_content(&self) -> Result<(), AppError> {
-        match (self.content, self.media_type) {
-            (None, _) | (Some(content), _) if content.is_empty() => Err(AppError::new("Post without content, abort load.")),
+        match (&self.content, &self.media_type) {
+            (None, _) => Err(AppError::new("Post without content, abort load.")),
+            (Some(content), _) if content.is_empty() => Err(AppError::new("Post without content, abort load.")),
             (_, None) | (_, Some(MediaTypeMarkdownOrHtml::Markdown)) => Ok(()),
             (_, Some(MediaTypeMarkdownOrHtml::Html)) => Err(AppError::new("Post with html content, abort load."))
         }
+    }
+
+    pub fn get_html_and_markdown_content(&self) -> Result<(String, Option<&str>), AppError> {
+        match (&self.content, &self.media_type) {
+            (Some(content), None) => Ok((content.clone(), None)),
+            (Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) => {
+                get_html_and_markdown_strings(&content, true)
+            },
+            (Some(_), Some(MediaTypeMarkdownOrHtml::Html)) => Err(AppError::new("Html content is not accepted.")),
+            (None, _) => Err(AppError::new("Post without content, cannot get bodies.")),
+        }
+    }
+
+    pub fn creator(&self) -> Result<ObjectId<ApubPerson>, AppError> {
+        match &self.attributed_to {
+            AttributedTo::Forum(l) => Ok(l.url().into()),
+            AttributedTo::Peertube(p) => p
+                .iter()
+                .find(|a| a.kind == PersonOrGroupType::Person)
+                .map(|a| ObjectId::<ApubPerson>::from(a.id.clone()))
+                .ok_or_else(|| AppError::ApubError(String::from("Missing creator."))),
+        }
+    }
+
+    pub fn apub_sphere_id(&self) -> Result<&ObjectId<ApubSphere>, AppError> {
+        match &self.audience {
+            Some(sphere_apub_id) => Ok(sphere_apub_id),
+            None => Err(AppError::ApubError(String::from("Missing sphere apub id."))),
+        }
+    }
+
+    pub fn get_link(&self) -> Option<Link> {
+        let first_attachment = self.attachment.first();
+        // TODO check handling for videos and image embedding
+        if let Some(attachment) = first_attachment.cloned() {
+            match attachment {
+                Attachment::Document(doc) => Some(Link::new(LinkType::Link, Some(doc.url.to_string()), None, None)),
+                Attachment::Link(link) => Some(Link::new(LinkType::Link, Some(link.href.to_string()), None, None)),
+                Attachment::Image(image) => Some(Link::new(LinkType::Image, Some(image.url.to_string()), None, None)),
+            }
+        } else if self.kind == PageType::Video {
+            // we cant display videos directly, so insert a link to external video page
+            Some(Link::new(LinkType::Link, Some(self.id.inner().clone().to_string()), None, None))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_sphere_category(&self) -> Result<Option<SphereCategory>, AppError> {
+        // TODO for now return first tag/category
+        Ok(None)
     }
 }
 
@@ -237,10 +313,16 @@ pub async fn load_post_by_apub_id(
 
 pub async fn insert_or_update_post(
     page: &Page,
-    function_user: &User,
+    creator: &ApubPerson,
+    sphere: &ApubSphere,
     db_pool: &PgPool,
 ) -> Result<PostJoinApubInfo, AppError> {
-    // TODO dereference sphere, sphere category and person(s)
+    // TODO decide whether to always use markdown
+    // TODO decide how to handle categories/flair, make something separate from tags?
+    // TODO dereference category
+    // TODO handle satellites
+    let (body, markdown_body) = page.get_html_and_markdown_content()?;
+    let link = page.get_link().unwrap();
 
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
         "WITH upserted_post AS (
@@ -252,11 +334,11 @@ pub async fn insert_or_update_post(
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     (
                         CASE
-                            WHEN $10 THEN TRUE
+                            WHEN $9 THEN TRUE
                             ELSE (
-                                (SELECT is_nsfw FROM spheres s WHERE s.sphere_name = $13) OR
+                                (SELECT is_nsfw FROM spheres s WHERE s.sphere_apub_id = $12) OR
                                 COALESCE(
-                                    (SELECT is_nsfw FROM satellites sa WHERE sa.satellite_id = $14),
+                                    (SELECT is_nsfw FROM satellites sa WHERE sa.satellite_id = $13),
                                     FALSE
                                 )
                             )
@@ -264,16 +346,22 @@ pub async fn insert_or_update_post(
                     ),
                     (
                         CASE
-                            WHEN $11 THEN TRUE
+                            WHEN $10 THEN TRUE
                             ELSE COALESCE(
-                                (SELECT is_spoiler FROM satellites sa WHERE sa.satellite_id = $14),
+                                (SELECT is_spoiler FROM satellites sa WHERE sa.satellite_id = $13),
                                 FALSE
                             )
                         END
                     ),
-                    $12,
-                    (SELECT sphere_id FROM spheres s WHERE s.sphere_name = $13),
-                    $14, $15, $16, $17
+                    (SELECT category_id FROM sphere_categories WHERE category_apub_id = $11),
+                    (SELECT sphere_id FROM spheres s WHERE s.sphere_name_apub_id = $12),
+                    $13, FALSE,
+                    (SELECT person_id FROM  persons WHERE actor_id = $14),
+                    EXISTS (
+                        SELECT 1 FROM user_sphere_roles r
+                        JOIN persons p ON p.person_id = r.person_id
+                        WHERE p.actor_id = $14 AND r.permission_level != 'None'
+                    )
                 )
                 ON CONFLICT (post_apub_id)
                 DO UPDATE SET
@@ -299,9 +387,20 @@ pub async fn insert_or_update_post(
             JOIN spheres s ON p.sphere_id = s.sphere_id
             LEFT JOIN sphere_categories sc ON p.sphere_id = sc.category_id",
     )
-        .bind(page.id.inner().to_string())
-        .bind(page.name.ok_or(AppError::new("Apub post is missing a title."))?)
-        .bind(page.content.ok_or(AppError::new("Apub post is missing a title."))?)
+        .bind(page.id.to_string())
+        .bind(page.name.clone().ok_or(AppError::new("Apub post is missing a title."))?)
+        .bind(body)
+        .bind(markdown_body)
+        .bind(link.link_type as i16)
+        .bind(link.link_url)
+        .bind(link.link_embed)
+        .bind(link.link_thumbnail_url)
+        .bind(page.sensitive.unwrap_or_default())
+        .bind(page.spoiler.unwrap_or_default())
+        .bind(page.get_sphere_category()?.map(|c| c.category_apub_id.to_string()))
+        .bind(sphere.apub_id.to_string())
+        .bind(None::<i64>) // satellite id
+        .bind(creator.apub_id.inner().to_string())
         .fetch_one(db_pool)
         .await?;
 
