@@ -1,4 +1,3 @@
-use activitypub_federation::traits::Object;
 use url::Url;
 use sphare_core_apub::tag::load_group_categories;
 use sphare_core_sphere::sphere::ssr::create_sphere;

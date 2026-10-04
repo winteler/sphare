@@ -25,7 +25,7 @@ use sphare_core_content::post::Post;
 use sphare_core_sphere::sphere_category::SphereCategory;
 use crate::group::{ApubSphere};
 use crate::person::ApubPerson;
-use crate::tag::ApubTag;
+use crate::tag::{ApubTag};
 use crate::utils::{ImageObject, LanguageTag, Source};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -113,13 +113,15 @@ pub struct Page {
     pub(crate) context: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct ApubPost {
-    apub_id: ObjectId<ApubPost>,
-    sphere_apub_id: ObjectId<ApubSphere>,
-    person_id: ObjectId<ApubPerson>,
-    title: String,
-    content: String,
+    pub apub_id: ObjectId<ApubPost>,
+    pub sphere_apub_id: ObjectId<ApubSphere>,
+    pub person_id: ObjectId<ApubPerson>,
+    pub title: String,
+    pub content: String,
+    pub is_nsfw: bool,
+    pub is_spoiler: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize, sqlx::FromRow)]
@@ -140,6 +142,8 @@ impl TryFrom<PostJoinApubInfo> for ApubPost {
             person_id: Url::parse(&post.post.creator_apub_id)?.into(),
             title: post.post.title,
             content: post.post.body,
+            is_nsfw: post.post.is_nsfw,
+            is_spoiler: post.post.is_spoiler,
         })
     }
 }
@@ -177,16 +181,16 @@ impl Object for ApubPost {
             name: Some(self.title),
             cc: vec![],
             content: Some(self.content),
-            media_type: None,
+            media_type: Some(MediaTypeMarkdownOrHtml::Markdown),
             source: None,
             attachment: vec![],
             image: None,
-            sensitive: None,
-            spoiler: None,
+            sensitive: Some(self.is_nsfw),
+            spoiler: Some(self.is_spoiler),
             published: None,
             updated: None,
             language: None,
-            audience: None,
+            audience: Some(self.sphere_apub_id),
             tag: vec![],
             context: None,
         })

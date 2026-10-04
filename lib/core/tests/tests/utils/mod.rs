@@ -4,6 +4,7 @@ use std::convert::Infallible;
 use std::iter::zip;
 
 use activitypub_federation::config::FederationConfig;
+use activitypub_federation::fetch::object_id::ObjectId;
 use bytes::Bytes;
 use float_cmp::approx_eq;
 use futures_util::stream::once;
@@ -18,6 +19,7 @@ use rsa::pkcs8::EncodePublicKey;
 use sqlx::PgPool;
 use url::Url;
 use sphare_core_apub::group::ApubSphere;
+use sphare_core_apub::page::ApubPost;
 use sphare_core_apub::person::ApubPerson;
 use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::constants::RSA_KEY_SIZE;
@@ -336,6 +338,18 @@ pub fn get_mocked_apub_sphere(mock_server_uri: &str) -> ApubSphere {
         pub_key_pem,
         Some(priv_key),
     )
+}
+
+pub fn get_apub_post(base_url: &Url, creator_apub_id: &ObjectId<ApubPerson>) -> ApubPost {
+    ApubPost {
+        apub_id: base_url.join("/c/news/p/11").expect("Should get post url").into(),
+        sphere_apub_id: base_url.join("/c/news").expect("Should get sphere url").into(),
+        person_id: creator_apub_id.clone(),
+        title: "".to_string(),
+        content: "".to_string(),
+        is_nsfw: false,
+        is_spoiler: false,
+    }
 }
 
 pub async fn get_local_instance(db_pool: &PgPool) -> Instance {
