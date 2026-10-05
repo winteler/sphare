@@ -132,6 +132,7 @@ pub mod ssr {
             "SELECT
                 p.*,
                 pe.username as creator_name,
+                pe.actor_id as creator_apub_id,
                 c.category_name,
                 c.category_color,
                 s.icon_url as sphere_icon_url,

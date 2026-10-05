@@ -345,8 +345,8 @@ pub fn get_apub_post(base_url: &Url, creator_apub_id: &ObjectId<ApubPerson>) -> 
         apub_id: base_url.join("/c/news/p/11").expect("Should get post url").into(),
         sphere_apub_id: base_url.join("/c/news").expect("Should get sphere url").into(),
         person_id: creator_apub_id.clone(),
-        title: "".to_string(),
-        content: "".to_string(),
+        title: "Believe it or not".to_string(),
+        content: "straight to jail".to_string(),
         is_nsfw: false,
         is_spoiler: false,
     }

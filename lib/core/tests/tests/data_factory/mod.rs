@@ -446,7 +446,7 @@ pub async fn set_post_score(
             WHERE post_id = $2
             RETURNING *
         )
-        SELECT p.*, pe.username as creator_name, NULL as moderator_name
+        SELECT p.*, pe.username as creator_name, pe.actor_id as creator_apub_id, NULL as moderator_name
         FROM updated_post p
         JOIN persons pe ON pe.person_id = p.creator_id",
     )
@@ -471,7 +471,7 @@ pub async fn set_post_timestamp(
             WHERE post_id = $2
             RETURNING *
         )
-        SELECT p.*, pe.username as creator_name, NULL as moderator_name
+        SELECT p.*, pe.username as creator_name, pe.actor_id as creator_apub_id, NULL as moderator_name
         FROM updated_post p
         JOIN persons pe ON pe.person_id = p.creator_id",
     )

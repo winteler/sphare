@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Satellite {
     pub satellite_id: i64,
+    pub satellite_apub_id: String,
     pub satellite_name: String,
     pub sphere_id: i64,
     pub body: String,
@@ -23,6 +24,7 @@ pub mod ssr {
     use sphare_core_common::constants::MAX_CONTENT_LENGTH;
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
     use sphare_core_common::errors::AppError;
+    use sphare_core_common::routes::get_satellite_link;
     use sphare_core_user::role::PermissionLevel;
     use sphare_core_user::user::User;
 
@@ -96,23 +98,30 @@ pub mod ssr {
 
         let (body, markdown_body) = get_html_and_markdown_strings(body, is_markdown)?;
 
+        // Generate post id so that its apub id can already be computed
+        let satellite_id: i64 = sqlx::query_scalar!("SELECT nextval('satellites_satellite_id_seq')")
+            .fetch_one(db_pool)
+            .await?.ok_or(AppError::new("Got null for next satellite id."))?;
+
         let satellite = sqlx::query_as!(
             Satellite,
             "INSERT INTO satellites
-            (satellite_name, sphere_id, body, markdown_body, is_nsfw, is_spoiler, creator_id)
+            (satellite_id, satellite_apub_id, satellite_name, sphere_id, body, markdown_body, is_nsfw, is_spoiler, creator_id)
             VALUES (
-                $1,
-                (SELECT sphere_id FROM spheres WHERE sphere_name = $2),
-                $3, $4,
+                $1, $2, $3,
+                (SELECT sphere_id FROM spheres WHERE sphere_name = $4),
+                $5, $6,
                 (
                     CASE
-                        WHEN $5 THEN TRUE
-                        ELSE (SELECT is_nsfw FROM spheres WHERE sphere_name = $2)
+                        WHEN $7 THEN TRUE
+                        ELSE (SELECT is_nsfw FROM spheres WHERE sphere_name = $4)
                     END
                 ),
-                $6, $7
+                $8, $9
             )
             RETURNING *",
+            satellite_id,
+            get_satellite_link(&sphere_name, satellite_id)?,
             satellite_name,
             sphere_name,
             body,

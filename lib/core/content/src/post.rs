@@ -718,7 +718,7 @@ pub mod ssr {
             user.check_sphere_permissions_by_name(sphere_name, PermissionLevel::Moderate)?;
         }
 
-        // Generate post id so that its apub id can already be compute
+        // Generate post id so that its apub id can already be computed
         let post_id: i64 = sqlx::query_scalar!("SELECT nextval('posts_post_id_seq')")
             .fetch_one(db_pool)
             .await?.ok_or(AppError::new("Got null for next post id."))?;
@@ -812,11 +812,11 @@ pub mod ssr {
             post_id,
             post_inputs.title.as_str(),
             body.as_str(),
-            markdown_body.as_deref(),
+            markdown_body,
             link,
             post_inputs.post_tags,
-            &user,
-            &db_pool,
+            user,
+            db_pool,
         ).await?;
 
         log::trace!("Updated post with id: {}", post.post_id);
@@ -889,9 +889,8 @@ pub mod ssr {
                 $14 as creator_name,
                 (
                     SELECT p.actor_id FROM persons p
-                    JOIN users u ON u.person_id = p.person_id
-                    WHERE u.username = $19
-                )
+                    WHERE p.username = $14
+                ) as creator_apub_id
             FROM updated_post",
         )
             .bind(post_title)

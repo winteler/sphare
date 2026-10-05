@@ -11,7 +11,7 @@ use url::Url;
 use sphare_core_common::checks::{check_satellite_name, check_string_length};
 use sphare_core_common::constants::{MAX_CONTENT_LENGTH, MAX_SATELLITE_NAME_LENGTH, POST_BATCH_SIZE, SCROLL_LOAD_THROTTLE_DELAY};
 use sphare_core_common::editor::TextareaData;
-use sphare_core_common::routes::{get_satellite_id_memo, get_satellite_path};
+use sphare_core_common::routes::{get_satellite_id_memo, get_satellite_path_signal};
 use sphare_core_common::unpack::{handle_additional_load, reset_additional_load};
 use sphare_core_content::embed::EmbedType;
 use sphare_core_content::post::{add_sphere_info_to_post_vec, PostWithSphereInfo};
@@ -58,7 +58,7 @@ pub fn SatelliteBanner() -> impl IntoView {
             <div class="w-1/2 lg:w-1/4">
                 <SatelliteHeader
                     satellite_name=satellite.satellite_name.clone()
-                    satellite_link=get_satellite_path(sphere_state.sphere_name.into(), satellite.satellite_id)
+                    satellite_link=get_satellite_path_signal(sphere_state.sphere_name.into(), satellite.satellite_id)
                     is_spoiler=satellite.is_spoiler
                     is_nsfw=satellite.is_nsfw
                 />
@@ -286,7 +286,7 @@ pub fn ActiveSatelliteList() -> impl IntoView {
                 false => {
                     let satellite_list = satellite_vec.iter().map(|satellite| {
                         let satellite_name = satellite.satellite_name.clone();
-                        let satellite_link = get_satellite_path(sphere_state.sphere_name.into(), satellite.satellite_id);
+                        let satellite_link = get_satellite_path_signal(sphere_state.sphere_name.into(), satellite.satellite_id);
                         view! {
                             <SatelliteHeader
                                 satellite_name
@@ -338,7 +338,7 @@ pub fn SatellitePanel() -> impl IntoView {
                     satellite_vec.iter().map(|satellite| {
                         let show_edit_form = RwSignal::new(false);
                         let satellite_name = satellite.satellite_name.clone();
-                        let satellite_link = get_satellite_path(sphere_state.sphere_name.into(), satellite.satellite_id);
+                        let satellite_link = get_satellite_path_signal(sphere_state.sphere_name.into(), satellite.satellite_id);
                         let satellite = satellite.clone();
                         view! {
                             <div class="flex justify-start items-center gap-1 rounded-sm pl-1">

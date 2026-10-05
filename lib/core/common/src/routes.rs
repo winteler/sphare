@@ -194,20 +194,44 @@ pub fn get_sphere_name_memo(params: Memo<ParamsMap>) -> Memo<String> {
     })
 }
 
-/// # Returns the path to a satellite given its id and sphere name
+/// # Returns a signal containing the path to a satellite given its id and sphere name
 ///
 /// ```
 /// use sphare_core_common::routes::get_satellite_path;
+/// assert_eq!(get_satellite_path("test".into(), 1), "/spheres/test/satellites/1".to_string());
+/// ```
+pub fn get_satellite_path(
+    sphere_name: &str,
+    satellite_id: i64
+) -> String {
+    format!("{SPHERE_ROUTE_PREFIX}/{}{SATELLITE_ROUTE_PREFIX}/{}", sphere_name, satellite_id)
+}
+
+/// # Returns a signal containing the path to a satellite given its id and sphere name
+///
+/// ```
+/// use sphare_core_common::routes::get_satellite_path_signal;
 /// use leptos::prelude::*;
 /// let owner = Owner::new();
 /// owner.set();
-/// assert_eq!(get_satellite_path("test".into(), 1).get_untracked(), "/spheres/test/satellites/1".to_string());
+/// assert_eq!(get_satellite_path_signal("test".into(), 1).get_untracked(), "/spheres/test/satellites/1".to_string());
 /// ```
-pub fn get_satellite_path(
+pub fn get_satellite_path_signal(
     sphere_name: Signal<String>,
     satellite_id: i64
 ) -> Signal<String> {
-    Signal::derive(move || format!("{SPHERE_ROUTE_PREFIX}/{}{SATELLITE_ROUTE_PREFIX}/{}", sphere_name.read(), satellite_id))
+    Signal::derive(move || get_satellite_path(&sphere_name.read(), satellite_id))
+}
+
+/// # Returns the url to a satellite given its id and sphere name
+pub fn get_satellite_link(
+    sphere_name: &str,
+    satellite_id: i64,
+) -> Result<String, AppError> {
+    let base_url = get_app_origin().unwrap_or_default();
+    let satellite_path = get_satellite_path(sphere_name, satellite_id);
+    let satellite_url = Url::parse(&base_url)?.join(&satellite_path)?.to_string();
+    Ok(satellite_url)
 }
 
 /// Get a memo returning the last valid satellite_id from the url. Used to avoid triggering resources when leaving pages
@@ -269,7 +293,7 @@ pub fn get_post_link(
 ) -> Result<String, AppError> {
     let base_url = get_app_origin().unwrap_or_default();
     let post_path = get_post_path(sphere_name, satellite_id, post_id);
-    let post_url = url::Url::parse(&base_url)?.join(&post_path)?.to_string();
+    let post_url = Url::parse(&base_url)?.join(&post_path)?.to_string();
     Ok(post_url)
 }
 
@@ -304,7 +328,7 @@ pub fn get_comment_link(
 ) -> Result<String, AppError> {
     let base_url = get_app_origin().unwrap_or_default();
     let comment_path = get_comment_path(sphere_name, satellite_id, post_id, comment_id);
-    let comment_url = url::Url::parse(&base_url)?.join(&comment_path)?.to_string();
+    let comment_url = Url::parse(&base_url)?.join(&comment_path)?.to_string();
     Ok(comment_url)
 }
 

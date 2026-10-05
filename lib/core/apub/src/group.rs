@@ -96,6 +96,15 @@ pub struct ApubSphere {
     private_key: Option<RsaPrivateKey>,
 }
 
+/*#[derive(Clone, Debug, PartialEq)]
+pub struct ApubSatellite {
+    pub apub_id: ObjectId<ApubSatellite>,
+    name: String,
+    body: String,
+    is_nsfw: bool,
+    is_spoiler: bool,
+}*/
+
 impl ApubSphere {
     pub fn new(
         apub_id: ObjectId<ApubSphere>,
@@ -261,6 +270,33 @@ impl Object for ApubSphere {
         Ok(apub_sphere)
     }
 }
+
+/*#[async_trait::async_trait]
+impl Object for ApubSatellite {
+    type DataType = ApubHelper;
+    type Kind = Page;
+    type Error = AppError;
+
+    fn id(&self) -> &Url {
+        todo!()
+    }
+
+    async fn read_from_id(object_id: Url, data: &Data<Self::DataType>) -> Result<Option<Self>, Self::Error> {
+        todo!()
+    }
+
+    async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
+        todo!()
+    }
+
+    async fn verify(json: &Self::Kind, expected_domain: &Url, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}*/
 
 pub async fn get_sphere_by_apub_id(sphere_apub_id: &Url, db_pool: &PgPool) -> Result<Option<Sphere>, AppError> {
     let sphere = sqlx::query_as::<_, Sphere>(

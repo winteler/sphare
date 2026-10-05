@@ -11,7 +11,7 @@ use leptos_use::{signal_debounced, signal_throttled_with_options, use_element_ho
 use sphare_core_common::checks::check_sphere_name;
 use sphare_core_common::constants::{MAX_MOD_MESSAGE_LENGTH, MAX_SPHERE_NAME_LENGTH, POST_BATCH_SIZE, SCROLL_LOAD_THROTTLE_DELAY};
 use sphare_core_common::editor::TextareaData;
-use sphare_core_common::routes::{get_create_post_path, get_satellite_path, get_sphere_name_memo, get_sphere_path, CREATE_POST_ROUTE, CREATE_POST_SPHERE_QUERY_PARAM, CREATE_POST_SUFFIX, PUBLISH_ROUTE, SEARCH_ROUTE};
+use sphare_core_common::routes::{get_create_post_path, get_satellite_path_signal, get_sphere_name_memo, get_sphere_path, CREATE_POST_ROUTE, CREATE_POST_SPHERE_QUERY_PARAM, CREATE_POST_SUFFIX, PUBLISH_ROUTE, SEARCH_ROUTE};
 use sphare_core_common::unpack::{handle_additional_load, reset_additional_load};
 use sphare_core_content::filter::SphereCategoryFilter;
 use sphare_core_content::post::{add_sphere_info_to_post_vec, PostWithSphereInfo};
@@ -241,7 +241,7 @@ pub fn SphereToolbar(
                     { move || match satellite_state {
                         Some(satellite_state) => {
                             let create_post_link = move || {
-                                get_satellite_path(
+                                get_satellite_path_signal(
                                     sphere_state.sphere_name.into(),
                                     satellite_state.satellite_id.get()
                                 ).get() + PUBLISH_ROUTE + CREATE_POST_SUFFIX

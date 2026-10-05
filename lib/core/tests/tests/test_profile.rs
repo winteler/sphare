@@ -1,4 +1,3 @@
-use sphare_core_common::errors::AppError;
 use sphare_core_content::comment::ssr::create_comment;
 use sphare_core_content::comment::CommentWithContext;
 use sphare_core_content::embed::Link;
@@ -17,7 +16,7 @@ mod data_factory;
 mod utils;
 
 #[tokio::test]
-async fn test_get_user_post_vec() -> Result<(), AppError> {
+async fn test_get_user_post_vec() {
     let db_pool = get_db_pool().await;
     let mut user_1 = create_user("1", &db_pool).await;
     let mut user_2 = create_user("2", &db_pool).await;
@@ -82,7 +81,7 @@ async fn test_get_user_post_vec() -> Result<(), AppError> {
             (num_post + 2) as i64,
             0,
             &db_pool,
-        ).await?;
+        ).await.expect("Should get user 1 post vec");
         sort_post_vec(&mut user_1_expected_post_vec, sort_type, false);
         assert_eq!(user_1_post_vec, user_1_expected_post_vec);
 
@@ -92,7 +91,7 @@ async fn test_get_user_post_vec() -> Result<(), AppError> {
             num_post as i64,
             0,
             &db_pool,
-        ).await?;
+        ).await.expect("Should get user 2 post vec");
         sort_post_vec(&mut user_2_expected_post_vec, sort_type, false);
         assert_eq!(user_2_post_vec, user_2_expected_post_vec);
     }
@@ -107,8 +106,6 @@ async fn test_get_user_post_vec() -> Result<(), AppError> {
     ).await.expect("Should get user_post vec");
     assert!(!post_vec.contains(&moderated_post));
     assert!(!post_vec.contains(&deleted_post));
-    
-    Ok(())
 }
 
 #[tokio::test]

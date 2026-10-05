@@ -410,3 +410,91 @@ pub async fn insert_or_update_post(
 
     Ok(post)
 }
+
+#[cfg(test)]
+mod tests {
+    use activitypub_federation::protocol::values::MediaTypeMarkdownOrHtml;
+    use url::Url;
+    use sphare_core_common::activity_pub::{AttributedTo};
+    use crate::page::{Page, PageType};
+
+    fn get_post_page(
+        title: Option<String>,
+        content: Option<String>,
+        media_type: Option<MediaTypeMarkdownOrHtml>,
+        in_reply_to: Option<String>,
+    ) -> Page {
+        Page {
+            kind: PageType::Page,
+            id: Url::parse("https://test.com/c/news/p/11").expect("Should get post url").into(),
+            attributed_to: AttributedTo::Forum(Url::parse("https://test.com/c/news").expect("Should get sphere url").into()),
+            to: vec![],
+            in_reply_to,
+            name: title,
+            cc: vec![],
+            content,
+            media_type,
+            source: None,
+            attachment: vec![],
+            image: None,
+            sensitive: None,
+            spoiler: None,
+            published: None,
+            updated: None,
+            language: None,
+            audience: Some(Url::parse("https://test.com/c/news").expect("Should get sphere url").into()),
+            tag: vec![],
+            context: None,
+        }
+    }
+    #[test]
+    fn test_page_check_valid_post() {
+        let valid_page = get_post_page(Some(String::from("title")), Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        assert!(valid_page.check_valid_post().is_ok());
+        assert!(valid_page.check_is_post().is_ok());
+        assert!(valid_page.check_valid_post_title().is_ok());
+        assert!(valid_page.check_valid_post_content().is_ok());
+
+        let valid_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None);
+        assert!(valid_page.check_valid_post().is_ok());
+        assert!(valid_page.check_is_post().is_ok());
+        assert!(valid_page.check_valid_post_title().is_ok());
+        assert!(valid_page.check_valid_post_content().is_ok());
+
+        let not_a_post_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, Some(String::from("parent_id")));
+        assert!(not_a_post_page.check_valid_post().is_err());
+        assert!(not_a_post_page.check_is_post().is_err());
+        assert!(not_a_post_page.check_valid_post_title().is_ok());
+        assert!(not_a_post_page.check_valid_post_content().is_ok());
+
+        let missing_title_page = get_post_page(None, Some(String::from("content")), None, None);
+        assert!(missing_title_page.check_valid_post().is_err());
+        assert!(missing_title_page.check_is_post().is_ok());
+        assert!(missing_title_page.check_valid_post_title().is_err());
+        assert!(missing_title_page.check_valid_post_content().is_ok());
+
+        let empty_title_page = get_post_page(None, Some(String::from("content")), None, None);
+        assert!(empty_title_page.check_valid_post().is_err());
+        assert!(empty_title_page.check_is_post().is_ok());
+        assert!(empty_title_page.check_valid_post_title().is_err());
+        assert!(empty_title_page.check_valid_post_content().is_ok());
+
+        let missing_content_page = get_post_page(Some(String::from("title")), None, None, None);
+        assert!(missing_content_page.check_valid_post().is_err());
+        assert!(missing_content_page.check_is_post().is_ok());
+        assert!(missing_content_page.check_valid_post_title().is_ok());
+        assert!(missing_content_page.check_valid_post_content().is_err());
+
+        let empty_content_page = get_post_page(Some(String::from("title")), Some(String::from("")), None, None);
+        assert!(empty_content_page.check_valid_post().is_err());
+        assert!(empty_content_page.check_is_post().is_ok());
+        assert!(empty_content_page.check_valid_post_title().is_ok());
+        assert!(empty_content_page.check_valid_post_content().is_err());
+
+        let invalid_format_page = get_post_page(Some(String::from("title")), Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
+        assert!(invalid_format_page.check_valid_post().is_err());
+        assert!(invalid_format_page.check_is_post().is_ok());
+        assert!(invalid_format_page.check_valid_post_title().is_ok());
+        assert!(invalid_format_page.check_valid_post_content().is_err());
+    }
+}
