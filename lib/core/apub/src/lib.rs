@@ -9,4 +9,4 @@ pub mod person;
 #[cfg(feature = "ssr")]
 pub mod tag;
 #[cfg(feature = "ssr")]
-mod utils;
+pub mod utils;

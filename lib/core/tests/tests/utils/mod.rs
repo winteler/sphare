@@ -6,6 +6,7 @@ use std::iter::zip;
 use activitypub_federation::config::FederationConfig;
 use activitypub_federation::fetch::object_id::ObjectId;
 use bytes::Bytes;
+use chrono::Utc;
 use float_cmp::approx_eq;
 use futures_util::stream::once;
 use leptos::server_fn::codec::MultipartData;
@@ -347,8 +348,24 @@ pub fn get_apub_post(base_url: &Url, creator_apub_id: &ObjectId<ApubPerson>) -> 
         person_id: creator_apub_id.clone(),
         title: "Believe it or not".to_string(),
         content: "straight to jail".to_string(),
+        markdown_content: None,
         is_nsfw: false,
         is_spoiler: false,
+        update_timestamp: None,
+    }
+}
+
+pub fn get_updated_apub_post(base_url: &Url, creator_apub_id: &ObjectId<ApubPerson>) -> ApubPost {
+    ApubPost {
+        apub_id: base_url.join("/c/news/p/11").expect("Should get post url").into(),
+        sphere_apub_id: base_url.join("/c/news").expect("Should get sphere url").into(),
+        person_id: creator_apub_id.clone(),
+        title: "Believe it or not".to_string(),
+        content: "straight to jail".to_string(),
+        markdown_content: Some("markdown content".to_string()),
+        is_nsfw: false,
+        is_spoiler: false,
+        update_timestamp: Some(Utc::now()),
     }
 }
 

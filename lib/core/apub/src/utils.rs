@@ -7,8 +7,8 @@ use sphare_core_common::errors::AppError;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Source {
-    pub(crate) content: String,
-    pub(crate) media_type: MediaTypeMarkdown,
+    pub content: String,
+    pub media_type: MediaTypeMarkdown,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -21,9 +21,9 @@ pub struct ImageObject {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct LanguageTag {
-    pub(crate) identifier: String,
-    pub(crate) name: String,
+pub struct LanguageTag {
+    pub identifier: String,
+    pub name: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]

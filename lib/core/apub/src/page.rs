@@ -10,7 +10,7 @@ use activitypub_federation::{
 };
 use activitypub_federation::kinds::link::LinkType as ApubLinkType;
 use activitypub_federation::kinds::object::{DocumentType, ImageType};
-use activitypub_federation::protocol::values::MediaTypeMarkdownOrHtml;
+use activitypub_federation::protocol::values::{MediaTypeMarkdown, MediaTypeMarkdownOrHtml};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::{skip_serializing_none};
@@ -79,38 +79,38 @@ pub enum Attachment {
 #[serde(rename_all = "camelCase")]
 pub struct Page {
     #[serde(rename = "type")]
-    pub(crate) kind: PageType,
+    pub kind: PageType,
     pub id: ObjectId<ApubPost>,
-    pub(crate) attributed_to: AttributedTo,
+    pub attributed_to: AttributedTo,
     #[serde(deserialize_with = "deserialize_one_or_many", default)]
-    pub(crate) to: Vec<Url>,
+    pub to: Vec<Url>,
     // If there is inReplyTo field this is actually a comment and must not be parsed
     #[serde(deserialize_with = "deserialize_skip_error", default)]
-    pub(crate) in_reply_to: Option<String>,
-    pub(crate) name: Option<String>,
+    pub in_reply_to: Option<String>,
+    pub name: Option<String>,
     #[serde(deserialize_with = "deserialize_one_or_many", default)]
-    pub(crate) cc: Vec<Url>,
-    pub(crate) content: Option<String>,
-    pub(crate) media_type: Option<MediaTypeMarkdownOrHtml>,
+    pub cc: Vec<Url>,
+    pub content: Option<String>,
+    pub media_type: Option<MediaTypeMarkdownOrHtml>,
     #[serde(deserialize_with = "deserialize_skip_error", default)]
-    pub(crate) source: Option<Source>,
+    pub source: Option<Source>,
     /// most software uses array type for attachment field, so we do the same. nevertheless, we only
     /// use the first item
     #[serde(default)]
-    pub(crate) attachment: Vec<Attachment>,
-    pub(crate) image: Option<ImageObject>,
-    pub(crate) sensitive: Option<bool>,
-    pub(crate) spoiler: Option<bool>,
-    pub(crate) published: Option<DateTime<Utc>>,
-    pub(crate) updated: Option<DateTime<Utc>>,
-    pub(crate) language: Option<LanguageTag>,
-    pub(crate) audience: Option<ObjectId<ApubSphere>>,
+    pub attachment: Vec<Attachment>,
+    pub image: Option<ImageObject>,
+    pub sensitive: Option<bool>,
+    pub spoiler: Option<bool>,
+    pub published: Option<DateTime<Utc>>,
+    pub updated: Option<DateTime<Utc>>,
+    pub language: Option<LanguageTag>,
+    pub audience: Option<ObjectId<ApubSphere>>,
     // TODO add field for sattelite
     /// Contains hashtags and post tags.
     /// https://www.w3.org/TR/activitystreams-vocabulary/#dfn-tag
     #[serde(deserialize_with = "deserialize_skip_error", default)]
     pub tag: Vec<ApubTag>,
-    pub(crate) context: Option<String>,
+    pub context: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -120,8 +120,10 @@ pub struct ApubPost {
     pub person_id: ObjectId<ApubPerson>,
     pub title: String,
     pub content: String,
+    pub markdown_content: Option<String>,
     pub is_nsfw: bool,
     pub is_spoiler: bool,
+    pub update_timestamp: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize, sqlx::FromRow)]
@@ -142,8 +144,10 @@ impl TryFrom<PostJoinApubInfo> for ApubPost {
             person_id: Url::parse(&post.post.creator_apub_id)?.into(),
             title: post.post.title,
             content: post.post.body,
+            markdown_content: post.post.markdown_body,
             is_nsfw: post.post.is_nsfw,
             is_spoiler: post.post.is_spoiler,
+            update_timestamp: post.post.edit_timestamp,
         })
     }
 }
@@ -182,13 +186,16 @@ impl Object for ApubPost {
             cc: vec![],
             content: Some(self.content),
             media_type: Some(MediaTypeMarkdownOrHtml::Markdown),
-            source: None,
+            source: self.markdown_content.map(|markdown_content| Source {
+                content: markdown_content,
+                media_type: MediaTypeMarkdown::Markdown,
+            }),
             attachment: vec![],
             image: None,
             sensitive: Some(self.is_nsfw),
             spoiler: Some(self.is_spoiler),
             published: None,
-            updated: None,
+            updated: self.update_timestamp,
             language: None,
             audience: Some(self.sphere_apub_id),
             tag: vec![],
@@ -249,7 +256,7 @@ impl Page {
         match (&self.content, &self.media_type) {
             (Some(content), None) => Ok((content.clone(), None)),
             (Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) => {
-                get_html_and_markdown_strings(&content, true)
+                get_html_and_markdown_strings(content, true)
             },
             (Some(_), Some(MediaTypeMarkdownOrHtml::Html)) => Err(AppError::new("Html content is not accepted.")),
             (None, _) => Err(AppError::new("Post without content, cannot get bodies.")),
