@@ -222,6 +222,13 @@ impl Object for ApubPost {
 }
 
 impl Page {
+    pub fn apub_sphere_id(&self) -> Result<&ObjectId<ApubSphere>, AppError> {
+        match &self.audience {
+            Some(sphere_apub_id) => Ok(sphere_apub_id),
+            None => Err(AppError::ApubError(String::from("Missing sphere apub id."))),
+        }
+    }
+
     pub fn check_valid_post(&self) -> Result<(), AppError> {
         self.check_is_post()?;
         self.check_valid_post_title()?;
@@ -244,22 +251,24 @@ impl Page {
     }
 
     fn check_valid_post_content(&self) -> Result<(), AppError> {
-        match (&self.content, &self.media_type) {
-            (None, _) => Err(AppError::new("Post without content, abort load.")),
-            (Some(content), _) if content.is_empty() => Err(AppError::new("Post without content, abort load.")),
-            (_, None) | (_, Some(MediaTypeMarkdownOrHtml::Markdown)) => Ok(()),
-            (_, Some(MediaTypeMarkdownOrHtml::Html)) => Err(AppError::new("Post with html content, abort load."))
+        match (&self.source, &self.content, &self.media_type) {
+            (Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => Ok(()),
+            (_, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => Ok(()),
+            (_, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
+            _ => Err(AppError::new("Post without content.")),
         }
     }
 
     pub fn get_html_and_markdown_content(&self) -> Result<(String, Option<&str>), AppError> {
-        match (&self.content, &self.media_type) {
-            (Some(content), None) => Ok((content.clone(), None)),
-            (Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) => {
+        match (&self.source, &self.content, &self.media_type) {
+            (Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => {
+                get_html_and_markdown_strings(&source.content, true)
+            },
+            (_, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => {
                 get_html_and_markdown_strings(content, true)
             },
-            (Some(_), Some(MediaTypeMarkdownOrHtml::Html)) => Err(AppError::new("Html content is not accepted.")),
-            (None, _) => Err(AppError::new("Post without content, cannot get bodies.")),
+            (_, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
+            _ => Err(AppError::new("Post without content, cannot get bodies.")),
         }
     }
 
@@ -271,13 +280,6 @@ impl Page {
                 .find(|a| a.kind == PersonOrGroupType::Person)
                 .map(|a| ObjectId::<ApubPerson>::from(a.id.clone()))
                 .ok_or_else(|| AppError::ApubError(String::from("Missing creator."))),
-        }
-    }
-
-    pub fn apub_sphere_id(&self) -> Result<&ObjectId<ApubSphere>, AppError> {
-        match &self.audience {
-            Some(sphere_apub_id) => Ok(sphere_apub_id),
-            None => Err(AppError::ApubError(String::from("Missing sphere apub id."))),
         }
     }
 
@@ -420,13 +422,16 @@ pub async fn insert_or_update_post(
 
 #[cfg(test)]
 mod tests {
-    use activitypub_federation::protocol::values::MediaTypeMarkdownOrHtml;
+    use activitypub_federation::protocol::values::{MediaTypeMarkdown, MediaTypeMarkdownOrHtml};
     use url::Url;
-    use sphare_core_common::activity_pub::{AttributedTo};
+    use sphare_core_common::activity_pub::{AttributedTo, AttributedToPeertube, PersonOrGroupType};
+    use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
     use crate::page::{Page, PageType};
+    use crate::utils::Source;
 
     fn get_post_page(
         title: Option<String>,
+        markdown_source: Option<String>,
         content: Option<String>,
         media_type: Option<MediaTypeMarkdownOrHtml>,
         in_reply_to: Option<String>,
@@ -434,14 +439,17 @@ mod tests {
         Page {
             kind: PageType::Page,
             id: Url::parse("https://test.com/c/news/p/11").expect("Should get post url").into(),
-            attributed_to: AttributedTo::Forum(Url::parse("https://test.com/c/news").expect("Should get sphere url").into()),
+            attributed_to: AttributedTo::Forum(Url::parse("https://test.com/u/randomdude").expect("Should get user url").into()),
             to: vec![],
             in_reply_to,
             name: title,
             cc: vec![],
             content,
             media_type,
-            source: None,
+            source: markdown_source.map(|content| Source {
+                content,
+                media_type: MediaTypeMarkdown::Markdown,
+            }),
             attachment: vec![],
             image: None,
             sensitive: None,
@@ -454,54 +462,126 @@ mod tests {
             context: None,
         }
     }
+
+    #[test]
+    fn test_page_apub_sphere_id() {
+        let mut page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        assert_eq!(page.apub_sphere_id(), Ok(&page.audience.clone().expect("Should get sphere apub id")));
+        page.audience = None;
+        assert!(page.apub_sphere_id().is_err());
+    }
+
     #[test]
     fn test_page_check_valid_post() {
-        let valid_page = get_post_page(Some(String::from("title")), Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        let valid_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
         assert!(valid_page.check_valid_post().is_ok());
         assert!(valid_page.check_is_post().is_ok());
         assert!(valid_page.check_valid_post_title().is_ok());
         assert!(valid_page.check_valid_post_content().is_ok());
 
-        let valid_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None);
+        let valid_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
         assert!(valid_page.check_valid_post().is_ok());
         assert!(valid_page.check_is_post().is_ok());
         assert!(valid_page.check_valid_post_title().is_ok());
         assert!(valid_page.check_valid_post_content().is_ok());
 
-        let not_a_post_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, Some(String::from("parent_id")));
+        let not_a_post_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, Some(String::from("parent_id")));
         assert!(not_a_post_page.check_valid_post().is_err());
         assert!(not_a_post_page.check_is_post().is_err());
         assert!(not_a_post_page.check_valid_post_title().is_ok());
         assert!(not_a_post_page.check_valid_post_content().is_ok());
 
-        let missing_title_page = get_post_page(None, Some(String::from("content")), None, None);
+        let missing_title_page = get_post_page(None, Some(String::from("content")), None, None, None);
         assert!(missing_title_page.check_valid_post().is_err());
         assert!(missing_title_page.check_is_post().is_ok());
         assert!(missing_title_page.check_valid_post_title().is_err());
         assert!(missing_title_page.check_valid_post_content().is_ok());
 
-        let empty_title_page = get_post_page(None, Some(String::from("content")), None, None);
+        let empty_title_page = get_post_page(None, Some(String::from("content")), None, None, None);
         assert!(empty_title_page.check_valid_post().is_err());
         assert!(empty_title_page.check_is_post().is_ok());
         assert!(empty_title_page.check_valid_post_title().is_err());
         assert!(empty_title_page.check_valid_post_content().is_ok());
 
-        let missing_content_page = get_post_page(Some(String::from("title")), None, None, None);
+        let missing_content_page = get_post_page(Some(String::from("title")), None, None, None, None);
         assert!(missing_content_page.check_valid_post().is_err());
         assert!(missing_content_page.check_is_post().is_ok());
         assert!(missing_content_page.check_valid_post_title().is_ok());
         assert!(missing_content_page.check_valid_post_content().is_err());
 
-        let empty_content_page = get_post_page(Some(String::from("title")), Some(String::from("")), None, None);
+        let empty_content_page = get_post_page(Some(String::from("title")), Some(String::from("")), Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
         assert!(empty_content_page.check_valid_post().is_err());
         assert!(empty_content_page.check_is_post().is_ok());
         assert!(empty_content_page.check_valid_post_title().is_ok());
         assert!(empty_content_page.check_valid_post_content().is_err());
 
-        let invalid_format_page = get_post_page(Some(String::from("title")), Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
-        assert!(invalid_format_page.check_valid_post().is_err());
-        assert!(invalid_format_page.check_is_post().is_ok());
-        assert!(invalid_format_page.check_valid_post_title().is_ok());
-        assert!(invalid_format_page.check_valid_post_content().is_err());
+        let invalid_html_page = get_post_page(Some(String::from("title")), None, Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
+        assert!(invalid_html_page.check_valid_post().is_err());
+        assert!(invalid_html_page.check_is_post().is_ok());
+        assert!(invalid_html_page.check_valid_post_title().is_ok());
+        assert!(invalid_html_page.check_valid_post_content().is_err());
+
+        let invalid_html_page = get_post_page(Some(String::from("title")), None, Some(String::from("")), None, None);
+        assert!(invalid_html_page.check_valid_post().is_err());
+        assert!(invalid_html_page.check_is_post().is_ok());
+        assert!(invalid_html_page.check_valid_post_title().is_ok());
+        assert!(invalid_html_page.check_valid_post_content().is_err());
+    }
+
+    #[test]
+    fn test_page_get_html_and_markdown_content() {
+        let source_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        assert_eq!(
+            source_page.get_html_and_markdown_content(),
+            get_html_and_markdown_strings(&source_page.source.clone().expect("Should have source").content, true)
+        );
+        let markdown_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        assert_eq!(
+            markdown_page.get_html_and_markdown_content(),
+            get_html_and_markdown_strings(&markdown_page.content.clone().expect("Should have content"), true)
+        );
+        let html_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Html), None);
+        assert!(html_page.get_html_and_markdown_content().is_err());
+
+        let none_media_type_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), None, None);
+        assert!(none_media_type_page.get_html_and_markdown_content().is_err());
+
+        let empty_source_page = get_post_page(Some(String::from("title")), Some(String::from("")), None, None, None);
+        assert!(empty_source_page.get_html_and_markdown_content().is_err());
+
+        let empty_content_page = get_post_page(Some(String::from("title")), None, Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        assert!(empty_content_page.get_html_and_markdown_content().is_err());
+    }
+
+    #[test]
+    fn test_page_creator() {
+        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        let expected_url = match page.attributed_to.clone() {
+            AttributedTo::Forum(url) => Some(url.url().into()),
+            _ => None,
+        };
+        assert_eq!(page.creator(), Ok(expected_url.expect("Should have creator url")));
+
+        let creator_url = Url::parse("https://test.com/u/author").expect("Should be valid url");
+        page.attributed_to = AttributedTo::Peertube(vec![
+            AttributedToPeertube {
+                kind: PersonOrGroupType::Person,
+                id: creator_url.clone(),
+            }
+        ]);
+        assert_eq!(page.creator(), Ok(creator_url.into()));
+
+        page.attributed_to = AttributedTo::Peertube(vec![]);
+        assert!(page.creator().is_err());
+    }
+
+    #[test]
+    fn test_page_get_link() {
+
+    }
+
+    #[test]
+    fn test_page_get_sphere_category() {
+
     }
 }
