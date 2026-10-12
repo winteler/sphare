@@ -11,6 +11,7 @@ sphare_core_sphere = { path = "../sphere", default-features = false }
 sphare_core_content = { path = "../content", default-features = false }
 
 activitypub_federation = { workspace = true, optional = true }
+ammonia = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 chrono.workspace = true
 log.workspace = true
@@ -34,6 +35,7 @@ ssr = [
     "sphare_core_sphere/ssr",
     "sphare_core_content/ssr",
     "dep:activitypub_federation",
+    "dep:ammonia",
     "dep:async-trait",
     "dep:rand",
     "dep:reqwest",

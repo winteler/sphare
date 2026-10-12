@@ -26,6 +26,7 @@ use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::constants::RSA_KEY_SIZE;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::instance::{ssr::init_local_instance, Instance};
+use sphare_core_common::routes::append_path_segment_to_url;
 use sphare_core_content::comment::Comment;
 use sphare_core_content::comment::{CommentWithChildren, CommentWithContext};
 use sphare_core_content::post::Post;
@@ -341,10 +342,12 @@ pub fn get_mocked_apub_sphere(mock_server_uri: &str) -> ApubSphere {
     )
 }
 
-pub fn get_apub_post(base_url: &Url, creator_apub_id: &ObjectId<ApubPerson>) -> ApubPost {
+pub fn get_apub_post(sphere_apub_id: &Url, creator_apub_id: &ObjectId<ApubPerson>) -> ApubPost {
+    let mut post_apub_id = sphere_apub_id.clone();
+    post_apub_id = append_path_segment_to_url(post_apub_id, "p/11");
     ApubPost {
-        apub_id: base_url.join("/c/news/p/11").expect("Should get post url").into(),
-        sphere_apub_id: base_url.join("/c/news").expect("Should get sphere url").into(),
+        apub_id: post_apub_id.into(),
+        sphere_apub_id: sphere_apub_id.clone().into(),
         person_id: creator_apub_id.clone(),
         title: "Believe it or not".to_string(),
         content: "straight to jail".to_string(),

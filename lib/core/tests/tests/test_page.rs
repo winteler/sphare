@@ -4,11 +4,15 @@ use activitypub_federation::fetch::object_id::ObjectId;
 use activitypub_federation::protocol::values::{MediaTypeMarkdown, MediaTypeMarkdownOrHtml};
 use activitypub_federation::traits::{Object};
 use url::Url;
-use sphare_core_apub::page::{ApubPost, Page};
+use sphare_core_apub::group::ApubSphere;
+use sphare_core_apub::page::{insert_or_update_post, ApubPost, Page};
 use sphare_core_apub::person::{get_person_by_username, ApubPerson};
 use sphare_core_apub::utils::{Source};
 use sphare_core_common::activity_pub::{AttributedTo};
+use sphare_core_content::post::Post;
+use sphare_core_content::post::ssr::get_post_by_id;
 use crate::common::{create_test_user, get_db_pool};
+use crate::data_factory::create_sphere_with_post;
 use crate::utils::{get_apub_post, get_updated_apub_post, init_local_instance_and_get_apub_config};
 
 mod apub_factory;
@@ -45,6 +49,20 @@ fn check_apub_post_match_page(
     assert_eq!(page.context, None);
 }
 
+fn check_apub_post_match_post(
+    apub_post: &ApubPost,
+    post: &Post,
+) {
+    assert_eq!(post.post_apub_id, apub_post.apub_id.to_string());
+    assert_eq!(post.title, apub_post.title);
+    assert_eq!(post.body, apub_post.content);
+    assert_eq!(post.markdown_body, apub_post.markdown_content);
+    assert_eq!(post.is_nsfw, apub_post.is_nsfw);
+    assert_eq!(post.is_spoiler, apub_post.is_spoiler);
+    assert_eq!(post.creator_apub_id, apub_post.person_id.to_string());
+    assert_eq!(post.edit_timestamp, apub_post.update_timestamp);
+}
+
 #[tokio::test]
 async fn test_apub_post_object_verify() {
     let db_pool = get_db_pool().await;
@@ -54,7 +72,7 @@ async fn test_apub_post_object_verify() {
     let user = create_test_user(&db_pool).await;
     let person = get_person_by_username(&user.username, &db_pool).await.expect("Person should be in DB.");
     let person_apub_id: ObjectId<ApubPerson> = Url::parse(&person.actor_id).expect("Person apub ID should be valid url").into();
-    let mut apub_post = get_apub_post(&Url::parse("https://www.sphare.space/").expect("Should get valid url"), &person_apub_id);
+    let mut apub_post = get_apub_post(&Url::parse("https://www.sphare.space/c/news").expect("Should get valid url"), &person_apub_id);
     let page = apub_post.clone().into_json(&apub_data).await.expect("Should get page");
 
     let valid_url = apub_post.apub_id.clone().inner().join("/").expect("Should get valid url");
@@ -77,11 +95,46 @@ async fn test_apub_post_into_json() {
     let person = get_person_by_username(&user.username, &db_pool).await.expect("Person should be in DB.");
     let person_apub_id: ObjectId<ApubPerson> = Url::parse(&person.actor_id).expect("Person apub ID should be valid url").into();
 
-    let apub_post = get_apub_post(&Url::parse("https://www.sphare.space/").expect("Should get valid url"), &person_apub_id);
+    let apub_post = get_apub_post(&Url::parse("https://www.sphare.space/c/news").expect("Should get valid url"), &person_apub_id);
     let page = apub_post.clone().into_json(&apub_data).await.expect("Should get page");
     check_apub_post_match_page(&apub_post, &page);
 
     let apub_post = get_updated_apub_post(&Url::parse("https://www.sphare.space/").expect("Should get valid url"), &person_apub_id);
     let page = apub_post.clone().into_json(&apub_data).await.expect("Should get page");
     check_apub_post_match_page(&apub_post, &page);
+}
+
+#[tokio::test]
+async fn test_apub_post_from_json() {
+
+}
+
+#[tokio::test]
+async fn test_insert_or_update_post() {
+    let db_pool = get_db_pool().await;
+    let (_, apub_config) = init_local_instance_and_get_apub_config(&db_pool).await;
+    let apub_data = apub_config.to_request_data();
+
+    let mut user = create_test_user(&db_pool).await;
+    let person = get_person_by_username(&user.username, &db_pool).await.expect("Person should be in DB.");
+    let person_apub_id: ObjectId<ApubPerson> = Url::parse(&person.actor_id).expect("Person apub ID should be valid url").into();
+    let apub_person = person.try_into().expect("Should convert person to apub person");
+
+    let (sphere, _post) = create_sphere_with_post("sphere", &mut user, &db_pool).await;
+    let apub_sphere: ApubSphere = sphere.clone().try_into().expect("Should convert sphere to apub sphere");
+
+    let apub_post = get_apub_post(apub_sphere.apub_id.inner(), &person_apub_id);
+    let page = apub_post.clone().into_json(&apub_data).await.expect("Should get page");
+
+    let inserted_post_with_apub_info = insert_or_update_post(&page, &apub_person, &apub_sphere, &db_pool).await.expect("Should insert or update page");
+    let post = get_post_by_id(inserted_post_with_apub_info.post.post_id, &db_pool).await.expect("Post should be in DB.");
+
+    assert_eq!(inserted_post_with_apub_info.post, post);
+    check_apub_post_match_post(&apub_post, &post);
+    assert_eq!(post.sphere_id, sphere.sphere_id);
+    assert_eq!(inserted_post_with_apub_info.sphere_apub_id, apub_post.sphere_apub_id.to_string());
+    assert_eq!(
+        inserted_post_with_apub_info.category_apub_id,
+        page.get_sphere_category().expect("Should get category").map(|category| category.category_apub_id.to_string())
+    );
 }

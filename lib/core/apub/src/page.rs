@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{skip_serializing_none};
 use sqlx::PgPool;
 use url::Url;
+
 use sphare_core_common::activity_pub::{ApubHelper, AttributedTo, PersonOrGroupType};
 use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
 use sphare_core_common::errors::AppError;
@@ -23,10 +24,11 @@ use sphare_core_common::to_app_error;
 use sphare_core_content::embed::{Link, LinkType};
 use sphare_core_content::post::Post;
 use sphare_core_sphere::sphere_category::SphereCategory;
+
 use crate::group::{ApubSphere};
 use crate::person::ApubPerson;
 use crate::tag::{ApubTag};
-use crate::utils::{ImageObject, LanguageTag, Source};
+use crate::utils::{convert_plaintext_to_html, ImageObject, LanguageTag, Source, convert_plaintext_to_md};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum PageType {
@@ -94,6 +96,7 @@ pub struct Page {
     pub media_type: Option<MediaTypeMarkdownOrHtml>,
     #[serde(deserialize_with = "deserialize_skip_error", default)]
     pub source: Option<Source>,
+    pub plaintext_source: Option<String>,
     /// most software uses array type for attachment field, so we do the same. nevertheless, we only
     /// use the first item
     #[serde(default)]
@@ -176,6 +179,11 @@ impl Object for ApubPost {
 
     async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
         let creator = self.person_id.dereference_local(data).await.map_err(to_app_error!("Failed domain verification"))?;
+        let (html_content, markdown_content) = self.get_html_and_markdown_content();
+        let plaintext_source = match &self.markdown_content {
+            Some(_) => None,
+            None => Some(self.content.clone())
+        };
         Ok(Page {
             kind: PageType::Page,
             id: self.apub_id,
@@ -184,12 +192,13 @@ impl Object for ApubPost {
             in_reply_to: None,
             name: Some(self.title),
             cc: vec![],
-            content: Some(self.content),
-            media_type: Some(MediaTypeMarkdownOrHtml::Markdown),
-            source: self.markdown_content.map(|markdown_content| Source {
+            content: Some(html_content),
+            media_type: Some(MediaTypeMarkdownOrHtml::Html),
+            source: Some(Source {
                 content: markdown_content,
                 media_type: MediaTypeMarkdown::Markdown,
             }),
+            plaintext_source,
             attachment: vec![],
             image: None,
             sensitive: Some(self.is_nsfw),
@@ -218,6 +227,18 @@ impl Object for ApubPost {
         let apub_sphere = json.apub_sphere_id()?.dereference(data).await?;
         let post = insert_or_update_post(&json, &creator, &apub_sphere, data.app_data().get_db_pool()).await?;
         Ok(post.try_into()?)
+    }
+}
+
+impl ApubPost {
+    fn get_html_and_markdown_content(&self) -> (String, String) {
+        match &self.markdown_content {
+            Some(markdown_content) => (self.content.clone(), markdown_content.clone()),
+            None => (
+                convert_plaintext_to_html(&self.content),
+                convert_plaintext_to_md(&self.content),
+            ),
+        }
     }
 }
 
@@ -251,7 +272,7 @@ impl Page {
     }
 
     fn check_valid_post_content(&self) -> Result<(), AppError> {
-        match (&self.source, &self.content, &self.media_type) {
+        match (&self.plaintext_source, &self.source, &self.content, &self.media_type) {
             (Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => Ok(()),
             (_, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => Ok(()),
             (_, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
@@ -260,7 +281,7 @@ impl Page {
     }
 
     pub fn get_html_and_markdown_content(&self) -> Result<(String, Option<&str>), AppError> {
-        match (&self.source, &self.content, &self.media_type) {
+        match (&self.plaintext_source, &self.source, &self.content, &self.media_type) {
             (Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => {
                 get_html_and_markdown_strings(&source.content, true)
             },
@@ -335,7 +356,7 @@ pub async fn insert_or_update_post(
     // TODO dereference category
     // TODO handle satellites
     let (body, markdown_body) = page.get_html_and_markdown_content()?;
-    let link = page.get_link().unwrap();
+    let link = page.get_link().unwrap_or_default();
 
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
         "WITH upserted_post AS (
@@ -367,7 +388,7 @@ pub async fn insert_or_update_post(
                         END
                     ),
                     (SELECT category_id FROM sphere_categories WHERE category_apub_id = $11),
-                    (SELECT sphere_id FROM spheres s WHERE s.sphere_name_apub_id = $12),
+                    (SELECT sphere_id FROM spheres s WHERE s.sphere_apub_id = $12),
                     $13, FALSE,
                     (SELECT person_id FROM  persons WHERE actor_id = $14),
                     EXISTS (
@@ -387,7 +408,6 @@ pub async fn insert_or_update_post(
                     link_thumbnail_url = EXCLUDED.link_thumbnail_url,
                     is_nsfw = EXCLUDED.is_nsfw,
                     is_spoiler = EXCLUDED.is_spoiler,
-                    creator_id = EXCLUDED.creator_id,
                     sphere_id = EXCLUDED.sphere_id,
                     satellite_id = EXCLUDED.satellite_id,
                     is_pinned = EXCLUDED.is_pinned,
@@ -395,7 +415,7 @@ pub async fn insert_or_update_post(
                     is_creator_moderator = EXCLUDED.is_creator_moderator
                 RETURNING *
             )
-            SELECT p.*, s.sphere_apub_id, sc.category_apub_id
+            SELECT p.*, $14 as creator_apub_id, $15 as creator_name, s.sphere_apub_id, sc.category_apub_id
             FROM upserted_post p
             JOIN spheres s ON p.sphere_id = s.sphere_id
             LEFT JOIN sphere_categories sc ON p.sphere_id = sc.category_id",
@@ -414,6 +434,10 @@ pub async fn insert_or_update_post(
         .bind(sphere.apub_id.to_string())
         .bind(None::<i64>) // satellite id
         .bind(creator.apub_id.inner().to_string())
+        .bind(match &creator.name {
+            Some(name) => name,
+            None => &creator.preferred_username,
+        })
         .fetch_one(db_pool)
         .await?;
 
@@ -426,7 +450,9 @@ mod tests {
     use url::Url;
     use sphare_core_common::activity_pub::{AttributedTo, AttributedToPeertube, PersonOrGroupType};
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
-    use crate::page::{Page, PageType};
+    use sphare_core_content::embed::{Link, LinkType};
+    use crate::page::{ApubDocument, ApubImage, ApubLink, Attachment, Page, PageType};
+    use crate::tag::{ApubCommunityTag, ApubTag, CommunityTagType};
     use crate::utils::Source;
 
     fn get_post_page(
@@ -577,11 +603,74 @@ mod tests {
 
     #[test]
     fn test_page_get_link() {
+        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        let attachment_url = Url::parse("https://test.com/link").expect("Should be valid url");
+        let link_attachment = Attachment::Link(
+            ApubLink {
+                href: attachment_url.clone(),
+                media_type: None,
+                r#type: Default::default(),
+            }
+        );
+        let image_attachment = Attachment::Image(
+            ApubImage {
+                kind: Default::default(),
+                url: attachment_url.clone(),
+                name: None,
+            }
+        );
+        let document_attachment = Attachment::Document(
+            ApubDocument {
+                kind: Default::default(),
+                url: attachment_url.clone(),
+                media_type: None,
+                name: None,
+            }
+        );
+        let simple_link = Link::new(LinkType::Link, Some(attachment_url.to_string()), None, None);
+        let image_link = Link::new(LinkType::Image, Some(attachment_url.to_string()), None, None);
 
+        page.attachment = vec![];
+        assert!(page.get_link().is_none());
+
+        page.attachment = vec![
+            link_attachment.clone(),
+            image_attachment.clone(),
+            document_attachment.clone(),
+        ];
+        assert_eq!(page.get_link(), Some(simple_link.clone()));
+
+        page.attachment = vec![
+            document_attachment.clone(),
+            link_attachment.clone(),
+            image_attachment.clone(),
+        ];
+        assert_eq!(page.get_link(), Some(simple_link));
+
+        page.attachment = vec![
+            image_attachment.clone(),
+            document_attachment.clone(),
+            link_attachment.clone(),
+        ];
+        assert_eq!(page.get_link(), Some(image_link));
     }
 
     #[test]
     fn test_page_get_sphere_category() {
-
+        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        // TODO set category
+        page.tag = vec![
+            ApubTag::CommunityTag(
+                ApubCommunityTag {
+                    kind: CommunityTagType::CommunityPostTag,
+                    id: Url::parse("https://sphare.space/c/games/t/rpg").expect("Should be valid url"),
+                    name: String::from("RPG"),
+                    display_name: Some(String::from("RPG")),
+                    content: None,
+                    color: None,
+                }
+            ),
+        ];
+        assert_eq!(page.get_sphere_category(), Ok(None));
     }
 }

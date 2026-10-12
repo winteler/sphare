@@ -5902,6 +5902,7 @@ name = "sphare_core_apub"
 version = "0.1.0"
 dependencies = [
  "activitypub_federation",
+ "ammonia",
  "async-trait",
  "chrono",
  "log",

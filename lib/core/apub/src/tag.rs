@@ -22,7 +22,7 @@ pub enum ApubTag {
 /// defines that any object can have a list of tags associated with it.
 /// Tags in AS can be of any type, so we define our own types.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Default)]
-enum CommunityTagType {
+pub enum CommunityTagType {
     #[default]
     CommunityPostTag,
 }
@@ -32,7 +32,7 @@ enum CommunityTagType {
 #[serde(rename_all = "camelCase")]
 pub struct ApubCommunityTag {
     #[serde(rename = "type")]
-    kind: CommunityTagType,
+    pub kind: CommunityTagType,
     pub id: Url,
     pub name: String,
     pub display_name: Option<String>,
