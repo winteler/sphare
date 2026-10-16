@@ -304,11 +304,17 @@
     }
 }
 
-/* Styles for the spoiler blocks */S
+/* Styles for the spoiler blocks */
 .spoiler-checkbox {
 }
 
 .spoiler-text {
+}
+
+/* Hidden: hide any nested element (code, images, links, bold, ...) whatever its own colors.
+   The span's white background stays visible and covers the space it takes. */
+.spoiler-checkbox:not(:checked) + .spoiler-text > * {
+    visibility: hidden;
 }
 
 .spoiler-checkbox:checked + .spoiler-text {

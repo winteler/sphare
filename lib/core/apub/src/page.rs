@@ -116,7 +116,7 @@ pub struct Page {
     pub context: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct ApubPost {
     pub apub_id: ObjectId<ApubPost>,
     pub sphere_apub_id: ObjectId<ApubSphere>,
@@ -178,7 +178,7 @@ impl Object for ApubPost {
     }
 
     async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
-        let creator = self.person_id.dereference_local(data).await.map_err(to_app_error!("Failed domain verification"))?;
+        let creator = self.person_id.dereference(data).await.map_err(to_app_error!("Failed domain verification"))?;
         let (html_content, markdown_content) = self.get_html_and_markdown_content();
         let plaintext_source = match &self.markdown_content {
             Some(_) => None,
@@ -231,7 +231,7 @@ impl Object for ApubPost {
 }
 
 impl ApubPost {
-    fn get_html_and_markdown_content(&self) -> (String, String) {
+    pub fn get_html_and_markdown_content(&self) -> (String, String) {
         match &self.markdown_content {
             Some(markdown_content) => (self.content.clone(), markdown_content.clone()),
             None => (
@@ -273,22 +273,26 @@ impl Page {
 
     fn check_valid_post_content(&self) -> Result<(), AppError> {
         match (&self.plaintext_source, &self.source, &self.content, &self.media_type) {
-            (Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => Ok(()),
-            (_, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => Ok(()),
-            (_, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
+            (Some(plaintext), _, _, _) if !plaintext.is_empty() => Ok(()),
+            (_, Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => Ok(()),
+            (_, _, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => Ok(()),
+            (_, _, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, _, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
             _ => Err(AppError::new("Post without content.")),
         }
     }
 
-    pub fn get_html_and_markdown_content(&self) -> Result<(String, Option<&str>), AppError> {
+    pub fn get_main_and_md_content(&self) -> Result<(String, Option<&str>), AppError> {
         match (&self.plaintext_source, &self.source, &self.content, &self.media_type) {
-            (Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => {
+            (Some(plaintext), _, _, _) if !plaintext.is_empty() => {
+                Ok((plaintext.clone(), None))
+            },
+            (_, Some(source), _, _) if !source.content.is_empty() && source.media_type == MediaTypeMarkdown::Markdown => {
                 get_html_and_markdown_strings(&source.content, true)
             },
-            (_, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => {
+            (_, _, Some(content), Some(MediaTypeMarkdownOrHtml::Markdown)) if !content.is_empty() => {
                 get_html_and_markdown_strings(content, true)
             },
-            (_, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
+            (_, _, Some(_), Some(MediaTypeMarkdownOrHtml::Html)) | (_, _, Some(_), None) => Err(AppError::new("Html content is not accepted.")),
             _ => Err(AppError::new("Post without content, cannot get bodies.")),
         }
     }
@@ -332,8 +336,9 @@ pub async fn load_post_by_apub_id(
     db_pool: &PgPool
 ) -> Result<Option<PostJoinApubInfo>, AppError> {
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
-        "SELECT p.*, s.sphere_apub_id, sc.category_apub_id
+        "SELECT p.*, pe.actor_id as creator_apub_id, pe.username as creator_name, s.sphere_apub_id, sc.category_apub_id
         FROM posts p
+        JOIN persons pe ON pe.person_id = p.creator_id
         JOIN spheres s ON p.sphere_id = s.sphere_id
         LEFT JOIN sphere_categories sc ON p.sphere_id = sc.category_id
         WHERE post_apub_id = $1",
@@ -355,7 +360,7 @@ pub async fn insert_or_update_post(
     // TODO decide how to handle categories/flair, make something separate from tags?
     // TODO dereference category
     // TODO handle satellites
-    let (body, markdown_body) = page.get_html_and_markdown_content()?;
+    let (body, markdown_body) = page.get_main_and_md_content()?;
     let link = page.get_link().unwrap_or_default();
 
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
@@ -451,12 +456,27 @@ mod tests {
     use sphare_core_common::activity_pub::{AttributedTo, AttributedToPeertube, PersonOrGroupType};
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
     use sphare_core_content::embed::{Link, LinkType};
-    use crate::page::{ApubDocument, ApubImage, ApubLink, Attachment, Page, PageType};
+    use crate::page::{ApubDocument, ApubImage, ApubLink, ApubPost, Attachment, Page, PageType};
     use crate::tag::{ApubCommunityTag, ApubTag, CommunityTagType};
-    use crate::utils::Source;
+    use crate::utils::{convert_plaintext_to_html, Source, convert_plaintext_to_md};
+
+    fn get_apub_post(content: &str, markdown_content: Option<&str>) -> ApubPost {
+        ApubPost {
+            apub_id: Url::parse("https://test.com/c/news/p/11").expect("Should get post url").into(),
+            sphere_apub_id: Url::parse("https://test.com/c/news").expect("Should get sphere url").into(),
+            person_id: Url::parse("https://test.com/u/author").expect("Should get post url").into(),
+            title: "test".to_string(),
+            content: content.to_string(),
+            markdown_content: markdown_content.map(|s| s.to_string()),
+            is_nsfw: false,
+            is_spoiler: false,
+            update_timestamp: None,
+        }
+    }
 
     fn get_post_page(
         title: Option<String>,
+        plaintext_source: Option<String>,
         markdown_source: Option<String>,
         content: Option<String>,
         media_type: Option<MediaTypeMarkdownOrHtml>,
@@ -476,6 +496,7 @@ mod tests {
                 content,
                 media_type: MediaTypeMarkdown::Markdown,
             }),
+            plaintext_source,
             attachment: vec![],
             image: None,
             sensitive: None,
@@ -490,8 +511,22 @@ mod tests {
     }
 
     #[test]
+    fn test_apub_post_get_html_and_markdown_content() {
+        let plaintext_apub_post = get_apub_post("plaintext", None);
+        let markdown_apub_post = get_apub_post("markdown", Some("markdown"));
+        assert_eq!(
+            plaintext_apub_post.get_html_and_markdown_content(),
+            (convert_plaintext_to_html(&plaintext_apub_post.content), convert_plaintext_to_md(&plaintext_apub_post.content),)
+        );
+        assert_eq!(
+            markdown_apub_post.get_html_and_markdown_content(),
+            (markdown_apub_post.content, markdown_apub_post.markdown_content.expect("Should get markdown content"))
+        )
+    }
+
+    #[test]
     fn test_page_apub_sphere_id() {
-        let mut page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        let mut page = get_post_page(Some(String::from("title")), None, None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
         assert_eq!(page.apub_sphere_id(), Ok(&page.audience.clone().expect("Should get sphere apub id")));
         page.audience = None;
         assert!(page.apub_sphere_id().is_err());
@@ -499,55 +534,61 @@ mod tests {
 
     #[test]
     fn test_page_check_valid_post() {
-        let valid_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
-        assert!(valid_page.check_valid_post().is_ok());
-        assert!(valid_page.check_is_post().is_ok());
-        assert!(valid_page.check_valid_post_title().is_ok());
-        assert!(valid_page.check_valid_post_content().is_ok());
+        let valid_plaintext_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, None);
+        assert!(valid_plaintext_page.check_valid_post().is_ok());
+        assert!(valid_plaintext_page.check_is_post().is_ok());
+        assert!(valid_plaintext_page.check_valid_post_title().is_ok());
+        assert!(valid_plaintext_page.check_valid_post_content().is_ok());
 
-        let valid_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
-        assert!(valid_page.check_valid_post().is_ok());
-        assert!(valid_page.check_is_post().is_ok());
-        assert!(valid_page.check_valid_post_title().is_ok());
-        assert!(valid_page.check_valid_post_content().is_ok());
+        let valid_md_source_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), None, None, None);
+        assert!(valid_md_source_page.check_valid_post().is_ok());
+        assert!(valid_md_source_page.check_is_post().is_ok());
+        assert!(valid_md_source_page.check_valid_post_title().is_ok());
+        assert!(valid_md_source_page.check_valid_post_content().is_ok());
 
-        let not_a_post_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, Some(String::from("parent_id")));
+        let valid_md_page = get_post_page(Some(String::from("title")), None, None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        assert!(valid_md_page.check_valid_post().is_ok());
+        assert!(valid_md_page.check_is_post().is_ok());
+        assert!(valid_md_page.check_valid_post_title().is_ok());
+        assert!(valid_md_page.check_valid_post_content().is_ok());
+
+        let not_a_post_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, Some(String::from("parent_id")));
         assert!(not_a_post_page.check_valid_post().is_err());
         assert!(not_a_post_page.check_is_post().is_err());
         assert!(not_a_post_page.check_valid_post_title().is_ok());
         assert!(not_a_post_page.check_valid_post_content().is_ok());
 
-        let missing_title_page = get_post_page(None, Some(String::from("content")), None, None, None);
+        let missing_title_page = get_post_page(None, Some(String::from("content")), None, None, None, None);
         assert!(missing_title_page.check_valid_post().is_err());
         assert!(missing_title_page.check_is_post().is_ok());
         assert!(missing_title_page.check_valid_post_title().is_err());
         assert!(missing_title_page.check_valid_post_content().is_ok());
 
-        let empty_title_page = get_post_page(None, Some(String::from("content")), None, None, None);
+        let empty_title_page = get_post_page(None, Some(String::from("content")), None, None, None, None);
         assert!(empty_title_page.check_valid_post().is_err());
         assert!(empty_title_page.check_is_post().is_ok());
         assert!(empty_title_page.check_valid_post_title().is_err());
         assert!(empty_title_page.check_valid_post_content().is_ok());
 
-        let missing_content_page = get_post_page(Some(String::from("title")), None, None, None, None);
+        let missing_content_page = get_post_page(Some(String::from("title")), None, None, None, None, None);
         assert!(missing_content_page.check_valid_post().is_err());
         assert!(missing_content_page.check_is_post().is_ok());
         assert!(missing_content_page.check_valid_post_title().is_ok());
         assert!(missing_content_page.check_valid_post_content().is_err());
 
-        let empty_content_page = get_post_page(Some(String::from("title")), Some(String::from("")), Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
+        let empty_content_page = get_post_page(Some(String::from("title")), Some(String::from("")), Some(String::from("")), Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
         assert!(empty_content_page.check_valid_post().is_err());
         assert!(empty_content_page.check_is_post().is_ok());
         assert!(empty_content_page.check_valid_post_title().is_ok());
         assert!(empty_content_page.check_valid_post_content().is_err());
 
-        let invalid_html_page = get_post_page(Some(String::from("title")), None, Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
+        let invalid_html_page = get_post_page(Some(String::from("title")), None, None, Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Html), None);
         assert!(invalid_html_page.check_valid_post().is_err());
         assert!(invalid_html_page.check_is_post().is_ok());
         assert!(invalid_html_page.check_valid_post_title().is_ok());
         assert!(invalid_html_page.check_valid_post_content().is_err());
 
-        let invalid_html_page = get_post_page(Some(String::from("title")), None, Some(String::from("")), None, None);
+        let invalid_html_page = get_post_page(Some(String::from("title")), None, None, Some(String::from("test")), None, None);
         assert!(invalid_html_page.check_valid_post().is_err());
         assert!(invalid_html_page.check_is_post().is_ok());
         assert!(invalid_html_page.check_valid_post_title().is_ok());
@@ -555,33 +596,38 @@ mod tests {
     }
 
     #[test]
-    fn test_page_get_html_and_markdown_content() {
-        let source_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+    fn test_page_get_main_and_md_content() {
+        let plaintext_page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, None);
         assert_eq!(
-            source_page.get_html_and_markdown_content(),
+            plaintext_page.get_main_and_md_content(),
+            Ok((plaintext_page.plaintext_source.clone().expect("Should have plaintext content"), None))
+        );
+        let source_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), None, None, None);
+        assert_eq!(
+            source_page.get_main_and_md_content(),
             get_html_and_markdown_strings(&source_page.source.clone().expect("Should have source").content, true)
         );
-        let markdown_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        let markdown_page = get_post_page(Some(String::from("title")), None, None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
         assert_eq!(
-            markdown_page.get_html_and_markdown_content(),
+            markdown_page.get_main_and_md_content(),
             get_html_and_markdown_strings(&markdown_page.content.clone().expect("Should have content"), true)
         );
-        let html_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Html), None);
-        assert!(html_page.get_html_and_markdown_content().is_err());
+        let html_page = get_post_page(Some(String::from("title")), None, None, Some(String::from("content")), Some(MediaTypeMarkdownOrHtml::Html), None);
+        assert!(html_page.get_main_and_md_content().is_err());
 
-        let none_media_type_page = get_post_page(Some(String::from("title")), None, Some(String::from("content")), None, None);
-        assert!(none_media_type_page.get_html_and_markdown_content().is_err());
+        let none_media_type_page = get_post_page(Some(String::from("title")), None, None, Some(String::from("content")), None, None);
+        assert!(none_media_type_page.get_main_and_md_content().is_err());
 
-        let empty_source_page = get_post_page(Some(String::from("title")), Some(String::from("")), None, None, None);
-        assert!(empty_source_page.get_html_and_markdown_content().is_err());
+        let empty_source_page = get_post_page(Some(String::from("title")), Some(String::from("")), None, None, None, None);
+        assert!(empty_source_page.get_main_and_md_content().is_err());
 
-        let empty_content_page = get_post_page(Some(String::from("title")), None, Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
-        assert!(empty_content_page.get_html_and_markdown_content().is_err());
+        let empty_content_page = get_post_page(Some(String::from("title")), Some(String::from("")), Some(String::from("")), Some(String::from("")), Some(MediaTypeMarkdownOrHtml::Markdown), None);
+        assert!(empty_content_page.get_main_and_md_content().is_err());
     }
 
     #[test]
     fn test_page_creator() {
-        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, None);
         let expected_url = match page.attributed_to.clone() {
             AttributedTo::Forum(url) => Some(url.url().into()),
             _ => None,
@@ -603,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_page_get_link() {
-        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, None);
         let attachment_url = Url::parse("https://test.com/link").expect("Should be valid url");
         let link_attachment = Attachment::Link(
             ApubLink {
@@ -657,7 +703,7 @@ mod tests {
 
     #[test]
     fn test_page_get_sphere_category() {
-        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None);
+        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, None);
         // TODO set category
         page.tag = vec![
             ApubTag::CommunityTag(

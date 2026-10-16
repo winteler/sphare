@@ -11,6 +11,18 @@ use crate::constants::SPOILER_TAG;
 use crate::errors::AppError;
 use crate::traits::ToLocalizedStr;
 
+const H1_CLASS: &str = "text-4xl mb-3";
+const H2_CLASS: &str = "text-2xl mb-3";
+const H3_CLASS: &str = "text-xl mb-2.5";
+const P_CLASS: &str = "mb-2.5";
+const A_CLASS: &str = "link text-primary";
+const UL_CLASS: &str = "list-inside list-disc mb-2.5";
+const OL_CLASS: &str = "list-inside list-decimal mb-2.5";
+const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600";
+const TABLE_CLASS: &str = "table mb-2.5";
+const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5";
+const SPOILER_SPAN_CLASS: &str = "transition-all duration-300 ease-in-out h-fit rounded-md bg-white p-1 mx-0.5 text-white spoiler-text";
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FormatType {
     Bold,
@@ -33,6 +45,16 @@ pub struct TextareaData {
     pub textarea_ref: NodeRef<Textarea>
 }
 
+#[derive(Default)]
+struct SpoilerState {
+    /// Number of currently open elements
+    element_depth: usize,
+    /// Element depth at which the currently open spoiler was started, if any
+    spoiler_depth: Option<usize>,
+    /// True right after a spoiler was opened, until some content is written
+    trim_start: bool,
+}
+
 impl ToLocalizedStr for FormatType {
     fn to_localized_str(&self) -> Signal<String> {
         match self {
@@ -49,6 +71,78 @@ impl ToLocalizedStr for FormatType {
             FormatType::Link => move_tr!("link"),
             FormatType::Image => move_tr!("image"),
         }
+    }
+}
+
+impl SpoilerState {
+    fn start_element(&mut self) {
+        self.element_depth += 1;
+        self.trim_start = false;
+    }
+
+    /// Call before writing the End event
+    fn end_element(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+        // The parent element of an unclosed spoiler ends: close it first
+        if self.spoiler_depth == Some(self.element_depth) {
+            close_spoiler(writer)?;
+            self.spoiler_depth = None;
+        }
+        self.element_depth = self.element_depth.saturating_sub(1);
+        self.trim_start = false;
+        Ok(())
+    }
+
+    /// Empty elements, entity references and any other non-text event
+    fn other_event(&mut self) {
+        self.trim_start = false;
+    }
+
+    fn finish(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+        if self.spoiler_depth.take().is_some() {
+            close_spoiler(writer)?;
+        }
+        Ok(())
+    }
+
+    fn process_spoilers(
+        &mut self,
+        writer: &mut Writer<Cursor<Vec<u8>>>,
+        text: &str,
+    ) -> Result<(), AppError> {
+        let mut parts = text.split(SPOILER_TAG).peekable();
+        while let Some(mut part) = parts.next() {
+            // Every part except the last one is followed by a SPOILER_TAG
+            let is_followed_by_tag = parts.peek().is_some();
+            let closes = is_followed_by_tag && self.spoiler_depth == Some(self.element_depth);
+            let opens = is_followed_by_tag && self.spoiler_depth.is_none();
+
+            if self.spoiler_depth.is_some() {
+                if self.trim_start {
+                    part = part.trim_start();
+                }
+                if closes {
+                    part = part.trim_end();
+                }
+            }
+            if !part.is_empty() {
+                writer.write_event(Event::Text(BytesText::new(part)))?;
+                self.trim_start = false;
+            }
+
+            if closes {
+                close_spoiler(writer)?;
+                self.spoiler_depth = None;
+            } else if opens {
+                open_spoiler(writer)?;
+                self.spoiler_depth = Some(self.element_depth);
+                self.trim_start = true;
+            } else if is_followed_by_tag {
+                // Tag inside a nested element of the spoiler: keep it as text
+                writer.write_event(Event::Text(BytesText::new(SPOILER_TAG)))?;
+                self.trim_start = false;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -76,6 +170,7 @@ pub fn get_styled_html_from_markdown(
         &Options::gfm()
     ).map_err(AppError::new)?;
     log::debug!("Markdown as html: {html_from_markdown}");
+    println!("Markdown as html: {html_from_markdown}");
 
     // Add styling, will be done by parsing the html which is a bit ugly. Would be better
     // if the styling could be added directly when generating the html from markdown
@@ -83,43 +178,67 @@ pub fn get_styled_html_from_markdown(
     Ok(styled_html_output)
 }
 
+fn open_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+    writer.write_event(Event::Start(BytesStart::new("label")))?;
+    let mut checkbox_elem = BytesStart::new("input");
+    checkbox_elem.push_attribute(("type", "checkbox"));
+    checkbox_elem.push_attribute(("class", "spoiler-checkbox hidden"));
+    writer.write_event(Event::Empty(checkbox_elem))?;
+    let mut span = BytesStart::new("span");
+    span.push_attribute(("class", SPOILER_SPAN_CLASS));
+    writer.write_event(Event::Start(span))?;
+    Ok(())
+}
+
+fn close_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+    writer.write_event(Event::End(BytesEnd::new("span")))?;
+    writer.write_event(Event::End(BytesEnd::new("label")))?;
+    Ok(())
+}
+
 pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
     let mut reader = Reader::from_str(user_content);
     let mut writer = Writer::new(Cursor::new(Vec::new()));
     let mut is_in_block = false;
+    let mut is_in_code = false;
+
+    let mut spoilers_state = SpoilerState::default();
 
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
                 let mut elem = e.into_owned();
                 match elem.name().as_ref() {
-                    b"h1" => elem.push_attribute(("class", "text-4xl mb-3")),
-                    b"h2" => elem.push_attribute(("class", "text-2xl mb-3")),
-                    b"h3" => elem.push_attribute(("class", "text-xl mb-2.5")),
-                    b"p" if !is_in_block => elem.push_attribute(("class", "mb-2.5")),
-                    b"a" => elem.push_attribute(("class", "link text-primary")),
-                    b"ul" => elem.push_attribute(("class", "list-inside list-disc mb-2.5")),
-                    b"ol" => elem.push_attribute(("class", "list-inside list-decimal mb-2.5")),
+                    b"h1" => elem.push_attribute(("class", H1_CLASS)),
+                    b"h2" => elem.push_attribute(("class", H2_CLASS)),
+                    b"h3" => elem.push_attribute(("class", H3_CLASS)),
+                    b"p" if !is_in_block => elem.push_attribute(("class", P_CLASS)),
+                    b"a" => elem.push_attribute(("class", A_CLASS)),
+                    b"ul" => elem.push_attribute(("class", UL_CLASS)),
+                    b"ol" => elem.push_attribute(("class", OL_CLASS)),
                     b"code" => {
-                        elem.push_attribute(("class", "block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5"))
+                        elem.push_attribute(("class", CODE_CLASS))
                     }
-                    b"table" => elem.push_attribute(("class", "table mb-2.5")),
+                    b"table" => elem.push_attribute(("class", TABLE_CLASS)),
                     b"blockquote" => {
                         is_in_block = true;
                         elem.push_attribute((
                             "class",
-                            "w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600",
+                            BLOCKQUOTE_CLASS,
                         ))
                     },
                     _ => (),
                 }
-
-                // writes the event to the writer
+                is_in_code |= elem.name().as_ref() == b"code";
+                spoilers_state.start_element();
                 writer.write_event(Event::Start(elem))?;
             }
             Ok(Event::End(e)) => {
-                if e.name().as_ref() == b"blockquote" {
-                    is_in_block = false;
+                spoilers_state.end_element(&mut writer)?;
+                match e.name().as_ref() {
+                    b"blockquote" => is_in_block = false,
+                    b"code" => is_in_code = false,
+                    _ => (),
                 }
                 writer.write_event(Event::End(e))?;
             }
@@ -129,47 +248,26 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
                 if elem.name().as_ref() == b"hr" {
                     elem.push_attribute(("class", "my-2"))
                 }
-                // writes the event to the writer
+                spoilers_state.other_event();
                 writer.write_event(Event::Empty(elem))?;
             }
             Ok(Event::Text(e)) => {
                 let text = e.decode().map_err(|e| AppError::new(format!("Error while decoding text: {e}")))?.into_owned();
-                let spoiler_split_text = text.split(SPOILER_TAG);
-                let mut is_current_text_spoiler = None;
-                for text in spoiler_split_text {
-                    let is_spoiler_text = is_current_text_spoiler.unwrap_or_default();
-                    if !text.is_empty() {
-                        if is_spoiler_text {
-                            // Add label to encapsulate spoilers and a checkbox to toggle them
-                            let label = BytesStart::new("label");
-                            writer.write_event(Event::Start(label))?;
-                            // Add invisible checkbox to toggle spoilers
-                            let mut checkbox_elem = BytesStart::new("input");
-                            checkbox_elem.push_attribute(("type", "checkbox"));
-                            checkbox_elem.push_attribute(("class", "spoiler-checkbox hidden"));
-                            writer.write_event(Event::Empty(checkbox_elem))?;
 
-                            let mut span = BytesStart::new("span");
-                            span.push_attribute(("class", "transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"));
-                            writer.write_event(Event::Start(span))?;
-
-                            writer.write_event(Event::Text(BytesText::new(text.trim())))?;
-
-                            let span_end = BytesEnd::new("span");
-                            writer.write_event(Event::End(span_end))?;
-
-                            let label_end = BytesEnd::new("label");
-                            writer.write_event(Event::End(label_end))?;
-                        } else {
-                            writer.write_event(Event::Text(BytesText::new(text)))?;
-                        }
-                    }
-                    is_current_text_spoiler = Some(!is_spoiler_text);
+                match is_in_code {
+                    true => writer.write_event(Event::Text(BytesText::new(&text)))?,
+                    false => spoilers_state.process_spoilers(&mut writer, &text)?,
                 }
             }
-            Ok(Event::Eof) => break,
+            Ok(Event::Eof) => {
+                spoilers_state.finish(&mut writer)?;
+                break
+            },
             // we can either move or borrow the event to write, depending on your use-case
-            Ok(e) => writer.write_event(e)?,
+            Ok(e) => {
+                spoilers_state.other_event();
+                writer.write_event(e)?
+            },
             Err(e) => {
                 log::error!(
                         "Error while parsing xml at position {}: {:?}",
@@ -335,7 +433,6 @@ pub fn adjust_textarea_height(textarea_ref: NodeRef<Textarea>) {
 mod tests {
     use indoc::indoc;
     use leptos::prelude::ServerFnError;
-
     use crate::editor::ssr::get_html_and_markdown_strings;
     use crate::editor::{format_textarea_content, get_styled_html_from_markdown, style_html_user_content, FormatType};
 
@@ -360,6 +457,8 @@ mod tests {
         
         Ok(())
     }
+
+    // ---------- style_html_user_content ----------
 
     #[test]
     fn test_style_html_user_content() -> Result<(), ServerFnError> {
@@ -408,7 +507,69 @@ mod tests {
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown() -> Result<(), ServerFnError> {
+    fn test_style_html_user_content_untouched_elements() {
+        for html in [
+            "<h4></h4>",
+            "<strong>x</strong>",
+            "<br/>",
+            r#"<img src="a" alt="b"/>"#,
+            "<pre></pre>",
+        ] {
+            assert_eq!(style_html_user_content(html).expect("styled"), html);
+        }
+    }
+
+    #[test]
+    fn test_style_html_user_content_paragraph_and_nesting() {
+        assert_eq!(
+            style_html_user_content("<p>text</p>").expect("styled"),
+            r#"<p class="mb-2.5">text</p>"#
+        );
+        assert_eq!(
+            style_html_user_content("<ul><li>a</li></ul>").expect("styled"),
+            r#"<ul class="list-inside list-disc mb-2.5"><li>a</li></ul>"#
+        );
+        // <p> inside a blockquote is not styled, but the one after it is
+        assert_eq!(
+            style_html_user_content("<blockquote><p>a</p></blockquote><p>b</p>").expect("styled"),
+            r#"<blockquote class="w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600"><p>a</p></blockquote><p class="mb-2.5">b</p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_keeps_entities_escaped() {
+        // Must not be double-escaped (&amp;amp;) nor unescaped
+        assert_eq!(
+            style_html_user_content("<p>a &amp; b &lt;c&gt; &quot;d&quot;</p>").expect("styled"),
+            r#"<p class="mb-2.5">a &amp; b &lt;c&gt; &quot;d&quot;</p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_multiple_spoilers() {
+        assert_eq!(
+            style_html_user_content("<p>a ||b|| c ||d||</p>").expect("styled"),
+            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">d</span></label></p>"#
+        );
+        // Empty spoiler produces nothing
+        assert_eq!(
+            style_html_user_content("<p>||||</p>").expect("styled"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"></span></label></p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_malformed_html_is_error() {
+        assert!(style_html_user_content("<p></div>").is_err());
+        assert!(style_html_user_content("<p").is_err());
+        // Unclosed void elements are not supported (markdown-rs emits <br />)
+        assert!(style_html_user_content("<p>a<br>b</p>").is_err());
+    }
+
+    // ---------- get_styled_html_from_markdown: formatting ----------
+
+    #[test]
+    fn test_get_styled_html_from_markdown() {
         let markdown = indoc! {r#"
             # Here is a comment with markdown
             ## header 2
@@ -424,7 +585,7 @@ mod tests {
             <hr  class="my-2"/>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -435,7 +596,7 @@ mod tests {
             <p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">code blocks</code></p>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -446,7 +607,7 @@ mod tests {
             <p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">Spoilers</span></label></p>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -457,7 +618,7 @@ mod tests {
             <p class="mb-2.5"><strong>bold</strong>, <em>italic</em>, combined emphasis with <strong>asterisks and <em>underscores</em></strong>.</p>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -468,7 +629,7 @@ mod tests {
             <p class="mb-2.5">Strikethrough uses two tildes. <del>Scratch this.</del></p>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -481,7 +642,7 @@ mod tests {
             </blockquote>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -505,7 +666,7 @@ mod tests {
             </ul>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -518,7 +679,7 @@ mod tests {
             Also, a bit more work is needed to add an empty line.</p>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -529,7 +690,7 @@ mod tests {
             <p class="mb-2.5">Finally, we can add links <a href="https://www.example.com" class="link text-primary">link text</a>, images <img src="https://github.com/adam-p/markdown-here/raw/master/src/utils/images/icon48.png" alt="alt text" title="Logo Title Text 1" /></p>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
 
@@ -569,11 +730,168 @@ mod tests {
             </table>
         "#};
         assert_eq!(
-            get_styled_html_from_markdown(markdown)?,
+            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
             expected_html
         );
+    }
 
-        Ok(())
+    #[test]
+    fn test_get_styled_html_from_markdown_empty() {
+        assert_eq!(get_styled_html_from_markdown("").expect("Should get styled html"), "");
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_fenced_code_block() {
+        let markdown = "```\nlet x = 1;\n```";
+        let expected_html = indoc! {r#"
+            <pre><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">let x = 1;
+            </code></pre>"#
+        };
+        assert_eq!(get_styled_html_from_markdown(markdown).expect("Should get styled html"), expected_html);
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_hard_break() {
+        assert_eq!(
+            get_styled_html_from_markdown("a  \nb").expect("Should get styled html"),
+            "<p class=\"mb-2.5\">a<br />\nb</p>"
+        );
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_autolink() {
+        assert_eq!(
+            get_styled_html_from_markdown("https://example.com").expect("Should get styled html"),
+            "<p class=\"mb-2.5\"><a href=\"https://example.com\" class=\"link text-primary\">https://example.com</a></p>"
+        );
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_escapes_special_chars() {
+        assert_eq!(
+            get_styled_html_from_markdown(r#"a < b & c > d "q""#).expect("Should get styled html"),
+            "<p class=\"mb-2.5\">a &lt; b &amp; c &gt; d &quot;q&quot;</p>"
+        );
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_spoiler_with_special_chars() {
+        // The whole spoiler content must end up inside a single label/span
+        assert_eq!(
+            get_styled_html_from_markdown("|| a & b ||").expect("Should get styled html"),
+            "<p class=\"mb-2.5\"><label><input type=\"checkbox\" class=\"spoiler-checkbox hidden\"/><span class=\"transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text\">a &amp; b</span></label></p>"
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_spoiler_with_entities() {
+        assert_eq!(
+            style_html_user_content("<p>|| a &amp; b &lt; c ||</p>").expect("styled"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">a &amp; b &lt; c</span></label></p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_spoiler_with_inline_elements() {
+        assert_eq!(
+            style_html_user_content("<p>||<strong>bold</strong> text||</p>").expect("styled"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"><strong>bold</strong> text</span></label></p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_unclosed_spoiler_ends_with_parent() {
+        assert_eq!(
+            style_html_user_content("<p>a ||b</p><p>c</p>").expect("styled"),
+            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">b</span></label></p><p class="mb-2.5">c</p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_spoiler_tag_in_nested_element_is_literal() {
+        // Closing inside <em> would produce misnested tags, so it stays as text
+        assert_eq!(
+            style_html_user_content("<p>||a <em>b||</em></p>").expect("styled"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">a <em>b||</em></span></label></p>"#
+        );
+    }
+
+    #[test]
+    fn test_style_html_user_content_no_spoiler_in_code() {
+        assert_eq!(
+            style_html_user_content("<p><code>a || b</code></p>").expect("styled"),
+            r#"<p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">a || b</code></p>"#
+        );
+    }
+
+    // ---------- get_styled_html_from_markdown: security ----------
+
+    #[test]
+    fn test_get_styled_html_from_markdown_raw_html_is_escaped() {
+        assert_eq!(
+            get_styled_html_from_markdown("<script>alert(1)</script>").expect("Should get styled html"),
+            "&lt;script&gt;alert(1)&lt;/script&gt;"
+        );
+        assert_eq!(
+            get_styled_html_from_markdown("<img src=x onerror=alert(1)>").expect("Should get styled html"),
+            "&lt;img src=x onerror=alert(1)&gt;"
+        );
+        for (payload, forbidden) in [
+            (r#"<iframe src="https://evil.example"></iframe>"#, "<iframe"),
+            ("<style>*{display:none}</style>", "<style"),
+            (r#"<a href="javascript:alert(1)">x</a>"#, "<a href=\"javascript"),
+            ("<!-- comment -->", "<!--"),
+            ("<svg onload=alert(1)>", "<svg"),
+        ] {
+            let html = get_styled_html_from_markdown(payload).expect("Should get styled html");
+            assert!(!html.contains(forbidden), "{payload} -> {html}");
+        }
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_dangerous_urls_are_dropped() {
+        for (payload, scheme) in [
+            ("[x](javascript:alert(1))", "javascript:"),
+            ("[x](JaVaScRiPt:alert(1))", "javascript:"),
+            ("[x](vbscript:msgbox(1))", "vbscript:"),
+            ("[x](data:text/html;base64,PHNjcmlwdD4=)", "data:"),
+            ("![x](javascript:alert(1))", "javascript:"),
+            ("![x](data:image/svg+xml;base64,PHN2Zz4=)", "data:"),
+            ("<javascript:alert(1)>", "href=\"javascript:"),
+        ] {
+            let html = get_styled_html_from_markdown(payload).expect("Should get styled html").to_lowercase();
+            assert!(!html.contains(scheme), "{payload} -> {html}");
+        }
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_safe_urls_are_kept() {
+        assert_eq!(
+            get_styled_html_from_markdown("[x](mailto:a@example.com)").expect("Should get styled html"),
+            "<p class=\"mb-2.5\"><a href=\"mailto:a@example.com\" class=\"link text-primary\">x</a></p>"
+        );
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_attribute_breakout() {
+        let html = get_styled_html_from_markdown(r#"[x](https://a.example/"onmouseover="alert(1))"#)
+            .expect("Should get styled html");
+        assert!(!html.contains("\"onmouseover"), "{html}");
+
+        let html = get_styled_html_from_markdown(r#"[x](https://a.example "t\" onmouseover=\"alert(1)")"#)
+            .expect("Should get styled html");
+        assert!(!html.contains("\" onmouseover"), "{html}");
+
+        let html = get_styled_html_from_markdown(r#"![a" onerror="alert(1)](https://a.example/x.png)"#)
+            .expect("Should get styled html");
+        assert!(!html.contains("\" onerror"), "{html}");
+    }
+
+    #[test]
+    fn test_get_styled_html_from_markdown_deep_nesting_does_not_panic() {
+        assert!(get_styled_html_from_markdown(&format!("{}x", "> ".repeat(1000))).is_ok());
+        assert!(get_styled_html_from_markdown(&"[".repeat(10_000)).is_ok());
+        assert!(get_styled_html_from_markdown(&"*a ".repeat(10_000)).is_ok());
     }
 
     #[test]
@@ -710,4 +1028,6 @@ mod tests {
         assert_eq!(cursor_position, Some(10));
         assert_eq!(content, "This is ![](some) user text ");
     }
+
+
 }
