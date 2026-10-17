@@ -305,20 +305,30 @@
 }
 
 /* Styles for the spoiler blocks */
-.spoiler-checkbox {
+/* The overlay covers the content exactly, whatever its shape or size */
+.spoiler-content::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: white;
+    transition: opacity 300ms ease-in-out;
 }
 
-.spoiler-text {
+/* Hidden: the overlay catches clicks (toggling the label) and the content can't be selected */
+.spoiler-checkbox:not(:checked) + .spoiler-content {
+    user-select: none;
 }
 
-/* Hidden: hide any nested element (code, images, links, bold, ...) whatever its own colors.
-   The span's white background stays visible and covers the space it takes. */
-.spoiler-checkbox:not(:checked) + .spoiler-text > * {
-    visibility: hidden;
+/* Revealed: fade the overlay out, the black span background shows behind the content */
+.spoiler-checkbox:checked + .spoiler-content::after {
+    opacity: 0;
+    pointer-events: none;
 }
 
-.spoiler-checkbox:checked + .spoiler-text {
-    background-color: black;
+/* Nested elements keep their own look, but must not add outer spacing */
+.spoiler-content code {
+    margin-bottom: 0;
 }
 
 /* class to remove spinner from number inputs */

@@ -13,8 +13,7 @@ pub const SECONDS_IN_MONTH: i64 = DAYS_IN_MONTH*SECONDS_IN_DAY;
 pub const SECONDS_IN_YEAR: i64 = DAYS_IN_YEAR*SECONDS_IN_DAY;
 
 
-pub const SPOILER_TAG: &str = "||";
-pub const MULTI_LINE_SPOILER_TAG: &str = "|||";
+pub const SPOILER_TAG: &str = ":::";
 
 
 pub const HOT_ORDER_BY_COLUMN: &str = "recommended_score";

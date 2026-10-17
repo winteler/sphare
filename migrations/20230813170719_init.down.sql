@@ -7,6 +7,7 @@ DROP TABLE sphere_categories;
 DROP TABLE rules;
 DROP TABLE user_sphere_roles;
 DROP TABLE satellites;
+DROP TABLE local_sphere_infos;
 DROP TABLE spheres;
 DROP TABLE users;
 DROP TABLE persons;

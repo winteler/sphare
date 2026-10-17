@@ -21,7 +21,10 @@ const OL_CLASS: &str = "list-inside list-decimal mb-2.5";
 const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600";
 const TABLE_CLASS: &str = "table mb-2.5";
 const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5";
-const SPOILER_SPAN_CLASS: &str = "transition-all duration-300 ease-in-out h-fit rounded-md bg-white p-1 mx-0.5 text-white spoiler-text";
+const SPOILER_SPAN_CLASS: &str =
+    "spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
+const SPOILER_BLOCK_CLASS: &str =
+    "spoiler-content relative block w-fit max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FormatType {
@@ -51,6 +54,8 @@ struct SpoilerState {
     element_depth: usize,
     /// Element depth at which the currently open spoiler was started, if any
     spoiler_depth: Option<usize>,
+    /// Element depth at which the currently open block spoiler was started, if any
+    block_depth: Option<usize>,
     /// True right after a spoiler was opened, until some content is written
     trim_start: bool,
 }
@@ -82,10 +87,14 @@ impl SpoilerState {
 
     /// Call before writing the End event
     fn end_element(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
-        // The parent element of an unclosed spoiler ends: close it first
         if self.spoiler_depth == Some(self.element_depth) {
             close_spoiler(writer)?;
             self.spoiler_depth = None;
+        }
+        // The parent of an unclosed block spoiler ends (e.g. the blockquote it is in)
+        if self.block_depth == Some(self.element_depth) {
+            close_block_spoiler(writer)?;
+            self.block_depth = None;
         }
         self.element_depth = self.element_depth.saturating_sub(1);
         self.trim_start = false;
@@ -97,9 +106,29 @@ impl SpoilerState {
         self.trim_start = false;
     }
 
+    /// A marker nested at another depth than the open block would misnest the tags,
+    /// so it is not treated as a marker.
+    fn can_toggle_block(&self) -> bool {
+        self.block_depth.is_none_or(|d| d == self.element_depth)
+    }
+
+    fn toggle_block(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+        if self.block_depth.take().is_some() {
+            close_block_spoiler(writer)?;
+        } else {
+            open_block_spoiler(writer)?;
+            self.block_depth = Some(self.element_depth);
+        }
+        self.trim_start = false;
+        Ok(())
+    }
+
     fn finish(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
         if self.spoiler_depth.take().is_some() {
             close_spoiler(writer)?;
+        }
+        if self.block_depth.take().is_some() {
+            close_block_spoiler(writer)?;
         }
         Ok(())
     }
@@ -196,6 +225,40 @@ fn close_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
     Ok(())
 }
 
+fn open_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+    let mut label = BytesStart::new("label");
+    label.push_attribute(("class", "block"));
+    writer.write_event(Event::Start(label))?;
+    let mut checkbox_elem = BytesStart::new("input");
+    checkbox_elem.push_attribute(("type", "checkbox"));
+    checkbox_elem.push_attribute(("class", "spoiler-checkbox hidden"));
+    writer.write_event(Event::Empty(checkbox_elem))?;
+    let mut div = BytesStart::new("div");
+    div.push_attribute(("class", SPOILER_BLOCK_CLASS));
+    writer.write_event(Event::Start(div))?;
+    Ok(())
+}
+
+fn close_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+    writer.write_event(Event::End(BytesEnd::new("div")))?;
+    writer.write_event(Event::End(BytesEnd::new("label")))?;
+    Ok(())
+}
+
+/// Returns true if the reader is positioned right after `<p>` and the paragraph is only SPOILER_TAG
+fn is_block_spoiler_marker(reader: &Reader<&[u8]>) -> bool {
+    let mut lookahead = reader.clone();
+    let is_tag = matches!(
+        lookahead.read_event(),
+        Ok(Event::Text(t)) if t.decode().is_ok_and(|s| s.trim() == SPOILER_TAG)
+    );
+    is_tag
+        && matches!(
+            lookahead.read_event(),
+            Ok(Event::End(e)) if e.name().as_ref() == b"p"
+        )
+}
+
 pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
     let mut reader = Reader::from_str(user_content);
     let mut writer = Writer::new(Cursor::new(Vec::new()));
@@ -207,6 +270,13 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
+                if e.name().as_ref() == b"p" && spoilers_state.can_toggle_block() && is_block_spoiler_marker(&reader) {
+                    // Consume the Text and End(p) events of the marker paragraph
+                    reader.read_event()?;
+                    reader.read_event()?;
+                    spoilers_state.toggle_block(&mut writer)?;
+                    continue;
+                }
                 let mut elem = e.into_owned();
                 match elem.name().as_ref() {
                     b"h1" => elem.push_attribute(("class", H1_CLASS)),
@@ -515,23 +585,23 @@ mod tests {
             r#"<img src="a" alt="b"/>"#,
             "<pre></pre>",
         ] {
-            assert_eq!(style_html_user_content(html).expect("styled"), html);
+            assert_eq!(style_html_user_content(html).expect("Should style valid html"), html);
         }
     }
 
     #[test]
     fn test_style_html_user_content_paragraph_and_nesting() {
         assert_eq!(
-            style_html_user_content("<p>text</p>").expect("styled"),
+            style_html_user_content("<p>text</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5">text</p>"#
         );
         assert_eq!(
-            style_html_user_content("<ul><li>a</li></ul>").expect("styled"),
+            style_html_user_content("<ul><li>a</li></ul>").expect("Should style valid html"),
             r#"<ul class="list-inside list-disc mb-2.5"><li>a</li></ul>"#
         );
         // <p> inside a blockquote is not styled, but the one after it is
         assert_eq!(
-            style_html_user_content("<blockquote><p>a</p></blockquote><p>b</p>").expect("styled"),
+            style_html_user_content("<blockquote><p>a</p></blockquote><p>b</p>").expect("Should style valid html"),
             r#"<blockquote class="w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600"><p>a</p></blockquote><p class="mb-2.5">b</p>"#
         );
     }
@@ -540,7 +610,7 @@ mod tests {
     fn test_style_html_user_content_keeps_entities_escaped() {
         // Must not be double-escaped (&amp;amp;) nor unescaped
         assert_eq!(
-            style_html_user_content("<p>a &amp; b &lt;c&gt; &quot;d&quot;</p>").expect("styled"),
+            style_html_user_content("<p>a &amp; b &lt;c&gt; &quot;d&quot;</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5">a &amp; b &lt;c&gt; &quot;d&quot;</p>"#
         );
     }
@@ -548,12 +618,12 @@ mod tests {
     #[test]
     fn test_style_html_user_content_multiple_spoilers() {
         assert_eq!(
-            style_html_user_content("<p>a ||b|| c ||d||</p>").expect("styled"),
+            style_html_user_content("<p>a ||b|| c ||d||</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">d</span></label></p>"#
         );
         // Empty spoiler produces nothing
         assert_eq!(
-            style_html_user_content("<p>||||</p>").expect("styled"),
+            style_html_user_content("<p>||||</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"></span></label></p>"#
         );
     }
@@ -786,7 +856,7 @@ mod tests {
     #[test]
     fn test_style_html_user_content_spoiler_with_entities() {
         assert_eq!(
-            style_html_user_content("<p>|| a &amp; b &lt; c ||</p>").expect("styled"),
+            style_html_user_content("<p>|| a &amp; b &lt; c ||</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">a &amp; b &lt; c</span></label></p>"#
         );
     }
@@ -794,7 +864,7 @@ mod tests {
     #[test]
     fn test_style_html_user_content_spoiler_with_inline_elements() {
         assert_eq!(
-            style_html_user_content("<p>||<strong>bold</strong> text||</p>").expect("styled"),
+            style_html_user_content("<p>||<strong>bold</strong> text||</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"><strong>bold</strong> text</span></label></p>"#
         );
     }
@@ -802,7 +872,7 @@ mod tests {
     #[test]
     fn test_style_html_user_content_unclosed_spoiler_ends_with_parent() {
         assert_eq!(
-            style_html_user_content("<p>a ||b</p><p>c</p>").expect("styled"),
+            style_html_user_content("<p>a ||b</p><p>c</p>").expect("Should style valid html"),
             r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">b</span></label></p><p class="mb-2.5">c</p>"#
         );
     }
@@ -811,7 +881,7 @@ mod tests {
     fn test_style_html_user_content_spoiler_tag_in_nested_element_is_literal() {
         // Closing inside <em> would produce misnested tags, so it stays as text
         assert_eq!(
-            style_html_user_content("<p>||a <em>b||</em></p>").expect("styled"),
+            style_html_user_content("<p>||a <em>b||</em></p>").expect("Should style valid html"),
             r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">a <em>b||</em></span></label></p>"#
         );
     }
@@ -819,7 +889,7 @@ mod tests {
     #[test]
     fn test_style_html_user_content_no_spoiler_in_code() {
         assert_eq!(
-            style_html_user_content("<p><code>a || b</code></p>").expect("styled"),
+            style_html_user_content("<p><code>a || b</code></p>").expect("Should style valid html"),
             r#"<p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">a || b</code></p>"#
         );
     }
