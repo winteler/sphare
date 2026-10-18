@@ -326,8 +326,26 @@
     pointer-events: none;
 }
 
+.spoiler-content > :last-child {
+    margin-bottom: 0;
+}
+
 /* Nested elements keep their own look, but must not add outer spacing */
 .spoiler-content code {
+    margin-bottom: 0;
+}
+
+/* Block spoiler: the cover shows the button text, and fades out when revealed */
+.spoiler-checkbox:checked + .spoiler-block > .spoiler-cover {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.spoiler-checkbox:not(:checked) + .spoiler-block {
+    user-select: none;
+}
+
+.spoiler-block > :last-child {
     margin-bottom: 0;
 }
 

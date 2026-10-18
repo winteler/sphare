@@ -82,7 +82,7 @@ fn escape_line(line: &str) -> String {
     let rest = &line[digits..];
     if digits > 0 && rest.starts_with(['.', ')']) {
         format!("{}\\{}", &line[..digits], escape_inline(rest))
-    } else if line.starts_with(['#', '>', '-', '+', '=', '|']) {
+    } else if line.starts_with(['#', '>', '-', '+', '=', '|', ':']) {
         format!("\\{}", escape_inline(line))
     } else {
         escape_inline(line)

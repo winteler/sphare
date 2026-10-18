@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io::Cursor;
 
 use leptos::html::Textarea;
@@ -20,11 +21,19 @@ const UL_CLASS: &str = "list-inside list-disc mb-2.5";
 const OL_CLASS: &str = "list-inside list-decimal mb-2.5";
 const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600";
 const TABLE_CLASS: &str = "table mb-2.5";
-const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5";
+const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5";
 const SPOILER_SPAN_CLASS: &str =
     "spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
 const SPOILER_BLOCK_CLASS: &str =
-    "spoiler-content relative block w-fit max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
+    "spoiler-block relative block w-fit min-w-10 max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
+const SPOILER_COVER_CLASS: &str =
+    "spoiler-cover absolute inset-0 z-10 flex items-center justify-center rounded-md bg-white px-2 text-center text-black transition-opacity duration-300 ease-in-out";
+const DEFAULT_SPOILER_TITLE: &str = "Spoiler";
+
+enum SpoilerBlockMarker {
+    Open(String),
+    Close,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FormatType {
@@ -106,19 +115,25 @@ impl SpoilerState {
         self.trim_start = false;
     }
 
-    /// A marker nested at another depth than the open block would misnest the tags,
-    /// so it is not treated as a marker.
-    fn can_toggle_block(&self) -> bool {
-        self.block_depth.is_none_or(|d| d == self.element_depth)
+    fn can_open_block(&self) -> bool {
+        self.block_depth.is_none()
     }
 
-    fn toggle_block(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
-        if self.block_depth.take().is_some() {
-            close_block_spoiler(writer)?;
-        } else {
-            open_block_spoiler(writer)?;
-            self.block_depth = Some(self.element_depth);
-        }
+    /// A closer at another depth than the opener would misnest the tags
+    fn can_close_block(&self) -> bool {
+        self.block_depth == Some(self.element_depth)
+    }
+
+    fn open_block(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>, title: &str) -> Result<(), AppError> {
+        open_block_spoiler(writer, title)?;
+        self.block_depth = Some(self.element_depth);
+        self.trim_start = false;
+        Ok(())
+    }
+
+    fn close_block(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+        close_block_spoiler(writer)?;
+        self.block_depth = None;
         self.trim_start = false;
         Ok(())
     }
@@ -195,16 +210,82 @@ pub fn get_styled_html_from_markdown(
     markdown_input: &str,
 ) -> Result<String, AppError> {
     let html_from_markdown = markdown::to_html_with_options(
-        markdown_input,
+        &separate_spoiler_markers(markdown_input),
         &Options::gfm()
     ).map_err(AppError::new)?;
     log::debug!("Markdown as html: {html_from_markdown}");
-    println!("Markdown as html: {html_from_markdown}");
 
     // Add styling, will be done by parsing the html which is a bit ugly. Would be better
     // if the styling could be added directly when generating the html from markdown
     let styled_html_output = style_html_user_content(html_from_markdown.as_str())?;
     Ok(styled_html_output)
+}
+
+/// `:::` closes a block spoiler, `::: spoiler [title]` opens one
+fn parse_block_marker(text: &str) -> Option<SpoilerBlockMarker> {
+    let text = text.trim();
+    if text == SPOILER_TAG {
+        return Some(SpoilerBlockMarker::Close);
+    }
+    let title = text
+        .strip_prefix(SPOILER_TAG)?
+        .trim_start()
+        .strip_prefix("spoiler")?;
+    let keyword_ends = title.is_empty() || title.starts_with(char::is_whitespace);
+    // A second tag means an inline spoiler, a newline means the title isn't alone on its line
+    if !keyword_ends || title.contains(SPOILER_TAG) || title.contains('\n') {
+        return None;
+    }
+    Some(SpoilerBlockMarker::Open(title.trim().to_string()))
+}
+
+fn open_fence(line: &str) -> Option<(char, usize)> {
+    let c = line.chars().next().filter(|c| *c == '`' || *c == '~')?;
+    let len = line.chars().take_while(|x| *x == c).count();
+    // "```code```" on one line is inline code, not a fence
+    (len >= 3 && !(c == '`' && line[len..].contains('`'))).then_some((c, len))
+}
+
+/// Lemmy writes spoiler markers without blank lines around them. Insert them so that each
+/// marker becomes its own paragraph. Markers inside fenced code blocks are left alone.
+fn separate_spoiler_markers(markdown: &str) -> Cow<'_, str> {
+    if !markdown.contains(SPOILER_TAG) {
+        return Cow::Borrowed(markdown);
+    }
+    let mut out = String::with_capacity(markdown.len() + 16);
+    let mut fence: Option<(char, usize)> = None;
+    for line in markdown.lines() {
+        let indent = line.len() - line.trim_start_matches(' ').len();
+        let content = line.trim();
+        match fence {
+            Some((c, len)) => {
+                if indent < 4 && content.len() >= len && content.chars().all(|x| x == c) {
+                    fence = None;
+                }
+                out.push_str(line);
+                out.push('\n');
+            }
+            None if indent < 4 && parse_block_marker(content).is_some() => {
+                out.push('\n');
+                out.push_str(content);
+                out.push_str("\n\n");
+            }
+            None => {
+                if indent < 4 {
+                    fence = open_fence(content);
+                }
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+    }
+    // markdown-rs only emits a trailing newline if the input has one
+    if !markdown.ends_with('\n') {
+        while out.ends_with('\n') {
+            out.pop();
+        }
+    }
+    Cow::Owned(out)
 }
 
 fn open_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
@@ -225,7 +306,7 @@ fn close_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
     Ok(())
 }
 
-fn open_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+fn open_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>, title: &str) -> Result<(), AppError> {
     let mut label = BytesStart::new("label");
     label.push_attribute(("class", "block"));
     writer.write_event(Event::Start(label))?;
@@ -236,6 +317,12 @@ fn open_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppErr
     let mut div = BytesStart::new("div");
     div.push_attribute(("class", SPOILER_BLOCK_CLASS));
     writer.write_event(Event::Start(div))?;
+    let mut cover = BytesStart::new("span");
+    cover.push_attribute(("class", SPOILER_COVER_CLASS));
+    writer.write_event(Event::Start(cover))?;
+    let title = if title.is_empty() { DEFAULT_SPOILER_TITLE } else { title };
+    writer.write_event(Event::Text(BytesText::new(title)))?;
+    writer.write_event(Event::End(BytesEnd::new("span")))?;
     Ok(())
 }
 
@@ -245,18 +332,28 @@ fn close_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppEr
     Ok(())
 }
 
-/// Returns true if the reader is positioned right after `<p>` and the paragraph is only SPOILER_TAG
-fn is_block_spoiler_marker(reader: &Reader<&[u8]>) -> bool {
+/// Called right after a `<p>` start event. If the paragraph is a spoiler marker, returns it
+/// together with a reader positioned after the paragraph.
+fn read_block_marker<'a>(reader: &Reader<&'a [u8]>) -> Option<(SpoilerBlockMarker, Reader<&'a [u8]>)> {
     let mut lookahead = reader.clone();
-    let is_tag = matches!(
-        lookahead.read_event(),
-        Ok(Event::Text(t)) if t.decode().is_ok_and(|s| s.trim() == SPOILER_TAG)
-    );
-    is_tag
-        && matches!(
-            lookahead.read_event(),
-            Ok(Event::End(e)) if e.name().as_ref() == b"p"
-        )
+    let mut text = String::new();
+    loop {
+        match lookahead.read_event().ok()? {
+            Event::Text(t) => text.push_str(&t.decode().ok()?),
+            Event::GeneralRef(r) => {
+                if let Ok(Some(c)) = r.resolve_char_ref() {
+                    text.push(c);
+                } else {
+                    text.push_str(quick_xml::escape::resolve_xml_entity(&r.decode().ok()?)?);
+                }
+            }
+            Event::End(e) if e.name().as_ref() == b"p" => break,
+            // Formatting in the title is dropped, only its text is kept
+            Event::Start(_) | Event::End(_) | Event::Empty(_) => {}
+            _ => return None,
+        }
+    }
+    Some((parse_block_marker(&text)?, lookahead))
 }
 
 pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
@@ -270,12 +367,20 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
-                if e.name().as_ref() == b"p" && spoilers_state.can_toggle_block() && is_block_spoiler_marker(&reader) {
-                    // Consume the Text and End(p) events of the marker paragraph
-                    reader.read_event()?;
-                    reader.read_event()?;
-                    spoilers_state.toggle_block(&mut writer)?;
-                    continue;
+                if e.name().as_ref() == b"p" && let Some((marker, advanced)) = read_block_marker(&reader) {
+                    match marker {
+                        SpoilerBlockMarker::Open(title) if spoilers_state.can_open_block() => {
+                            spoilers_state.open_block(&mut writer, &title)?;
+                            reader = advanced; // skip the marker paragraph
+                            continue;
+                        }
+                        SpoilerBlockMarker::Close if spoilers_state.can_close_block() => {
+                            spoilers_state.close_block(&mut writer)?;
+                            reader = advanced;
+                            continue;
+                        }
+                        _ => {}
+                    }
                 }
                 let mut elem = e.into_owned();
                 match elem.name().as_ref() {
@@ -286,9 +391,7 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
                     b"a" => elem.push_attribute(("class", A_CLASS)),
                     b"ul" => elem.push_attribute(("class", UL_CLASS)),
                     b"ol" => elem.push_attribute(("class", OL_CLASS)),
-                    b"code" => {
-                        elem.push_attribute(("class", CODE_CLASS))
-                    }
+                    b"code" => elem.push_attribute(("class", CODE_CLASS)),
                     b"table" => elem.push_attribute(("class", TABLE_CLASS)),
                     b"blockquote" => {
                         is_in_block = true;
