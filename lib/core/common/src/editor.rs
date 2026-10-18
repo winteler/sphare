@@ -21,18 +21,18 @@ const UL_CLASS: &str = "list-inside list-disc mb-2.5";
 const OL_CLASS: &str = "list-inside list-decimal mb-2.5";
 const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600";
 const TABLE_CLASS: &str = "table mb-2.5";
-const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5";
+const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5";
 const SPOILER_SPAN_CLASS: &str =
     "spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
 const SPOILER_BLOCK_CLASS: &str =
-    "spoiler-block relative block w-fit min-w-10 max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
+    "spoiler-block isolate relative block w-fit min-w-[10rem] max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
 const SPOILER_COVER_CLASS: &str =
     "spoiler-cover absolute inset-0 z-10 flex items-center justify-center rounded-md bg-white px-2 text-center text-black transition-opacity duration-300 ease-in-out";
 const DEFAULT_SPOILER_TITLE: &str = "Spoiler";
 
 enum SpoilerBlockMarker {
-    Open(String),
-    Close,
+    Open { colons: usize, title: String },
+    Close { colons: usize },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -63,8 +63,8 @@ struct SpoilerState {
     element_depth: usize,
     /// Element depth at which the currently open spoiler was started, if any
     spoiler_depth: Option<usize>,
-    /// Element depth at which the currently open block spoiler was started, if any
-    block_depth: Option<usize>,
+    /// Open block spoilers as (element depth, number of colons of the opener)
+    blocks: Vec<(usize, usize)>,
     /// True right after a spoiler was opened, until some content is written
     trim_start: bool,
 }
@@ -100,55 +100,63 @@ impl SpoilerState {
             close_spoiler(writer)?;
             self.spoiler_depth = None;
         }
-        // The parent of an unclosed block spoiler ends (e.g. the blockquote it is in)
-        if self.block_depth == Some(self.element_depth) {
+        // The parent of unclosed block spoilers ends (e.g. the blockquote they are in)
+        while self.blocks.last().is_some_and(|b| b.0 == self.element_depth) {
+            self.blocks.pop();
             close_block_spoiler(writer)?;
-            self.block_depth = None;
         }
         self.element_depth = self.element_depth.saturating_sub(1);
         self.trim_start = false;
         Ok(())
     }
 
+
     /// Empty elements, entity references and any other non-text event
     fn other_event(&mut self) {
         self.trim_start = false;
     }
 
-    fn can_open_block(&self) -> bool {
-        self.block_depth.is_none()
-    }
-
-    /// A closer at another depth than the opener would misnest the tags
-    fn can_close_block(&self) -> bool {
-        self.block_depth == Some(self.element_depth)
-    }
-
-    fn open_block(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>, title: &str) -> Result<(), AppError> {
+    fn open_block(
+        &mut self,
+        writer: &mut Writer<Cursor<Vec<u8>>>,
+        title: &str,
+        colons: usize,
+    ) -> Result<(), AppError> {
         open_block_spoiler(writer, title)?;
-        self.block_depth = Some(self.element_depth);
+        self.blocks.push((self.element_depth, colons));
         self.trim_start = false;
         Ok(())
     }
 
-    fn close_block(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
-        close_block_spoiler(writer)?;
-        self.block_depth = None;
+    /// Outermost block at the current depth that this closer is long enough to close.
+    /// Blocks at another depth can't be closed from here without misnesting the tags.
+    fn block_to_close(&self, colons: usize) -> Option<usize> {
+        self.blocks
+            .iter()
+            .position(|&(depth, opener)| depth == self.element_depth && opener <= colons)
+    }
+
+    /// Closes the block at `index` and every block nested in it
+    fn close_blocks_from(
+        &mut self,
+        writer: &mut Writer<Cursor<Vec<u8>>>,
+        index: usize,
+    ) -> Result<(), AppError> {
+        while self.blocks.len() > index {
+            self.blocks.pop();
+            close_block_spoiler(writer)?;
+        }
         self.trim_start = false;
         Ok(())
     }
-
     fn finish(&mut self, writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
         if self.spoiler_depth.take().is_some() {
             close_spoiler(writer)?;
         }
-        if self.block_depth.take().is_some() {
-            close_block_spoiler(writer)?;
-        }
-        Ok(())
+        self.close_blocks_from(writer, 0)
     }
 
-    fn process_spoilers(
+    fn process_inline_spoilers(
         &mut self,
         writer: &mut Writer<Cursor<Vec<u8>>>,
         text: &str,
@@ -221,65 +229,102 @@ pub fn get_styled_html_from_markdown(
     Ok(styled_html_output)
 }
 
-/// `:::` closes a block spoiler, `::: spoiler [title]` opens one
-fn parse_block_marker(text: &str) -> Option<SpoilerBlockMarker> {
+/// `::: spoiler [title]` (at least three `:`) opens a spoiler block, `:::` (or the same number of `:` if opened with more) closes it.
+fn parse_spoiler_block_marker(text: &str) -> Option<SpoilerBlockMarker> {
     let text = text.trim();
-    if text == SPOILER_TAG {
-        return Some(SpoilerBlockMarker::Close);
+    let colons = text.chars().take_while(|c| *c == ':').count();
+    if colons < 3 {
+        return None;
     }
-    let title = text
-        .strip_prefix(SPOILER_TAG)?
-        .trim_start()
-        .strip_prefix("spoiler")?;
+    let rest = &text[colons..];
+    if rest.trim().is_empty() {
+        return Some(SpoilerBlockMarker::Close { colons });
+    }
+    let title = rest.trim_start().strip_prefix("spoiler")?;
     let keyword_ends = title.is_empty() || title.starts_with(char::is_whitespace);
     // A second tag means an inline spoiler, a newline means the title isn't alone on its line
     if !keyword_ends || title.contains(SPOILER_TAG) || title.contains('\n') {
         return None;
     }
-    Some(SpoilerBlockMarker::Open(title.trim().to_string()))
+    Some(SpoilerBlockMarker::Open { colons, title: title.trim().to_string() })
 }
 
-fn open_fence(line: &str) -> Option<(char, usize)> {
+/// Splits leading blockquote markers (`> `, `>> `, ...) from the rest of the line
+fn split_quote_prefix(line: &str) -> (&str, &str) {
+    let mut rest = line;
+    loop {
+        let trimmed = rest.trim_start_matches(' ');
+        if rest.len() - trimmed.len() >= 4 {
+            break;
+        }
+        let Some(after) = trimmed.strip_prefix('>') else { break };
+        rest = after.strip_prefix(' ').unwrap_or(after);
+    }
+    (&line[..line.len() - rest.len()], rest)
+}
+
+fn parse_code_fence_opener(line: &str) -> Option<(char, usize)> {
+    // The first character must be a backtick or a tilde, otherwise this isn't a code block fence.
     let c = line.chars().next().filter(|c| *c == '`' || *c == '~')?;
+    // Count how many times that same character repeats at the start of the line
     let len = line.chars().take_while(|x| *x == c).count();
     // "```code```" on one line is inline code, not a fence
     (len >= 3 && !(c == '`' && line[len..].contains('`'))).then_some((c, len))
 }
 
-/// Lemmy writes spoiler markers without blank lines around them. Insert them so that each
-/// marker becomes its own paragraph. Markers inside fenced code blocks are left alone.
+fn parse_code_fence_closer(content: &str, c: char, len: usize) -> bool {
+    content.len() >= len && content.chars().all(|x| x == c)
+}
+
 fn separate_spoiler_markers(markdown: &str) -> Cow<'_, str> {
     if !markdown.contains(SPOILER_TAG) {
         return Cow::Borrowed(markdown);
     }
     let mut out = String::with_capacity(markdown.len() + 16);
+    // Some((fence char, fence length)) while inside a fenced code block
     let mut fence: Option<(char, usize)> = None;
     for line in markdown.lines() {
-        let indent = line.len() - line.trim_start_matches(' ').len();
-        let content = line.trim();
+        let (prefix, rest) = split_quote_prefix(line);
+        // Leading spaces after the quote prefix. 4 or more means an indented code block,
+        // which can't be a marker or a fence
+        let indent = rest.len() - rest.trim_start_matches(' ').len();
+        let content = rest.trim();
+        // A line with only the quote markers keeps us inside the same blockquote
+        let blank = prefix.trim_end();
         match fence {
+            // Case 1: inside a fenced code block.
             Some((c, len)) => {
-                if indent < 4 && content.len() >= len && content.chars().all(|x| x == c) {
+                // Check if fenced block is closed
+                if indent < 4 && parse_code_fence_closer(content, c, len) {
                     fence = None;
                 }
                 out.push_str(line);
                 out.push('\n');
             }
-            None if indent < 4 && parse_block_marker(content).is_some() => {
+            // Case 2: a spoiler block tag outside a code block
+            None if indent < 4 && parse_spoiler_block_marker(content).is_some() => {
+                // Write the spoiler tag separated from the rest of content, so that it ends up in its own <p> after html conversion
+                // and can be easily detected to add a new element to encapsulate what's in the spoiler.
+                out.push_str(blank);
                 out.push('\n');
+                out.push_str(prefix);
                 out.push_str(content);
-                out.push_str("\n\n");
+                out.push('\n');
+                out.push_str(blank);
+                out.push('\n');
             }
+            // Case 3: any other line outside a code block
             None => {
+                // check if it opens a code block
                 if indent < 4 {
-                    fence = open_fence(content);
+                    fence = parse_code_fence_opener(content);
                 }
+                // copy its content as is
                 out.push_str(line);
                 out.push('\n');
             }
         }
     }
-    // markdown-rs only emits a trailing newline if the input has one
     if !markdown.ends_with('\n') {
         while out.ends_with('\n') {
             out.pop();
@@ -334,7 +379,7 @@ fn close_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppEr
 
 /// Called right after a `<p>` start event. If the paragraph is a spoiler marker, returns it
 /// together with a reader positioned after the paragraph.
-fn read_block_marker<'a>(reader: &Reader<&'a [u8]>) -> Option<(SpoilerBlockMarker, Reader<&'a [u8]>)> {
+fn read_spoiler_block_marker<'a>(reader: &Reader<&'a [u8]>) -> Option<(SpoilerBlockMarker, Reader<&'a [u8]>)> {
     let mut lookahead = reader.clone();
     let mut text = String::new();
     loop {
@@ -353,7 +398,7 @@ fn read_block_marker<'a>(reader: &Reader<&'a [u8]>) -> Option<(SpoilerBlockMarke
             _ => return None,
         }
     }
-    Some((parse_block_marker(&text)?, lookahead))
+    Some((parse_spoiler_block_marker(&text)?, lookahead))
 }
 
 pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
@@ -367,19 +412,20 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
-                if e.name().as_ref() == b"p" && let Some((marker, advanced)) = read_block_marker(&reader) {
+                if e.name().as_ref() == b"p" && let Some((marker, advanced)) = read_spoiler_block_marker(&reader) {
                     match marker {
-                        SpoilerBlockMarker::Open(title) if spoilers_state.can_open_block() => {
-                            spoilers_state.open_block(&mut writer, &title)?;
+                        SpoilerBlockMarker::Open { colons, title } => {
+                            spoilers_state.open_block(&mut writer, &title, colons)?;
                             reader = advanced; // skip the marker paragraph
                             continue;
                         }
-                        SpoilerBlockMarker::Close if spoilers_state.can_close_block() => {
-                            spoilers_state.close_block(&mut writer)?;
-                            reader = advanced;
-                            continue;
+                        SpoilerBlockMarker::Close { colons } => {
+                            if let Some(index) = spoilers_state.block_to_close(colons) {
+                                spoilers_state.close_blocks_from(&mut writer, index)?;
+                                reader = advanced;
+                                continue;
+                            }
                         }
-                        _ => {}
                     }
                 }
                 let mut elem = e.into_owned();
@@ -429,7 +475,7 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
 
                 match is_in_code {
                     true => writer.write_event(Event::Text(BytesText::new(&text)))?,
-                    false => spoilers_state.process_spoilers(&mut writer, &text)?,
+                    false => spoilers_state.process_inline_spoilers(&mut writer, &text)?,
                 }
             }
             Ok(Event::Eof) => {
@@ -673,8 +719,8 @@ mod tests {
         );
         assert_eq!(style_html_user_content("<hr/>")?, r#"<hr class="my-2"/>"#);
         assert_eq!(
-            style_html_user_content("<p>Test, || This is a spoiler || this is not a spoiler</p>")?,
-            r#"<p class="mb-2.5">Test, <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">This is a spoiler</span></label> this is not a spoiler</p>"#
+            style_html_user_content("<p>Test, ::: This is a spoiler ::: this is not a spoiler</p>")?,
+            r#"<p class="mb-2.5">Test, <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">This is a spoiler</span></label> this is not a spoiler</p>"#
         );
         Ok(())
     }
@@ -721,13 +767,13 @@ mod tests {
     #[test]
     fn test_style_html_user_content_multiple_spoilers() {
         assert_eq!(
-            style_html_user_content("<p>a ||b|| c ||d||</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">d</span></label></p>"#
+            style_html_user_content("<p>a :::b::: c :::d:::</p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">d</span></label></p>"#
         );
         // Empty spoiler produces nothing
         assert_eq!(
-            style_html_user_content("<p>||||</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"></span></label></p>"#
+            style_html_user_content("<p>::::::</p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white"></span></label></p>"#
         );
     }
 
@@ -766,7 +812,7 @@ mod tests {
             `code blocks`
         "#};
         let expected_html = indoc! {r#"
-            <p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">code blocks</code></p>
+            <p class="mb-2.5"><code class="inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">code blocks</code></p>
         "#};
         assert_eq!(
             get_styled_html_from_markdown(markdown).expect("Should get styled html"),
@@ -774,10 +820,10 @@ mod tests {
         );
 
         let markdown = indoc! {r#"
-            || Spoilers ||
+            ::: Spoilers :::
         "#};
         let expected_html = indoc! {r#"
-            <p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">Spoilers</span></label></p>
+            <p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">Spoilers</span></label></p>
         "#};
         assert_eq!(
             get_styled_html_from_markdown(markdown).expect("Should get styled html"),
@@ -917,7 +963,7 @@ mod tests {
     fn test_get_styled_html_from_markdown_fenced_code_block() {
         let markdown = "```\nlet x = 1;\n```";
         let expected_html = indoc! {r#"
-            <pre><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">let x = 1;
+            <pre><code class="inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">let x = 1;
             </code></pre>"#
         };
         assert_eq!(get_styled_html_from_markdown(markdown).expect("Should get styled html"), expected_html);
@@ -951,32 +997,32 @@ mod tests {
     fn test_get_styled_html_from_markdown_spoiler_with_special_chars() {
         // The whole spoiler content must end up inside a single label/span
         assert_eq!(
-            get_styled_html_from_markdown("|| a & b ||").expect("Should get styled html"),
-            "<p class=\"mb-2.5\"><label><input type=\"checkbox\" class=\"spoiler-checkbox hidden\"/><span class=\"transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text\">a &amp; b</span></label></p>"
+            get_styled_html_from_markdown("::: a & b :::").expect("Should get styled html"),
+            "<p class=\"mb-2.5\"><label><input type=\"checkbox\" class=\"spoiler-checkbox hidden\"/><span class=\"spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white\">a &amp; b</span></label></p>"
         );
     }
 
     #[test]
     fn test_style_html_user_content_spoiler_with_entities() {
         assert_eq!(
-            style_html_user_content("<p>|| a &amp; b &lt; c ||</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">a &amp; b &lt; c</span></label></p>"#
+            style_html_user_content("<p>::: a &amp; b &lt; c :::</p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">a &amp; b &lt; c</span></label></p>"#
         );
     }
 
     #[test]
     fn test_style_html_user_content_spoiler_with_inline_elements() {
         assert_eq!(
-            style_html_user_content("<p>||<strong>bold</strong> text||</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text"><strong>bold</strong> text</span></label></p>"#
+            style_html_user_content("<p>:::<strong>bold</strong> text:::</p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white"><strong>bold</strong> text</span></label></p>"#
         );
     }
 
     #[test]
     fn test_style_html_user_content_unclosed_spoiler_ends_with_parent() {
         assert_eq!(
-            style_html_user_content("<p>a ||b</p><p>c</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">b</span></label></p><p class="mb-2.5">c</p>"#
+            style_html_user_content("<p>a :::b</p><p>c</p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">b</span></label></p><p class="mb-2.5">c</p>"#
         );
     }
 
@@ -984,16 +1030,16 @@ mod tests {
     fn test_style_html_user_content_spoiler_tag_in_nested_element_is_literal() {
         // Closing inside <em> would produce misnested tags, so it stays as text
         assert_eq!(
-            style_html_user_content("<p>||a <em>b||</em></p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="transition-all duration-300 ease-in-out rounded-md bg-white p-0.5 px-1 mx-0.5 text-white spoiler-text">a <em>b||</em></span></label></p>"#
+            style_html_user_content("<p>:::a <em>b:::</em></p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">a <em>b:::</em></span></label></p>"#
         );
     }
 
     #[test]
     fn test_style_html_user_content_no_spoiler_in_code() {
         assert_eq!(
-            style_html_user_content("<p><code>a || b</code></p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">a || b</code></p>"#
+            style_html_user_content("<p><code>a ::: b</code></p>").expect("Should style valid html"),
+            r#"<p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">a ::: b</code></p>"#
         );
     }
 
@@ -1160,13 +1206,13 @@ mod tests {
         // Spoiler
         let mut content = String::from("This is some user text ");
         let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Spoiler);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "This is some user text ||||");
+        assert_eq!(cursor_position, Some(26));
+        assert_eq!(content, "This is some user text ::::::");
 
         let mut content = String::from("This is some user text ");
         let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Spoiler);
         assert_eq!(cursor_position, None);
-        assert_eq!(content, "This is ||some|| user text ");
+        assert_eq!(content, "This is :::some::: user text ");
 
         // BlockQuote
         let mut content = String::from("This is some user text ");
