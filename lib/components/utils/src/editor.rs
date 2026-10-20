@@ -3,7 +3,7 @@ use leptos::html;
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 
-use sphare_core_common::editor::{adjust_textarea_height, clear_newlines, format_textarea_content, get_styled_html_from_markdown, FormatType, TextareaData};
+use sphare_core_common::editor::{adjust_textarea_height, clear_newlines, format_textarea_content, render_markdown, FormatType, TextareaData};
 use sphare_core_common::traits::ToLocalizedStr;
 
 use crate::errors::ErrorDisplay;
@@ -223,7 +223,7 @@ pub fn FormMarkdownEditor(
     let markdown_render = move || {
         match is_markdown_mode.get() {
             true => {
-                get_styled_html_from_markdown(&*data.content.read())
+                render_markdown(&*data.content.read())
             },
             false => Ok(String::default())
         }

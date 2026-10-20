@@ -5,7 +5,7 @@ use rand::RngExt;
 use sqlx::PgPool;
 
 use sphare_core_common::colors::Color;
-use sphare_core_common::editor::get_styled_html_from_markdown;
+use sphare_core_common::editor::render_markdown;
 use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::routes::get_post_path;
@@ -2097,7 +2097,7 @@ async fn test_update_post() -> Result<(), AppError> {
 
     let updated_title = "updated post";
     let updated_markdown_body = "# Here is a post with markdown";
-    let updated_html_body = get_styled_html_from_markdown(updated_markdown_body).expect("Should get html from markdown.");
+    let updated_html_body = render_markdown(updated_markdown_body).expect("Should get html from markdown.");
     let updated_link = Link::new(
         LinkType::Rich,
         Some(String::from("updated_link")),
@@ -2231,7 +2231,7 @@ async fn test_update_post_in_satellite() -> Result<(), AppError> {
 
     let updated_title = "updated post";
     let updated_markdown_body = "# Here is a post with markdown";
-    let updated_html_body = get_styled_html_from_markdown(updated_markdown_body).expect("Should get html from markdown");
+    let updated_html_body = render_markdown(updated_markdown_body).expect("Should get html from markdown");
     let updated_link = Link::new(
         LinkType::Video,
         Some(String::from("updated_link")),

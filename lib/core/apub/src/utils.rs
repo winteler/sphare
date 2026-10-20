@@ -114,7 +114,7 @@ pub fn convert_plaintext_to_html(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use indoc::indoc;
-    use sphare_core_common::editor::get_styled_html_from_markdown;
+    use sphare_core_common::editor::render_markdown;
     use crate::utils::{convert_plaintext_to_html, convert_plaintext_to_md};
 
     // ---------- convert_plaintext_to_md ----------
@@ -179,7 +179,7 @@ mod tests {
             <p class="mb-2.5">&gt; not quote</p>"#
         };
         assert_eq!(
-            get_styled_html_from_markdown(&convert_plaintext_to_md(plaintext)).expect("html"),
+            render_markdown(&convert_plaintext_to_md(plaintext)).expect("html"),
             expected_html
         );
     }

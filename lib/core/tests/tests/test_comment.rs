@@ -1,7 +1,7 @@
 use rand::RngExt;
 
 use sphare_core_common::constants::COMMENT_BATCH_SIZE;
-use sphare_core_common::editor::get_styled_html_from_markdown;
+use sphare_core_common::editor::render_markdown;
 use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
 use sphare_core_common::errors::AppError;
 use sphare_core_content::comment::ssr::{create_comment, create_comment_with_notif, delete_comment, edit_comment, get_comment_by_id, get_comment_sphere, get_comment_tree_by_id, get_post_comment_tree, update_comment};
@@ -574,7 +574,7 @@ async fn test_update_comment() -> Result<(), AppError> {
     let (sphere, post, comment) = create_sphere_with_post_and_comment("sphere", &mut user, &db_pool).await;
 
     let updated_markdown_body = "# Here is a comment with markdown";
-    let updated_html_body = get_styled_html_from_markdown(updated_markdown_body).expect("Should get html from markdown.");
+    let updated_html_body = render_markdown(updated_markdown_body).expect("Should get html from markdown.");
     let updated_comment = update_comment(
         comment.comment_id,
         &updated_html_body,

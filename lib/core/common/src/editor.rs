@@ -30,6 +30,7 @@ const SPOILER_COVER_CLASS: &str =
     "spoiler-cover absolute inset-0 z-10 flex items-center justify-center rounded-md bg-white px-2 text-center text-black transition-opacity duration-300 ease-in-out";
 const DEFAULT_SPOILER_TITLE: &str = "Spoiler";
 
+#[derive(Clone, Debug, PartialEq)]
 enum SpoilerBlockMarker {
     Open { colons: usize, title: String },
     Close { colons: usize },
@@ -200,13 +201,13 @@ impl SpoilerState {
 
 #[cfg(feature = "ssr")]
 pub mod ssr {
-    use crate::editor::get_styled_html_from_markdown;
+    use crate::editor::render_markdown;
     use crate::errors::AppError;
 
     pub fn get_html_and_markdown_strings(body: &str, is_markdown: bool) -> Result<(String, Option<&str>), AppError> {
         match is_markdown {
             true => Ok((
-                get_styled_html_from_markdown(body)?,
+                render_markdown(body)?,
                 Some(body),
             )),
             false => Ok((String::from(body), None)),
@@ -214,7 +215,7 @@ pub mod ssr {
     }
 }
 
-pub fn get_styled_html_from_markdown(
+pub fn render_markdown(
     markdown_input: &str,
 ) -> Result<String, AppError> {
     let html_from_markdown = markdown::to_html_with_options(
@@ -222,9 +223,7 @@ pub fn get_styled_html_from_markdown(
         &Options::gfm()
     ).map_err(AppError::new)?;
     log::debug!("Markdown as html: {html_from_markdown}");
-
-    // Add styling, will be done by parsing the html which is a bit ugly. Would be better
-    // if the styling could be added directly when generating the html from markdown
+    
     let styled_html_output = style_html_user_content(html_from_markdown.as_str())?;
     Ok(styled_html_output)
 }
@@ -242,7 +241,7 @@ fn parse_spoiler_block_marker(text: &str) -> Option<SpoilerBlockMarker> {
     }
     let title = rest.trim_start().strip_prefix("spoiler")?;
     let keyword_ends = title.is_empty() || title.starts_with(char::is_whitespace);
-    // A second tag means an inline spoiler, a newline means the title isn't alone on its line
+    // A second tag means an inline spoiler; a newline means the title isn't alone on its line
     if !keyword_ends || title.contains(SPOILER_TAG) || title.contains('\n') {
         return None;
     }
@@ -650,603 +649,2304 @@ pub fn adjust_textarea_height(textarea_ref: NodeRef<Textarea>) {
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-    use leptos::prelude::ServerFnError;
+    use std::assert_matches;
+use indoc::{formatdoc};
+    use quick_xml::events::Event;
+    use quick_xml::Reader;
     use crate::editor::ssr::get_html_and_markdown_strings;
-    use crate::editor::{format_textarea_content, get_styled_html_from_markdown, style_html_user_content, FormatType};
+    use super::*;
 
-    #[test]
-    fn test_get_html_and_markdown_strings() -> Result<(), ServerFnError> {
-        let text_body = "hello world";
-        let markdown_body = "#this is a header";
-        
-        let (html_text_body, markdown_text_body) = get_html_and_markdown_strings(
-            text_body,
-            false
-        ).expect("Should get text body");
-        assert_eq!(html_text_body, text_body);
-        assert_eq!(markdown_text_body, None);
-
-        let (html_markdown_body, markdown_markdown_body) = get_html_and_markdown_strings(
-            markdown_body,
-            true
-        ).expect("Should get text body");
-        assert_eq!(html_markdown_body, get_styled_html_from_markdown(markdown_body).expect("Should get html body"));
-        assert_eq!(markdown_markdown_body, Some(markdown_body));
-        
-        Ok(())
+    fn new_writer() -> Writer<Cursor<Vec<u8>>> {
+        Writer::new(Cursor::new(Vec::new()))
     }
 
-    // ---------- style_html_user_content ----------
-
-    #[test]
-    fn test_style_html_user_content() -> Result<(), ServerFnError> {
-        assert_eq!(
-            style_html_user_content("<h1></h1>")?,
-            r#"<h1 class="text-4xl mb-3"></h1>"#
-        );
-        assert_eq!(
-            style_html_user_content("<h2></h2>")?,
-            r#"<h2 class="text-2xl mb-3"></h2>"#
-        );
-        assert_eq!(
-            style_html_user_content("<h3></h3>")?,
-            r#"<h3 class="text-xl mb-2.5"></h3>"#
-        );
-        assert_eq!(
-            style_html_user_content("<a></a>")?,
-            r#"<a class="link text-primary"></a>"#
-        );
-        assert_eq!(
-            style_html_user_content("<ul></ul>")?,
-            r#"<ul class="list-inside list-disc mb-2.5"></ul>"#
-        );
-        assert_eq!(
-            style_html_user_content("<ol></ol>")?,
-            r#"<ol class="list-inside list-decimal mb-2.5"></ol>"#
-        );
-        assert_eq!(
-            style_html_user_content("<code></code>")?,
-            r#"<code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5"></code>"#
-        );
-        assert_eq!(
-            style_html_user_content("<table></table>")?,
-            r#"<table class="table mb-2.5"></table>"#
-        );
-        assert_eq!(
-            style_html_user_content("<blockquote></blockquote>")?,
-            r#"<blockquote class="w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600"></blockquote>"#
-        );
-        assert_eq!(style_html_user_content("<hr/>")?, r#"<hr class="my-2"/>"#);
-        assert_eq!(
-            style_html_user_content("<p>Test, ::: This is a spoiler ::: this is not a spoiler</p>")?,
-            r#"<p class="mb-2.5">Test, <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">This is a spoiler</span></label> this is not a spoiler</p>"#
-        );
-        Ok(())
+    fn written(writer: Writer<Cursor<Vec<u8>>>) -> String {
+        String::from_utf8(writer.into_inner().into_inner()).expect("Should be valid UTF-8")
     }
 
-    #[test]
-    fn test_style_html_user_content_untouched_elements() {
-        for html in [
-            "<h4></h4>",
-            "<strong>x</strong>",
-            "<br/>",
-            r#"<img src="a" alt="b"/>"#,
-            "<pre></pre>",
-        ] {
-            assert_eq!(style_html_user_content(html).expect("Should style valid html"), html);
+    /// Reads the first event (the opening `<p>`) and then calls `read_spoiler_block_marker`.
+    fn marker_after_first_p(html: &str) -> Option<(SpoilerBlockMarker, Reader<&[u8]>)> {
+        let mut reader = Reader::from_str(html);
+        let p_event  =reader.read_event().expect("Should read the opening <p> event");
+        assert_matches!(p_event, Event::Start(ref e) if e.name().as_ref() == b"p");
+        read_spoiler_block_marker(&reader)
+    }
+
+    /// Every opened element must be closed again and never closed twice.
+    fn assert_balanced_html(html: &str) {
+        let mut reader = Reader::from_str(html);
+        let mut depth: i64 = 0;
+        loop {
+            match reader.read_event().expect("Should produce well-formed html") {
+                Event::Start(_) => depth += 1,
+                Event::End(_) => depth -= 1,
+                Event::Eof => break,
+                _ => {}
+            }
+            assert!(depth >= 0, "Should never close more elements than were opened in: {html}");
         }
+        assert_eq!(depth, 0, "Should close every opened element in: {html}");
+    }
+
+    // ---------------------------------------------------------------------
+    // get_html_and_markdown_strings
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_get_html_and_markdown_strings_for_plain_text() {
+        let text_body = "hello world";
+
+        let (html, markdown) = get_html_and_markdown_strings(text_body, false).expect("Should get text body");
+
+        assert_eq!(html, text_body, "Should return the text unchanged as html");
+        assert_eq!(markdown, None, "Should not return a markdown string for plain text");
     }
 
     #[test]
-    fn test_style_html_user_content_paragraph_and_nesting() {
+    fn test_get_html_and_markdown_strings_for_markdown() {
+        let markdown_body = "#this is a header";
+
+        let (html, markdown) = get_html_and_markdown_strings(markdown_body, true).expect("Should get markdown body");
+
+        let expected_html = render_markdown(markdown_body).expect("Should render the markdown to html");
+        assert_eq!(html, expected_html, "Should return the styled html");
+        assert_eq!(markdown, Some(markdown_body), "Should return the original markdown string");
+    }
+
+    // ---------------------------------------------------------------------
+    // format_textarea_content
+    // ---------------------------------------------------------------------
+
+    // Bold
+    #[test]
+    fn test_format_textarea_content_bold_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Bold);
+
+        assert_eq!(cursor_position, Some(25), "Should place the cursor between the bold markers");
+        assert_eq!(content, "This is some user text ****", "Should append empty bold markers");
+    }
+
+    #[test]
+    fn test_format_textarea_content_bold_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Bold);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "This is **some** user text ", "Should wrap the selection in bold markers");
+    }
+
+    // Italic
+    #[test]
+    fn test_format_textarea_content_italic_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Italic);
+
+        assert_eq!(cursor_position, Some(24), "Should place the cursor between the italic markers");
+        assert_eq!(content, "This is some user text **", "Should append empty italic markers");
+    }
+
+    #[test]
+    fn test_format_textarea_content_italic_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Italic);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "This is *some* user text ", "Should wrap the selection in italic markers");
+    }
+
+    // Strikethrough
+    #[test]
+    fn test_format_textarea_content_strikethrough_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Strikethrough);
+
+        assert_eq!(cursor_position, Some(25), "Should place the cursor between the strikethrough markers");
+        assert_eq!(content, "This is some user text ~~~~", "Should append empty strikethrough markers");
+    }
+
+    #[test]
+    fn test_format_textarea_content_strikethrough_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Strikethrough);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "This is ~~some~~ user text ", "Should wrap the selection in strikethrough markers");
+    }
+
+    // Header1
+    #[test]
+    fn test_format_textarea_content_header1_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Header1);
+
+        assert_eq!(cursor_position, Some(25), "Should shift the cursor by the length of the prefix");
+        assert_eq!(content, "# This is some user text ", "Should prefix the line with a header 1 marker");
+    }
+
+    #[test]
+    fn test_format_textarea_content_header1_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Header1);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "# This is some user text ", "Should prefix the whole line with a header 1 marker");
+    }
+
+    // Header2
+    #[test]
+    fn test_format_textarea_content_header2_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Header2);
+
+        assert_eq!(cursor_position, Some(26), "Should shift the cursor by the length of the prefix");
+        assert_eq!(content, "## This is some user text ", "Should prefix the line with a header 2 marker");
+    }
+
+    #[test]
+    fn test_format_textarea_content_header2_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Header2);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "## This is some user text ", "Should prefix the whole line with a header 2 marker");
+    }
+
+    // List
+    #[test]
+    fn test_format_textarea_content_list_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::List);
+
+        assert_eq!(cursor_position, Some(25), "Should shift the cursor by the length of the prefix");
+        assert_eq!(content, "* This is some user text ", "Should prefix the line with a list marker");
+    }
+
+    #[test]
+    fn test_format_textarea_content_list_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::List);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "* This is some user text ", "Should prefix the whole line with a list marker");
+    }
+
+    // NumberedList
+    #[test]
+    fn test_format_textarea_content_numbered_list_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::NumberedList);
+
+        assert_eq!(cursor_position, Some(26), "Should shift the cursor by the length of the prefix");
+        assert_eq!(content, "1. This is some user text ", "Should prefix the line with a numbered list marker");
+    }
+
+    #[test]
+    fn test_format_textarea_content_numbered_list_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::NumberedList);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "1. This is some user text ", "Should prefix the whole line with a numbered list marker");
+    }
+
+    // CodeBlock
+    #[test]
+    fn test_format_textarea_content_code_block_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::CodeBlock);
+
+        assert_eq!(cursor_position, Some(26), "Should place the cursor between the code fences");
+        assert_eq!(content, "This is some user text ``````", "Should append empty code fences");
+    }
+
+    #[test]
+    fn test_format_textarea_content_code_block_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::CodeBlock);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "This is ```some``` user text ", "Should wrap the selection in code fences");
+    }
+
+    // Spoiler
+    #[test]
+    fn test_format_textarea_content_spoiler_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Spoiler);
+
+        assert_eq!(cursor_position, Some(26), "Should place the cursor between the spoiler tags");
+        assert_eq!(content, "This is some user text ::::::", "Should append empty spoiler tags");
+    }
+
+    #[test]
+    fn test_format_textarea_content_spoiler_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Spoiler);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "This is :::some::: user text ", "Should wrap the selection in spoiler tags");
+    }
+
+    // BlockQuote
+    #[test]
+    fn test_format_textarea_content_block_quote_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::BlockQuote);
+
+        assert_eq!(cursor_position, Some(25), "Should shift the cursor by the length of the prefix");
+        assert_eq!(content, "> This is some user text ", "Should prefix the line with a block quote marker");
+    }
+
+    #[test]
+    fn test_format_textarea_content_block_quote_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::BlockQuote);
+
+        assert_eq!(cursor_position, None, "Should not move the cursor");
+        assert_eq!(content, "> This is some user text ", "Should prefix the whole line with a block quote marker");
+    }
+
+    // Link
+    #[test]
+    fn test_format_textarea_content_link_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Link);
+
+        assert_eq!(cursor_position, Some(24), "Should place the cursor at the start of the link text");
         assert_eq!(
-            style_html_user_content("<p>text</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5">text</p>"#
-        );
-        assert_eq!(
-            style_html_user_content("<ul><li>a</li></ul>").expect("Should style valid html"),
-            r#"<ul class="list-inside list-disc mb-2.5"><li>a</li></ul>"#
-        );
-        // <p> inside a blockquote is not styled, but the one after it is
-        assert_eq!(
-            style_html_user_content("<blockquote><p>a</p></blockquote><p>b</p>").expect("Should style valid html"),
-            r#"<blockquote class="w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600"><p>a</p></blockquote><p class="mb-2.5">b</p>"#
+            content,
+            "This is some user text [link text](https://www.your_link.com)",
+            "Should append a link with placeholder text and url"
         );
     }
 
     #[test]
-    fn test_style_html_user_content_keeps_entities_escaped() {
-        // Must not be double-escaped (&amp;amp;) nor unescaped
+    fn test_format_textarea_content_link_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Link);
+
+        assert_eq!(cursor_position, Some(9), "Should place the cursor at the start of the link text");
         assert_eq!(
-            style_html_user_content("<p>a &amp; b &lt;c&gt; &quot;d&quot;</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5">a &amp; b &lt;c&gt; &quot;d&quot;</p>"#
+            content,
+            "This is [link text](some) user text ",
+            "Should use the selection as the url and add placeholder link text"
+        );
+    }
+
+    // Image
+    #[test]
+    fn test_format_textarea_content_image_without_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Image);
+
+        assert_eq!(cursor_position, Some(25), "Should place the cursor between the brackets of the alt text");
+        assert_eq!(
+            content,
+            "This is some user text ![](https://image_url.png)",
+            "Should append an image with a placeholder url"
         );
     }
 
     #[test]
-    fn test_style_html_user_content_multiple_spoilers() {
-        assert_eq!(
-            style_html_user_content("<p>a :::b::: c :::d:::</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">d</span></label></p>"#
-        );
-        // Empty spoiler produces nothing
-        assert_eq!(
-            style_html_user_content("<p>::::::</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white"></span></label></p>"#
-        );
+    fn test_format_textarea_content_image_with_selection() {
+        let mut content = String::from("This is some user text ");
+
+        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Image);
+
+        assert_eq!(cursor_position, Some(10), "Should place the cursor between the brackets of the alt text");
+        assert_eq!(content, "This is ![](some) user text ", "Should use the selection as the image url");
+    }
+
+    // ---------------------------------------------------------------------
+    // render_markdown: standard markdown styling
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_render_empty_markdown() {
+        let markdown = "";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        assert_eq!(result, "", "Should render nothing for empty input");
     }
 
     #[test]
-    fn test_style_html_user_content_malformed_html_is_error() {
-        assert!(style_html_user_content("<p></div>").is_err());
-        assert!(style_html_user_content("<p").is_err());
-        // Unclosed void elements are not supported (markdown-rs emits <br />)
-        assert!(style_html_user_content("<p>a<br>b</p>").is_err());
+    fn test_render_headings_h1_to_h3() {
+        let markdown = "# T1\n\n## T2\n\n### T3";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <h1 class="{H1_CLASS}">T1</h1>
+            <h2 class="{H2_CLASS}">T2</h2>
+            <h3 class="{H3_CLASS}">T3</h3>"#};
+        assert_eq!(result, expected, "Should add classes to h1, h2 and h3");
     }
 
-    // ---------- get_styled_html_from_markdown: formatting ----------
+    #[test]
+    fn test_render_h4_heading_unstyled() {
+        let markdown = "#### T4";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        assert_eq!(result, "<h4>T4</h4>", "Should not add a class to h4");
+    }
 
     #[test]
-    fn test_get_styled_html_from_markdown() {
-        let markdown = indoc! {r#"
-            # Here is a comment with markdown
-            ## header 2
-            ### header 3
-            #### header 4
-            ---
-        "#};
-        let expected_html = indoc! {r#"
-            <h1 class="text-4xl mb-3">Here is a comment with markdown</h1>
-            <h2 class="text-2xl mb-3">header 2</h2>
-            <h3 class="text-xl mb-2.5">header 3</h3>
-            <h4>header 4</h4>
-            <hr  class="my-2"/>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+    fn test_render_paragraph_with_bold_and_link() {
+        let markdown = "para with **bold** and [link](https://example.com)";
 
-        let markdown = indoc! {r#"
-            `code blocks`
-        "#};
-        let expected_html = indoc! {r#"
-            <p class="mb-2.5"><code class="inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">code blocks</code></p>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
 
-        let markdown = indoc! {r#"
-            ::: Spoilers :::
-        "#};
-        let expected_html = indoc! {r#"
-            <p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">Spoilers</span></label></p>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">para with <strong>bold</strong> and <a href="https://example.com" class="{A_CLASS}">link</a></p>"#};
+        assert_eq!(result, expected, "Should add a class to the paragraph and the link");
+    }
 
-        let markdown = indoc! {r#"
-            **bold**, *italic*, combined emphasis with **asterisks and _underscores_**.
-        "#};
-        let expected_html = indoc! {r#"
-            <p class="mb-2.5"><strong>bold</strong>, <em>italic</em>, combined emphasis with <strong>asterisks and <em>underscores</em></strong>.</p>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+    #[test]
+    fn test_render_unordered_and_ordered_lists() {
+        let markdown = "- a\n- b\n\n1. x\n2. y";
 
-        let markdown = indoc! {r#"
-            Strikethrough uses two tildes. ~~Scratch this.~~
-        "#};
-        let expected_html = indoc! {r#"
-            <p class="mb-2.5">Strikethrough uses two tildes. <del>Scratch this.</del></p>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
 
-        let markdown = indoc! {r#"
-            > We can also do blockquotes
-        "#};
-        let expected_html = indoc! {r#"
-            <blockquote class="w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600">
-            <p>We can also do blockquotes</p>
-            </blockquote>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
-
-        let markdown = indoc! {r#"
-            1. lists
-            2. with numbers
-
-            * lists
-            * without numbers
-            * and as many elements as we want
-        "#};
-        let expected_html = indoc! {r#"
-            <ol class="list-inside list-decimal mb-2.5">
-            <li>lists</li>
-            <li>with numbers</li>
-            </ol>
-            <ul class="list-inside list-disc mb-2.5">
-            <li>lists</li>
-            <li>without numbers</li>
-            <li>and as many elements as we want</li>
+        let expected = formatdoc! {r#"
+            <ul class="{UL_CLASS}">
+            <li>a</li>
+            <li>b</li>
             </ul>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+            <ol class="{OL_CLASS}">
+            <li>x</li>
+            <li>y</li>
+            </ol>"#};
+        assert_eq!(result, expected, "Should add classes to ul and ol");
+    }
 
-        let markdown = indoc! {r#"
-            \
-            Also, a bit more work is needed to add an empty line.
-        "#};
-        let expected_html = indoc! {r#"
-            <p class="mb-2.5"><br />
-            Also, a bit more work is needed to add an empty line.</p>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+    #[test]
+    fn test_render_blockquote_followed_by_paragraph() {
+        let markdown = "> quote\n\ntext";
 
-        let markdown = indoc! {r#"
-            Finally, we can add links [link text](https://www.example.com), images ![alt text](https://github.com/adam-p/markdown-here/raw/master/src/utils/images/icon48.png "Logo Title Text 1")
-        "#};
-        let expected_html = indoc! {r#"
-            <p class="mb-2.5">Finally, we can add links <a href="https://www.example.com" class="link text-primary">link text</a>, images <img src="https://github.com/adam-p/markdown-here/raw/master/src/utils/images/icon48.png" alt="alt text" title="Logo Title Text 1" /></p>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
 
-        let markdown = indoc! {r#"
-            | Tables        | Are           | Cool  |
-            | ------------- |:-------------:| -----:|
-            | col 3 is      | right-aligned | $1600 |
-            | col 2 is      | centered      |   $12 |
-            | zebra stripes | are neat      |    $1 |
-        "#};
-        let expected_html = indoc! {r#"
-            <table class="table mb-2.5">
+        let expected = formatdoc! {r#"
+            <blockquote class="{BLOCKQUOTE_CLASS}">
+            <p>quote</p>
+            </blockquote>
+            <p class="{P_CLASS}">text</p>"#};
+        assert_eq!(
+            result,
+            expected,
+            "Should style the blockquote but not paragraphs inside it, and style paragraphs after it again"
+        );
+    }
+
+    #[test]
+    fn test_render_table() {
+        let markdown = "| a | b |\n|---|---|\n| 1 | 2 |";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <table class="{TABLE_CLASS}">
             <thead>
             <tr>
-            <th>Tables</th>
-            <th align="center">Are</th>
-            <th align="right">Cool</th>
+            <th>a</th>
+            <th>b</th>
             </tr>
             </thead>
             <tbody>
             <tr>
-            <td>col 3 is</td>
-            <td align="center">right-aligned</td>
-            <td align="right">$1600</td>
-            </tr>
-            <tr>
-            <td>col 2 is</td>
-            <td align="center">centered</td>
-            <td align="right">$12</td>
-            </tr>
-            <tr>
-            <td>zebra stripes</td>
-            <td align="center">are neat</td>
-            <td align="right">$1</td>
+            <td>1</td>
+            <td>2</td>
             </tr>
             </tbody>
-            </table>
-        "#};
-        assert_eq!(
-            get_styled_html_from_markdown(markdown).expect("Should get styled html"),
-            expected_html
-        );
+            </table>"#};
+        assert_eq!(result, expected, "Should add a class to the table");
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_empty() {
-        assert_eq!(get_styled_html_from_markdown("").expect("Should get styled html"), "");
+    fn test_render_inline_code() {
+        let markdown = "`code` and text";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><code class="{CODE_CLASS}">code</code> and text</p>"#};
+        assert_eq!(result, expected, "Should add a class to inline code");
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_fenced_code_block() {
+    fn test_render_fenced_code_block() {
         let markdown = "```\nlet x = 1;\n```";
-        let expected_html = indoc! {r#"
-            <pre><code class="inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">let x = 1;
-            </code></pre>"#
-        };
-        assert_eq!(get_styled_html_from_markdown(markdown).expect("Should get styled html"), expected_html);
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <pre><code class="{CODE_CLASS}">let x = 1;
+            </code></pre>"#};
+        assert_eq!(result, expected, "Should add the code class to the code block");
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_hard_break() {
-        assert_eq!(
-            get_styled_html_from_markdown("a  \nb").expect("Should get styled html"),
-            "<p class=\"mb-2.5\">a<br />\nb</p>"
-        );
+    fn test_render_code_keeps_html_special_characters_escaped() {
+        let markdown = "`<b> & \"q\"`";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><code class="{CODE_CLASS}">&lt;b&gt; &amp; &quot;q&quot;</code></p>"#};
+        assert_eq!(result, expected, "Should keep html special characters escaped in code");
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_autolink() {
-        assert_eq!(
-            get_styled_html_from_markdown("https://example.com").expect("Should get styled html"),
-            "<p class=\"mb-2.5\"><a href=\"https://example.com\" class=\"link text-primary\">https://example.com</a></p>"
-        );
-    }
+    fn test_render_horizontal_rule() {
+        let markdown = "---";
 
-    #[test]
-    fn test_get_styled_html_from_markdown_escapes_special_chars() {
-        assert_eq!(
-            get_styled_html_from_markdown(r#"a < b & c > d "q""#).expect("Should get styled html"),
-            "<p class=\"mb-2.5\">a &lt; b &amp; c &gt; d &quot;q&quot;</p>"
-        );
-    }
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
 
-    #[test]
-    fn test_get_styled_html_from_markdown_spoiler_with_special_chars() {
-        // The whole spoiler content must end up inside a single label/span
         assert_eq!(
-            get_styled_html_from_markdown("::: a & b :::").expect("Should get styled html"),
-            "<p class=\"mb-2.5\"><label><input type=\"checkbox\" class=\"spoiler-checkbox hidden\"/><span class=\"spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white\">a &amp; b</span></label></p>"
+            result,
+            r#"<hr  class="my-2"/>"#,
+            "Should add the my-2 class to the horizontal rule"
         );
     }
 
     #[test]
-    fn test_style_html_user_content_spoiler_with_entities() {
+    fn test_render_gfm_strikethrough() {
+        let markdown = "~~strike~~";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><del>strike</del></p>"#};
+        assert_eq!(result, expected, "Should render GFM strikethrough");
+    }
+
+    #[test]
+    fn test_render_gfm_task_list() {
+        let markdown = "- [x] done";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <ul class="{UL_CLASS}">
+            <li><input type="checkbox" disabled="" checked="" /> done</li>
+            </ul>"#};
+        assert_eq!(result, expected, "Should render a GFM task list item");
+    }
+
+    #[test]
+    fn test_render_image() {
+        let markdown = "![img](https://example.com/a.png)";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><img src="https://example.com/a.png" alt="img" /></p>"#};
+        assert_eq!(result, expected, "Should render the image as is");
+    }
+
+    #[test]
+    fn test_render_markdown_without_spoilers() {
+        let markdown = "# Title\n\nline one\nline two";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <h1 class="{H1_CLASS}">Title</h1>
+            <p class="{P_CLASS}">line one
+            line two</p>"#};
+        assert_eq!(result, expected, "Should render like plain markdown and keep soft line breaks");
+    }
+
+    // ---------------------------------------------------------------------
+    // Spoiler markers
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_separate_spoiler_markers() {
+        let markdown = "a\n::: spoiler T\nb\n:::\nc";
+
+        let result = separate_spoiler_markers(markdown);
+
         assert_eq!(
-            style_html_user_content("<p>::: a &amp; b &lt; c :::</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">a &amp; b &lt; c</span></label></p>"#
+            result,
+            "a\n\n::: spoiler T\n\nb\n\n:::\n\nc",
+            "Should surround the spoiler markers with blank lines"
         );
     }
 
     #[test]
-    fn test_style_html_user_content_spoiler_with_inline_elements() {
-        assert_eq!(
-            style_html_user_content("<p>:::<strong>bold</strong> text:::</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white"><strong>bold</strong> text</span></label></p>"#
-        );
-    }
-
-    #[test]
-    fn test_style_html_user_content_unclosed_spoiler_ends_with_parent() {
-        assert_eq!(
-            style_html_user_content("<p>a :::b</p><p>c</p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">b</span></label></p><p class="mb-2.5">c</p>"#
-        );
-    }
-
-    #[test]
-    fn test_style_html_user_content_spoiler_tag_in_nested_element_is_literal() {
-        // Closing inside <em> would produce misnested tags, so it stays as text
-        assert_eq!(
-            style_html_user_content("<p>:::a <em>b:::</em></p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white">a <em>b:::</em></span></label></p>"#
-        );
-    }
-
-    #[test]
-    fn test_style_html_user_content_no_spoiler_in_code() {
-        assert_eq!(
-            style_html_user_content("<p><code>a ::: b</code></p>").expect("Should style valid html"),
-            r#"<p class="mb-2.5"><code class="block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5">a ::: b</code></p>"#
-        );
-    }
-
-    // ---------- get_styled_html_from_markdown: security ----------
-
-    #[test]
-    fn test_get_styled_html_from_markdown_raw_html_is_escaped() {
-        assert_eq!(
-            get_styled_html_from_markdown("<script>alert(1)</script>").expect("Should get styled html"),
-            "&lt;script&gt;alert(1)&lt;/script&gt;"
-        );
-        assert_eq!(
-            get_styled_html_from_markdown("<img src=x onerror=alert(1)>").expect("Should get styled html"),
-            "&lt;img src=x onerror=alert(1)&gt;"
-        );
-        for (payload, forbidden) in [
-            (r#"<iframe src="https://evil.example"></iframe>"#, "<iframe"),
-            ("<style>*{display:none}</style>", "<style"),
-            (r#"<a href="javascript:alert(1)">x</a>"#, "<a href=\"javascript"),
-            ("<!-- comment -->", "<!--"),
-            ("<svg onload=alert(1)>", "<svg"),
+    fn test_separate_spoiler_markers_leaves_non_spoiler_markdown_untouched() {
+        // No tag, markers in code fences, inline spoilers, indented code
+        for markdown in [
+            "no spoilers\nhere",
+            "```\n:::\n```",
+            "~~~\n::: spoiler x\n~~~",
+            "a ::: b ::: c",
+            "::: spoiler a :::",
+            "    ::: spoiler x",
         ] {
-            let html = get_styled_html_from_markdown(payload).expect("Should get styled html");
-            assert!(!html.contains(forbidden), "{payload} -> {html}");
+            let result = separate_spoiler_markers(markdown);
+
+            assert_eq!(result, markdown, "Should leave {markdown:?} untouched");
         }
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_dangerous_urls_are_dropped() {
-        for (payload, scheme) in [
-            ("[x](javascript:alert(1))", "javascript:"),
-            ("[x](JaVaScRiPt:alert(1))", "javascript:"),
-            ("[x](vbscript:msgbox(1))", "vbscript:"),
-            ("[x](data:text/html;base64,PHNjcmlwdD4=)", "data:"),
-            ("![x](javascript:alert(1))", "javascript:"),
-            ("![x](data:image/svg+xml;base64,PHN2Zz4=)", "data:"),
-            ("<javascript:alert(1)>", "href=\"javascript:"),
-        ] {
-            let html = get_styled_html_from_markdown(payload).expect("Should get styled html").to_lowercase();
-            assert!(!html.contains(scheme), "{payload} -> {html}");
-        }
-    }
+    fn test_separate_spoiler_markers_in_blockquote() {
+        let markdown = "> a\n> ::: spoiler T\n> b\n> :::";
 
-    #[test]
-    fn test_get_styled_html_from_markdown_safe_urls_are_kept() {
+        let result = separate_spoiler_markers(markdown);
+
         assert_eq!(
-            get_styled_html_from_markdown("[x](mailto:a@example.com)").expect("Should get styled html"),
-            "<p class=\"mb-2.5\"><a href=\"mailto:a@example.com\" class=\"link text-primary\">x</a></p>"
+            result,
+            "> a\n>\n> ::: spoiler T\n>\n> b\n>\n> :::\n>",
+            "Should keep the blockquote prefix on the added blank lines"
         );
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_attribute_breakout() {
-        let html = get_styled_html_from_markdown(r#"[x](https://a.example/"onmouseover="alert(1))"#)
-            .expect("Should get styled html");
-        assert!(!html.contains("\"onmouseover"), "{html}");
+    fn test_parse_spoiler_block_marker_open_with_four_colons() {
+        let text = ":::: spoiler T";
 
-        let html = get_styled_html_from_markdown(r#"[x](https://a.example "t\" onmouseover=\"alert(1)")"#)
-            .expect("Should get styled html");
-        assert!(!html.contains("\" onmouseover"), "{html}");
+        let result = parse_spoiler_block_marker(text);
 
-        let html = get_styled_html_from_markdown(r#"![a" onerror="alert(1)](https://a.example/x.png)"#)
-            .expect("Should get styled html");
-        assert!(!html.contains("\" onerror"), "{html}");
+        assert!(
+            matches!(result, Some(SpoilerBlockMarker::Open { colons: 4, .. })),
+            "Should parse an opening marker with 4 colons"
+        );
     }
 
     #[test]
-    fn test_get_styled_html_from_markdown_deep_nesting_does_not_panic() {
-        assert!(get_styled_html_from_markdown(&format!("{}x", "> ".repeat(1000))).is_ok());
-        assert!(get_styled_html_from_markdown(&"[".repeat(10_000)).is_ok());
-        assert!(get_styled_html_from_markdown(&"*a ".repeat(10_000)).is_ok());
+    fn test_parse_spoiler_block_marker_close_with_four_colons() {
+        let text = "::::";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert!(
+            matches!(result, Some(SpoilerBlockMarker::Close { colons: 4 })),
+            "Should parse a closing marker with 4 colons"
+        );
     }
 
     #[test]
-    fn test_format_textarea_content() {
-        // Bold
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Bold);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "This is some user text ****");
+    fn test_parse_spoiler_block_marker_rejects_invalid_markers() {
+        for text in ["::", ":::spoilers", "::: warning", "::: spoiler a :::", ":::: a ::::"] {
+            let result = parse_spoiler_block_marker(text);
 
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Bold);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "This is **some** user text ");
-
-        // Italic
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Italic);
-        assert_eq!(cursor_position, Some(24));
-        assert_eq!(content, "This is some user text **");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Italic);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "This is *some* user text ");
-
-        // Strikethrough,
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Strikethrough);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "This is some user text ~~~~");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Strikethrough);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "This is ~~some~~ user text ");
-
-        // Header1
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Header1);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "# This is some user text ");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Header1);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "# This is some user text ");
-
-        // Header2
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Header2);
-        assert_eq!(cursor_position, Some(26));
-        assert_eq!(content, "## This is some user text ");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Header2);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "## This is some user text ");
-
-        // List
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::List);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "* This is some user text ");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::List);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "* This is some user text ");
-
-        // NumberedList
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::NumberedList);
-        assert_eq!(cursor_position, Some(26));
-        assert_eq!(content, "1. This is some user text ");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::NumberedList);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "1. This is some user text ");
-
-        // CodeBlock
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::CodeBlock);
-        assert_eq!(cursor_position, Some(26));
-        assert_eq!(content, "This is some user text ``````");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::CodeBlock);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "This is ```some``` user text ");
-
-        // Spoiler
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Spoiler);
-        assert_eq!(cursor_position, Some(26));
-        assert_eq!(content, "This is some user text ::::::");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Spoiler);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "This is :::some::: user text ");
-
-        // BlockQuote
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::BlockQuote);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "> This is some user text ");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::BlockQuote);
-        assert_eq!(cursor_position, None);
-        assert_eq!(content, "> This is some user text ");
-
-        // Link
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Link);
-        assert_eq!(cursor_position, Some(24));
-        assert_eq!(content, "This is some user text [link text](https://www.your_link.com)");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Link);
-        assert_eq!(cursor_position, Some(9));
-        assert_eq!(content, "This is [link text](some) user text ");
-
-        // Image
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 23, 23, FormatType::Image);
-        assert_eq!(cursor_position, Some(25));
-        assert_eq!(content, "This is some user text ![](https://image_url.png)");
-
-        let mut content = String::from("This is some user text ");
-        let cursor_position = format_textarea_content(&mut content, 8, 12, FormatType::Image);
-        assert_eq!(cursor_position, Some(10));
-        assert_eq!(content, "This is ![](some) user text ");
+            assert!(result.is_none(), "Found unexpected spoiler block marker in {text}");
+        }
     }
 
+    // ---------------------------------------------------------------------
+    // render_markdown: inline spoilers
+    // ---------------------------------------------------------------------
 
+    #[test]
+    fn test_render_inline_spoiler() {
+        let markdown = "hello ::: secret ::: world";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">hello <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">secret</span></label> world</p>"#};
+        assert_eq!(result, expected, "Should wrap the text between two tags in a spoiler");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_trims_whitespace_inside_the_tags() {
+        let markdown = "a :::    b    ::: c";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c</p>"#};
+        assert_eq!(result, expected, "Should trim spaces at both ends of the spoiler content");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_as_whole_paragraph() {
+        let markdown = ":::secret:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">secret</span></label></p>"#};
+        assert_eq!(result, expected, "Should support a spoiler that is the whole paragraph");
+    }
+
+    #[test]
+    fn test_render_multiple_inline_spoilers_in_one_paragraph() {
+        let markdown = "a ::: b ::: c ::: d";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">d</span></label></p>"#};
+        assert_eq!(
+            result,
+            expected,
+            "Should open a second spoiler after the first one was closed, and close it at the end of the paragraph"
+        );
+    }
+
+    #[test]
+    fn test_render_unclosed_inline_spoiler_is_closed_at_the_end_of_the_paragraph() {
+        let markdown = ":::unclosed\n\nnext paragraph";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">unclosed</span></label></p>
+            <p class="{P_CLASS}">next paragraph</p>"#};
+        assert_eq!(result, expected, "Should not let an unclosed spoiler leak into the next paragraph");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_with_formatting_inside() {
+        let markdown = ":::a **b** c:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">a <strong>b</strong> c</span></label></p>"#};
+        assert_eq!(result, expected, "Should keep nested formatting inside the spoiler");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_crossing_an_element_boundary_stays_well_nested() {
+        // The spoiler is closed where the <strong> ends, so the tags never overlap
+        let markdown = "**bold :::spoiler** text:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><strong>bold <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">spoiler</span></label></strong> text<label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label></p>"#};
+        assert_eq!(result, expected, "Should close the spoiler together with the element it was opened in");
+        assert_balanced_html(&result);
+    }
+
+    #[test]
+    fn test_render_empty_inline_spoiler() {
+        let markdown = "a ::: ::: b";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label> b</p>"#};
+        assert_eq!(result, expected, "Should render an empty spoiler for two adjacent tags");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_in_heading() {
+        let markdown = "# ::: head ::: here";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <h1 class="{H1_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">head</span></label> here</h1>"#};
+        assert_eq!(result, expected, "Should support spoilers in headings");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_in_table_cell() {
+        let markdown = "| a |\n|---|\n| ::: x ::: |";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <table class="{TABLE_CLASS}">
+            <thead>
+            <tr>
+            <th>a</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+            <td><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">x</span></label></td>
+            </tr>
+            </tbody>
+            </table>"#};
+        assert_eq!(result, expected, "Should support spoilers in table cells");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_in_list_item() {
+        let markdown = "- item ::: hidden :::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <ul class="{UL_CLASS}">
+            <li>item <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">hidden</span></label></li>
+            </ul>"#};
+        assert_eq!(result, expected, "Should support spoilers in list items");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_after_link() {
+        let markdown = "[a](https://a.example) ::: z :::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><a href="https://a.example" class="{A_CLASS}">a</a> <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">z</span></label></p>"#};
+        assert_eq!(result, expected, "Should handle a spoiler after a link");
+    }
+
+    #[test]
+    fn test_render_html_entities_inside_inline_spoiler_stay_escaped() {
+        let markdown = "& ::: a < ::: b";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">&amp; <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">a &lt;</span></label> b</p>"#};
+        assert_eq!(result, expected, "Should keep entities escaped inside and outside the spoiler");
+    }
+
+    #[test]
+    fn test_render_spoiler_tag_in_inline_code_stays_literal() {
+        let markdown = "`:::x:::`";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><code class="{CODE_CLASS}">:::x:::</code></p>"#};
+        assert_eq!(result, expected, "Should keep the spoiler tag literal in inline code");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_after_inline_code() {
+        let markdown = "`:::` ::: s :::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><code class="{CODE_CLASS}">:::</code> <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">s</span></label></p>"#};
+        assert_eq!(result, expected, "Should leave code mode after the code element ends");
+    }
+
+    #[test]
+    fn test_render_spoiler_tag_in_fenced_code_block_stays_literal() {
+        let markdown = "```\n::: spoiler T\nx\n:::\n```";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <pre><code class="{CODE_CLASS}">::: spoiler T
+            x
+            :::
+            </code></pre>"#};
+        assert_eq!(result, expected, "Should keep block spoiler markers literal in a fenced code block");
+    }
+
+    #[test]
+    fn test_render_spoiler_tag_in_indented_code_block_stays_literal() {
+        let markdown = "    ::: spoiler T\n    x";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <pre><code class="{CODE_CLASS}">::: spoiler T
+            x
+            </code></pre>"#};
+        assert_eq!(result, expected, "Should keep block spoiler markers literal in an indented code block");
+    }
+
+    #[test]
+    fn test_render_spoiler_tag_in_image_alt_text_stays_literal() {
+        let markdown = "![:::](x.png)";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><img src="x.png" alt=":::" /></p>"#};
+        assert_eq!(result, expected, "Should keep the tag in an attribute value untouched");
+    }
+
+    #[test]
+    fn test_render_inline_spoiler_with_unicode() {
+        let markdown = "é ::: héllo 🎉 ::: ü";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">é <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">héllo 🎉</span></label> ü</p>"#};
+        assert_eq!(result, expected, "Should handle non-ASCII text");
+    }
+
+    // ---------------------------------------------------------------------
+    // render_markdown: block spoilers
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_render_block_spoiler_with_title() {
+        let markdown = "::: spoiler Title\nhidden\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span>
+            <p class="{P_CLASS}">hidden</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should wrap the content in a block spoiler with the title");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_without_title_uses_default_title() {
+        let markdown = "::: spoiler\nhidden\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Spoiler</span>
+            <p class="{P_CLASS}">hidden</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should fall back to the default title");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_with_markdown_content() {
+        let markdown = "::: spoiler Title\n\n# Head\n\nsome **bold** text\n\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span>
+            <h1 class="{H1_CLASS}">Head</h1>
+            <p class="{P_CLASS}">some <strong>bold</strong> text</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should style the markdown inside the block spoiler");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_drops_formatting() {
+        let markdown = "::: spoiler **bold** title\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">bold title</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should only keep the text of a formatted title");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_escapes_special_characters() {
+        let markdown = "::: spoiler a\"b&c\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">a&quot;b&amp;c</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should escape quotes and ampersands in the title");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_decodes_entities_once_and_escapes() {
+        let markdown = "::: spoiler a &amp; b &#35;\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">a &amp; b #</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(
+            result,
+            expected,
+            "Should decode named and numeric entities in the title and escape the result"
+        );
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_with_unicode() {
+        let markdown = "::: spoiler Ünïcödé 🎉\nxé\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Ünïcödé 🎉</span>
+            <p class="{P_CLASS}">xé</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should handle non-ASCII titles and content");
+    }
+
+    #[test]
+    fn test_render_unclosed_block_spoiler_is_closed_at_the_end_of_the_document() {
+        let markdown = "::: spoiler unclosed\ntext";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">unclosed</span>
+            <p class="{P_CLASS}">text</p></div></label>"#};
+        assert_eq!(result, expected, "Should close an unclosed block spoiler at the end");
+    }
+
+    #[test]
+    fn test_render_two_consecutive_block_spoilers() {
+        let markdown = "::: spoiler A\nx\n:::\n\n::: spoiler B\ny\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">A</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">B</span>
+            <p class="{P_CLASS}">y</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should render two separate block spoilers");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_between_text_without_blank_lines() {
+        let markdown = "text\n::: spoiler T\nx\n:::\nmore";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">text</p>
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>
+            <p class="{P_CLASS}">more</p>"#};
+        assert_eq!(
+            result,
+            expected,
+            "Should split the paragraphs around the markers even without blank lines"
+        );
+    }
+
+    #[test]
+    fn test_render_nested_block_spoilers_with_longer_outer_marker() {
+        let markdown = ":::: spoiler outer\n::: spoiler inner\nx\n:::\ny\n::::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">outer</span>
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">inner</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>
+            <p class="{P_CLASS}">y</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should close only the inner spoiler with a short closer");
+    }
+
+    #[test]
+    fn test_render_longer_closer_closes_nested_block_spoilers() {
+        let markdown = ":::: spoiler outer\n::: spoiler inner\nx\n::::\ny";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">outer</span>
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">inner</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label></div></label>
+            <p class="{P_CLASS}">y</p>"#};
+        assert_eq!(result, expected, "Should close the inner and the outer spoiler with the long closer");
+    }
+
+    #[test]
+    fn test_render_shorter_closer_does_not_close_block_spoiler_opened_with_more_colons() {
+        // The `:::` can't close a spoiler opened with four colons, so the block stays open
+        // until the end of the document and the closer ends up as an (empty) inline spoiler.
+        let markdown = ":::: spoiler\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Spoiler</span>
+            <p class="{P_CLASS}">x</p>
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label></p></div></label>"#};
+        assert_eq!(
+            result,
+            expected,
+            "Should keep a block spoiler open when the closer has fewer colons than the opener"
+        );
+    }
+
+    #[test]
+    fn test_render_block_spoiler_inside_blockquote() {
+        let markdown = "> ::: spoiler Q\n> hidden\n> :::\n\nafter";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <blockquote class="{BLOCKQUOTE_CLASS}">
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Q</span>
+            <p>hidden</p>
+            </div></label>
+            </blockquote>
+            <p class="{P_CLASS}">after</p>"#};
+        assert_eq!(result, expected, "Should support a complete block spoiler inside a blockquote");
+    }
+
+    #[test]
+    fn test_render_unclosed_block_spoiler_inside_blockquote_is_closed_with_the_blockquote() {
+        let markdown = "> ::: spoiler Q\n> hidden\n\nafter";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <blockquote class="{BLOCKQUOTE_CLASS}">
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Q</span>
+            <p>hidden</p>
+            </div></label></blockquote>
+            <p class="{P_CLASS}">after</p>"#};
+        assert_eq!(result, expected, "Should close the block spoiler before the blockquote ends");
+        assert_balanced_html(&result);
+    }
+
+    #[test]
+    fn test_render_block_spoiler_with_crlf_line_endings() {
+        let markdown = "::: spoiler Title\r\nhidden\r\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span>
+            <p class="{P_CLASS}">hidden</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should handle Windows line endings");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_marker_after_longer_code_fence() {
+        // The ``` inside the ```` fence doesn't close it, only the ```` does
+        let markdown = "````\n```\n::: spoiler T\n````\n::: spoiler T\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <pre><code class="{CODE_CLASS}">```
+            ::: spoiler T
+            </code></pre>
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(
+            result,
+            expected,
+            "Should only treat a fence of the same character and at least the same length as closing"
+        );
+    }
+
+    #[test]
+    fn test_render_block_spoiler_marker_after_tilde_fence() {
+        let markdown = "~~~\n:::\n~~~\n::: spoiler T\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <pre><code class="{CODE_CLASS}">:::
+            </code></pre>
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should support tilde fences");
+    }
+
+    #[test]
+    fn test_render_inline_tag_in_block_marker_title_is_not_a_block_spoiler() {
+        // `::: spoiler Title :::x:::` contains a second tag, so it is handled as inline spoilers
+        let markdown = "::: spoiler Title :::x:::\nhidden";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">spoiler Title</span></label>x<label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">hidden</span></label></p>"#};
+        assert_eq!(result, expected, "Should not create a block spoiler for a line with a second tag");
+        assert_balanced_html(&result);
+    }
+
+    // ---------------------------------------------------------------------
+    // render_markdown: security
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_render_raw_script_tag_is_escaped() {
+        let markdown = "<script>alert(1)</script>";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        assert_eq!(result, "&lt;script&gt;alert(1)&lt;/script&gt;", "Should escape a raw script tag");
+    }
+
+    #[test]
+    fn test_render_raw_inline_html_with_event_handler_is_escaped() {
+        let markdown = "<img src=x onerror=alert(1)>";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        assert_eq!(
+            result,
+            "&lt;img src=x onerror=alert(1)&gt;",
+            "Should escape raw html with an event handler"
+        );
+    }
+
+    #[test]
+    fn test_render_raw_html_inside_a_paragraph_is_escaped() {
+        let markdown = "before <b onclick=\"x()\">bold</b> after";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">before &lt;b onclick=&quot;x()&quot;&gt;bold&lt;/b&gt; after</p>"#};
+        assert_eq!(result, expected, "Should escape inline raw html");
+    }
+
+    #[test]
+    fn test_render_javascript_link_is_neutralized() {
+        let markdown = "[x](javascript:alert(1))";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><a href="" class="{A_CLASS}">x</a></p>"#};
+        assert_eq!(result, expected, "Should drop the javascript: url from the link");
+    }
+
+    #[test]
+    fn test_render_javascript_image_source_is_neutralized() {
+        let markdown = "![x](javascript:alert(1))";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><img src="" alt="x" /></p>"#};
+        assert_eq!(result, expected, "Should drop the javascript: url from the image");
+    }
+
+    #[test]
+    fn test_render_link_title_cannot_break_out_of_its_attribute() {
+        let markdown = "[x](https://example.com \"t\\\" onmouseover=\\\"alert(1)\")";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><a href="https://example.com" title="t&quot; onmouseover=&quot;alert(1)" class="{A_CLASS}">x</a></p>"#};
+        assert_eq!(result, expected, "Should escape quotes in the link title");
+    }
+
+    #[test]
+    fn test_render_script_in_inline_spoiler_is_escaped() {
+        let markdown = ":::<script>alert(1)</script>:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">&lt;script&gt;alert(1)&lt;/script&gt;</span></label></p>"#};
+        assert_eq!(result, expected, "Should escape html inside an inline spoiler");
+    }
+
+    #[test]
+    fn test_render_script_in_block_spoiler_title_is_escaped() {
+        let markdown = "::: spoiler <b>t</b>\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;b&gt;t&lt;/b&gt;</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should escape html in the title");
+    }
+
+    #[test]
+    fn test_render_entity_encoded_script_in_block_spoiler_title_is_not_decoded_into_html() {
+        let markdown = "::: spoiler &lt;script&gt;alert(1)&lt;/script&gt;\nx\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;script&gt;alert(1)&lt;/script&gt;</span>
+            <p class="{P_CLASS}">x</p>
+            </div></label>"#};
+        assert_eq!(result, expected, "Should keep the decoded title escaped");
+    }
+
+    #[test]
+    fn test_render_raw_html_in_block_spoiler_body_is_escaped() {
+        let markdown = "::: spoiler T\n\n<script>alert(1)</script>\n\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            &lt;script&gt;alert(1)&lt;/script&gt;
+            </div></label>"#};
+        assert_eq!(result, expected, "Should escape raw html in the body of a block spoiler");
+    }
+
+    #[test]
+    fn test_render_user_html_cannot_fake_spoiler_markup() {
+        let markdown = "<span class=\"spoiler-cover\">x</span>";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">&lt;span class=&quot;spoiler-cover&quot;&gt;x&lt;/span&gt;</p>"#};
+        assert_eq!(result, expected, "Should escape user supplied spoiler markup");
+    }
+
+    #[test]
+    fn test_render_pathological_inputs_do_not_panic_and_produce_balanced_html() {
+        let long_colons = ":".repeat(10_000);
+        let many_openers = "::: spoiler\n".repeat(200);
+        let deep_quotes = format!("{} ::: spoiler Q\n{} x", ">".repeat(100), ">".repeat(100));
+        let inputs: Vec<&str> = vec![
+            "",
+            ":",
+            "::",
+            ":::",
+            "::::::",
+            ":::\n:::\n:::",
+            "::: spoiler",
+            "::: spoiler\n",
+            ":::: spoiler\n::: spoiler\n:::\n",
+            "```\n::: spoiler\n",
+            "~~~\n:::",
+            "> > > ::: spoiler\n> > x",
+            "- ::: spoiler\n- x",
+            "a\r\n:::\r\nb",
+            "::: spoiler 🎉\n🎉\n:::",
+            ":::🎉:::🎉:::",
+            "\u{0}:::\u{0}",
+            "<!-- ::: spoiler -->",
+            "&amp;&amp;::: &#xZZ; :::",
+            &long_colons,
+            &many_openers,
+            &deep_quotes,
+        ];
+
+        for input in inputs {
+            let result = render_markdown(input).expect("Should not fail for unusual input");
+
+            assert_balanced_html(&result);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // style_html_user_content
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_style_html_adds_heading_classes() {
+        let html = "<h1>a</h1><h2>b</h2><h3>c</h3>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <h1 class="{H1_CLASS}">a</h1><h2 class="{H2_CLASS}">b</h2><h3 class="{H3_CLASS}">c</h3>"#};
+        assert_eq!(result, expected, "Should add classes to h1, h2 and h3");
+    }
+
+    #[test]
+    fn test_style_html_keeps_existing_attributes_when_adding_class() {
+        let html = r#"<a href="https://example.com">y</a>"#;
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <a href="https://example.com" class="{A_CLASS}">y</a>"#};
+        assert_eq!(result, expected, "Should keep the href and append the class");
+    }
+
+    #[test]
+    fn test_style_html_does_not_style_paragraphs_in_blockquotes() {
+        let html = "<blockquote><p>a</p></blockquote><p>b</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <blockquote class="{BLOCKQUOTE_CLASS}"><p>a</p></blockquote><p class="{P_CLASS}">b</p>"#};
+        assert_eq!(result, expected, "Should only skip the paragraph class inside blockquotes");
+    }
+
+    #[test]
+    fn test_style_html_adds_class_to_self_closing_hr() {
+        let html = "<hr/>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        assert_eq!(result, r#"<hr class="my-2"/>"#, "Should add the class to the hr");
+    }
+
+    #[test]
+    fn test_style_html_leaves_other_empty_elements_unchanged() {
+        let html = r#"<br/><img src="a.png"/>"#;
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        assert_eq!(result, html, "Should not add classes to br and img");
+    }
+
+    #[test]
+    fn test_style_html_preserves_entity_references() {
+        let html = "<p>a &amp; b &lt; c &#35;</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">a &amp; b &lt; c &#35;</p>"#};
+        assert_eq!(result, expected, "Should not decode or double-escape entity references");
+    }
+
+    #[test]
+    fn test_style_html_passes_comments_through() {
+        let html = "<!-- note --><p>a</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <!-- note --><p class="{P_CLASS}">a</p>"#};
+        assert_eq!(result, expected, "Should keep comments as they are");
+    }
+
+    #[test]
+    fn test_style_html_inline_spoiler_inside_a_paragraph() {
+        let html = "<p>a ::: b ::: c</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c</p>"#};
+        assert_eq!(result, expected, "Should convert the tags in a text node into a spoiler");
+    }
+
+    #[test]
+    fn test_style_html_spoiler_tag_in_code_is_literal() {
+        let html = "<code>:::a:::</code>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <code class="{CODE_CLASS}">:::a:::</code>"#};
+        assert_eq!(result, expected, "Should not convert the tags in code");
+    }
+
+    #[test]
+    fn test_style_html_block_marker_paragraph_is_replaced_by_spoiler() {
+        let html = "<p>::: spoiler T</p><p>x</p><p>:::</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><p class="{P_CLASS}">x</p></div></label>"#};
+        assert_eq!(result, expected, "Should replace the marker paragraphs by the spoiler elements");
+    }
+
+    #[test]
+    fn test_style_html_closer_without_open_block_is_a_normal_paragraph_with_spoiler_tag() {
+        // Without an open block spoiler a `:::` paragraph is not a closer, it is handled as text
+        let html = "<p>:::</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label></p>"#};
+        assert_eq!(result, expected, "Should not treat a closer as a block closer when no block is open");
+    }
+
+    #[test]
+    fn test_style_html_mismatched_end_tag_returns_error() {
+        let html = "<p>text</div>";
+
+        let result = style_html_user_content(html);
+
+        assert!(result.is_err(), "Should fail for a mismatched end tag");
+    }
+
+    // ---------------------------------------------------------------------
+    // separate_spoiler_markers
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_separate_markers_without_spoiler_tag_returns_input_borrowed() {
+        let markdown = "plain text\nsecond line";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert!(
+            matches!(result, Cow::Borrowed(borrowed) if borrowed == markdown),
+            "Should not allocate when the input has no spoiler tag"
+        );
+    }
+
+    #[test]
+    fn test_separate_markers_puts_block_markers_on_their_own_paragraph() {
+        let markdown = "a\n::: spoiler T\nb\n:::";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(
+            result,
+            "a\n\n::: spoiler T\n\nb\n\n:::",
+            "Should surround the opener and closer with blank lines"
+        );
+    }
+
+    #[test]
+    fn test_separate_markers_trims_marker_lines() {
+        let markdown = "   ::: spoiler T   ";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, "\n::: spoiler T", "Should remove whitespace around the marker");
+    }
+
+    #[test]
+    fn test_separate_markers_keeps_blockquote_prefix() {
+        let markdown = "> ::: spoiler Q\n> x";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(
+            result,
+            ">\n> ::: spoiler Q\n>\n> x",
+            "Should keep the blockquote markers on the added blank lines"
+        );
+    }
+
+    #[test]
+    fn test_separate_markers_keeps_nested_blockquote_prefix() {
+        let markdown = "> > :::";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(
+            result,
+            "> >\n> > :::\n> >",
+            "Should keep all blockquote markers on the added blank lines"
+        );
+    }
+
+    #[test]
+    fn test_separate_markers_converts_crlf_to_lf() {
+        let markdown = "a\r\n:::\r\nb";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, "a\n\n:::\n\nb", "Should normalize line endings");
+    }
+
+    #[test]
+    fn test_separate_markers_leaves_inline_spoilers_untouched() {
+        let markdown = "a ::: b ::: c";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should not change lines that are not a block marker");
+    }
+
+    #[test]
+    fn test_separate_markers_leaves_fenced_code_untouched() {
+        let markdown = "```\n::: spoiler T\n:::\n```";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should not touch markers inside a code fence");
+    }
+
+    #[test]
+    fn test_separate_markers_leaves_indented_code_untouched() {
+        let markdown = "    ::: spoiler T";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should not touch markers in an indented code block");
+    }
+
+    #[test]
+    fn test_separate_markers_fence_is_only_closed_by_same_character() {
+        let markdown = "```\n~~~\n::: spoiler T\n```\n::: spoiler T";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(
+            result,
+            "```\n~~~\n::: spoiler T\n```\n\n::: spoiler T",
+            "Should keep the first marker inside the fence and separate the second one"
+        );
+    }
+
+    #[test]
+    fn test_separate_markers_fence_needs_enough_characters_to_close() {
+        let markdown = "````\n```\n::: spoiler T\n````";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should stay in the fence when the closing line is too short");
+    }
+
+    #[test]
+    fn test_separate_markers_inline_code_on_one_line_is_not_a_fence() {
+        let markdown = "```code```\n::: spoiler T";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(
+            result,
+            "```code```\n\n::: spoiler T",
+            "Should not enter fence mode for ```code``` on one line"
+        );
+    }
+
+    #[test]
+    fn test_separate_markers_unclosed_fence_swallows_the_rest() {
+        let markdown = "```\n::: spoiler T\nx\n:::";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should leave everything after an unclosed fence unchanged");
+    }
+
+    #[test]
+    fn test_separate_markers_keeps_a_single_trailing_newline() {
+        let markdown = "a ::: b\n";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should keep a single trailing newline");
+    }
+
+    #[test]
+    fn test_separate_markers_does_not_add_a_trailing_newline() {
+        let markdown = "a ::: b";
+
+        let result = separate_spoiler_markers(markdown);
+
+        assert_eq!(result, markdown, "Should not add a trailing newline");
+    }
+
+    // ---------------------------------------------------------------------
+    // parse_spoiler_block_marker
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_parse_marker_opener_with_title() {
+        let text = "::: spoiler My title";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(result, Some(SpoilerBlockMarker::Open { colons: 3, title: String::from("My title") }), "Should parse the colons and the title");
+    }
+
+    #[test]
+    fn test_parse_marker_opener_without_title_has_empty_title() {
+        let text = "::: spoiler";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(result, Some(SpoilerBlockMarker::Open { colons: 3, title: String::from("") }), "Should parse an opener without title");
+    }
+
+    #[test]
+    fn test_parse_marker_opener_counts_all_colons() {
+        let text = ":::::: spoiler T";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(result, Some(SpoilerBlockMarker::Open { colons: 6, title: String::from("T") }), "Should report the number of colons");
+    }
+
+    #[test]
+    fn test_parse_marker_opener_trims_surrounding_whitespace() {
+        let text = "   ::: spoiler   T   ";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(result, Some(SpoilerBlockMarker::Open { colons: 3, title: String::from("T") }), "Should trim the line and the title");
+    }
+
+    #[test]
+    fn test_parse_marker_opener_without_space_after_colons() {
+        let text = ":::spoiler T";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(
+            result,
+            Some(SpoilerBlockMarker::Open { colons: 3, title: String::from("T") }),
+            "Should accept the keyword directly after the colons"
+        );
+    }
+
+    #[test]
+    fn test_parse_marker_opener_with_tab_before_title() {
+        let text = "::: spoiler\ttab title";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(
+            result,
+            Some(SpoilerBlockMarker::Open { colons: 3, title: String::from("tab title") }),
+            "Should accept any whitespace between keyword and title"
+        );
+    }
+
+    #[test]
+    fn test_parse_marker_opener_with_unicode_title() {
+        let text = "::: spoiler Ünï 🎉";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert_eq!(
+            result,
+            Some(SpoilerBlockMarker::Open { colons: 3, title: String::from("Ünï 🎉") }),
+            "Should keep non-ASCII characters in the title"
+        );
+    }
+
+    #[test]
+    fn test_parse_marker_closer() {
+        for (text, expected_colons) in [(":::", 3), ("::::: ", 5)] {
+            let result = parse_spoiler_block_marker(text);
+
+            assert_eq!(result, Some(SpoilerBlockMarker::Close { colons: expected_colons }), "Should parse {text:?} as a closer");
+        }
+    }
+
+    #[test]
+    fn test_parse_marker_with_two_colons_is_not_a_marker() {
+        for text in [":: spoiler T", "::"] {
+            let result = parse_spoiler_block_marker(text);
+
+            assert!(result.is_none(), "Should need at least three colons in {text:?}");
+        }
+    }
+
+    #[test]
+    fn test_parse_marker_with_other_keyword_is_not_a_marker() {
+        for text in ["::: warning", "::: Spoiler T"] {
+            let result = parse_spoiler_block_marker(text);
+
+            assert!(result.is_none(), "Should only accept the lowercase spoiler keyword in {text:?}");
+        }
+    }
+
+    #[test]
+    fn test_parse_marker_with_longer_keyword_is_not_a_marker() {
+        let text = "::: spoilerx";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert!(result.is_none(), "Should require the keyword to end after 'spoiler'");
+    }
+
+    #[test]
+    fn test_parse_marker_with_second_tag_in_title_is_not_a_marker() {
+        let text = "::: spoiler a ::: b";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert!(result.is_none(), "Should leave a line with a second tag to the inline spoiler");
+    }
+
+    #[test]
+    fn test_parse_marker_with_newline_in_title_is_not_a_marker() {
+        let text = "::: spoiler a\nb";
+
+        let result = parse_spoiler_block_marker(text);
+
+        assert!(result.is_none(), "Should require the title on a single line");
+    }
+
+    #[test]
+    fn test_parse_marker_plain_text_and_empty_are_not_markers() {
+        for text in ["hello", "", "text ::: spoiler"] {
+            let result = parse_spoiler_block_marker(text);
+
+            assert!(result.is_none(), "Should not parse {text:?} as a marker");
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // split_quote_prefix
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_split_quote_prefix_single_quote() {
+        let line = "> text";
+
+        let result = split_quote_prefix(line);
+
+        assert_eq!(result, ("> ", "text"), "Should split '> ' from the text");
+    }
+
+    #[test]
+    fn test_split_quote_prefix_without_space() {
+        let line = ">text";
+
+        let result = split_quote_prefix(line);
+
+        assert_eq!(result, (">", "text"), "Should split '>' without a space");
+    }
+
+    #[test]
+    fn test_split_quote_prefix_nested_quotes() {
+        for (line, expected) in [("> > text", ("> > ", "text")), (">> text", (">> ", "text"))] {
+            let result = split_quote_prefix(line);
+
+            assert_eq!(result, expected, "Should split the nested quote prefix of {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_split_quote_prefix_without_quote() {
+        for (line, expected) in [("text", ("", "text")), ("", ("", ""))] {
+            let result = split_quote_prefix(line);
+
+            assert_eq!(result, expected, "Should return an empty prefix for {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_split_quote_prefix_with_up_to_three_leading_spaces() {
+        let line = "  > text";
+
+        let result = split_quote_prefix(line);
+
+        assert_eq!(result, ("  > ", "text"), "Should allow up to three spaces before '>'");
+    }
+
+    #[test]
+    fn test_split_quote_prefix_with_four_leading_spaces_is_code() {
+        let line = "    > text";
+
+        let result = split_quote_prefix(line);
+
+        assert_eq!(result, ("", "    > text"), "Should not see a quote in an indented code line");
+    }
+
+    #[test]
+    fn test_split_quote_prefix_only_marker() {
+        let line = ">";
+
+        let result = split_quote_prefix(line);
+
+        assert_eq!(result, (">", ""), "Should handle a line with only a marker");
+    }
+
+    #[test]
+    fn test_split_quote_prefix_removes_only_one_space_after_marker() {
+        let line = ">  text";
+
+        let result = split_quote_prefix(line);
+
+        assert_eq!(result, ("> ", " text"), "Should keep the additional space in the rest");
+    }
+
+    // ---------------------------------------------------------------------
+    // parse_code_fence_opener / parse_code_fence_closer
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_code_fence_opener_with_backticks() {
+        for (line, expected) in [("```", ('`', 3)), ("```rust", ('`', 3)), ("`````", ('`', 5))] {
+            let result = parse_code_fence_opener(line);
+
+            assert_eq!(result, Some(expected), "Should detect a backtick fence and its length in {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_code_fence_opener_with_tildes() {
+        for (line, expected) in [("~~~~", ('~', 4)), ("~~~a`b", ('~', 3))] {
+            let result = parse_code_fence_opener(line);
+
+            assert_eq!(result, Some(expected), "Should detect a tilde fence and its length in {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_code_fence_opener_rejects_short_fences() {
+        for line in ["``", "~~"] {
+            let result = parse_code_fence_opener(line);
+
+            assert_eq!(result, None, "Should need at least three fence characters in {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_code_fence_opener_rejects_inline_code_on_one_line() {
+        for line in ["```code```", "```a`b"] {
+            let result = parse_code_fence_opener(line);
+
+            assert_eq!(result, None, "Should not allow a backtick in a backtick fence info string: {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_code_fence_opener_rejects_other_text() {
+        for line in ["text", "", "a```"] {
+            let result = parse_code_fence_opener(line);
+
+            assert_eq!(result, None, "Should not detect a fence in {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_code_fence_closer_matches_same_character_and_enough_length() {
+        for (line, fence_char, fence_len) in [("```", '`', 3), ("````", '`', 3), ("~~~", '~', 3)] {
+            let result = parse_code_fence_closer(line, fence_char, fence_len);
+
+            assert!(result, "Should close a {fence_char}-fence of length {fence_len} with {line:?}");
+        }
+    }
+
+    #[test]
+    fn test_code_fence_closer_rejects_short_or_different_lines() {
+        for (line, fence_char, fence_len) in [("``", '`', 3), ("~~~", '`', 3), ("```x", '`', 3), ("", '`', 3)] {
+            let result = parse_code_fence_closer(line, fence_char, fence_len);
+
+            assert!(!result, "Should not close a {fence_char}-fence of length {fence_len} with {line:?}");
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // open_spoiler / close_spoiler / open_block_spoiler / close_block_spoiler
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_open_spoiler_writes_label_checkbox_and_span() {
+        let mut writer = new_writer();
+
+        open_spoiler(&mut writer).expect("Should write the spoiler opening");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">"#};
+        assert_eq!(result, expected, "Should open label, checkbox and span");
+    }
+
+    #[test]
+    fn test_close_spoiler_closes_span_and_label() {
+        let mut writer = new_writer();
+
+        close_spoiler(&mut writer).expect("Should write the spoiler closing");
+
+        let result = written(writer);
+        assert_eq!(result, "</span></label>", "Should close span and label");
+    }
+
+    #[test]
+    fn test_open_block_spoiler_writes_cover_with_title() {
+        let mut writer = new_writer();
+
+        open_block_spoiler(&mut writer, "My title").expect("Should write the block spoiler opening");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">My title</span>"#};
+        assert_eq!(result, expected, "Should open label, checkbox, div and the titled cover");
+    }
+
+    #[test]
+    fn test_open_block_spoiler_with_empty_title_uses_default() {
+        let mut writer = new_writer();
+
+        open_block_spoiler(&mut writer, "").expect("Should write the block spoiler opening");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">{DEFAULT_SPOILER_TITLE}</span>"#};
+        assert_eq!(result, expected, "Should use the default title");
+    }
+
+    #[test]
+    fn test_open_block_spoiler_escapes_the_title() {
+        let mut writer = new_writer();
+        let title = "<img src=x onerror=alert(1)> & \"q\"";
+
+        open_block_spoiler(&mut writer, title).expect("Should write the block spoiler opening");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;img src=x onerror=alert(1)&gt; &amp; &quot;q&quot;</span>"#};
+        assert_eq!(result, expected, "Should escape html in the title");
+    }
+
+    #[test]
+    fn test_close_block_spoiler_closes_div_and_label() {
+        let mut writer = new_writer();
+
+        close_block_spoiler(&mut writer).expect("Should write the block spoiler closing");
+
+        let result = written(writer);
+        assert_eq!(result, "</div></label>", "Should close div and label");
+    }
+
+    // ---------------------------------------------------------------------
+    // SpoilerState
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_state_start_element_increases_depth_and_resets_trim() {
+        let mut state = SpoilerState { trim_start: true, ..Default::default() };
+
+        state.start_element();
+
+        assert_eq!(state.element_depth, 1, "Should count the open element");
+        assert!(!state.trim_start, "Should stop trimming once an element starts");
+    }
+
+    #[test]
+    fn test_state_other_event_resets_trim() {
+        let mut state = SpoilerState { trim_start: true, ..Default::default() };
+
+        state.other_event();
+
+        assert!(!state.trim_start, "Should stop trimming after another event");
+    }
+
+    #[test]
+    fn test_state_end_element_without_open_element_does_not_underflow() {
+        let mut state = SpoilerState::default();
+        let mut writer = new_writer();
+
+        state.end_element(&mut writer).expect("Should handle an unexpected end element");
+
+        let result = written(writer);
+        assert_eq!(result, "", "Should not write anything");
+        assert_eq!(state.element_depth, 0, "Should keep the depth at zero");
+    }
+
+    #[test]
+    fn test_state_end_element_closes_inline_spoiler_opened_at_that_depth() {
+        let mut state = SpoilerState { element_depth: 2, spoiler_depth: Some(2), ..Default::default() };
+        let mut writer = new_writer();
+
+        state.end_element(&mut writer).expect("Should close the spoiler");
+
+        let result = written(writer);
+        assert_eq!(result, "</span></label>", "Should close the inline spoiler");
+        assert_eq!(state.spoiler_depth, None, "Should forget the closed spoiler");
+        assert_eq!(state.element_depth, 1, "Should decrease the depth");
+    }
+
+    #[test]
+    fn test_state_end_element_keeps_inline_spoiler_opened_in_a_parent() {
+        let mut state = SpoilerState { element_depth: 2, spoiler_depth: Some(1), ..Default::default() };
+        let mut writer = new_writer();
+
+        state.end_element(&mut writer).expect("Should end the child element");
+
+        let result = written(writer);
+        assert_eq!(result, "", "Should not close a spoiler of a parent element");
+        assert_eq!(state.spoiler_depth, Some(1), "Should keep the spoiler open");
+    }
+
+    #[test]
+    fn test_state_end_element_closes_unclosed_block_spoilers_of_that_depth() {
+        let mut state = SpoilerState { element_depth: 1, blocks: vec![(0, 3), (1, 3), (1, 4)], ..Default::default() };
+        let mut writer = new_writer();
+
+        state.end_element(&mut writer).expect("Should close the blocks");
+
+        let result = written(writer);
+        assert_eq!(result, "</div></label></div></label>", "Should close both blocks of depth 1");
+        assert_eq!(state.blocks, vec![(0, 3)], "Should keep the block of the parent");
+    }
+
+    #[test]
+    fn test_state_open_block_registers_block_at_current_depth() {
+        let mut state = SpoilerState { element_depth: 2, trim_start: true, ..Default::default() };
+        let mut writer = new_writer();
+
+        state.open_block(&mut writer, "T", 4).expect("Should open the block");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>"#};
+        assert_eq!(result, expected, "Should write the block opening");
+        assert_eq!(state.blocks, vec![(2, 4)], "Should store depth and colons");
+        assert!(!state.trim_start, "Should reset trimming");
+    }
+
+    #[test]
+    fn test_state_block_to_close_finds_outermost_matching_block() {
+        let state = SpoilerState { element_depth: 0, blocks: vec![(0, 4), (0, 3)], ..Default::default() };
+
+        for (closer_colons, expected) in [(4, Some(0)), (3, Some(1)), (2, None)] {
+            let result = state.block_to_close(closer_colons);
+
+            assert_eq!(
+                result,
+                expected,
+                "Should pick the outermost block a closer with {closer_colons} colons can close"
+            );
+        }
+    }
+
+    #[test]
+    fn test_state_block_to_close_ignores_blocks_at_other_depths() {
+        let state = SpoilerState { element_depth: 1, blocks: vec![(0, 3), (2, 3)], ..Default::default() };
+
+        let result = state.block_to_close(3);
+
+        assert_eq!(result, None, "Should not close blocks of another depth");
+    }
+
+    #[test]
+    fn test_state_close_blocks_from_closes_block_and_nested_blocks() {
+        let mut state = SpoilerState { blocks: vec![(0, 4), (0, 3), (0, 3)], trim_start: true, ..Default::default() };
+        let mut writer = new_writer();
+
+        state.close_blocks_from(&mut writer, 1).expect("Should close the blocks");
+
+        let result = written(writer);
+        assert_eq!(result, "</div></label></div></label>", "Should close two blocks");
+        assert_eq!(state.blocks, vec![(0, 4)], "Should keep the blocks before the index");
+        assert!(!state.trim_start, "Should reset trimming");
+    }
+
+    #[test]
+    fn test_state_close_blocks_from_index_past_the_end_does_nothing() {
+        let mut state = SpoilerState { blocks: vec![(0, 3)], ..Default::default() };
+        let mut writer = new_writer();
+
+        state.close_blocks_from(&mut writer, 5).expect("Should do nothing");
+
+        let result = written(writer);
+        assert_eq!(result, "", "Should not write anything");
+        assert_eq!(state.blocks, vec![(0, 3)], "Should keep the block");
+    }
+
+    #[test]
+    fn test_state_finish_closes_inline_spoiler_and_all_blocks() {
+        let mut state = SpoilerState { spoiler_depth: Some(1), blocks: vec![(0, 3), (0, 3)], ..Default::default() };
+        let mut writer = new_writer();
+
+        state.finish(&mut writer).expect("Should close everything");
+
+        let result = written(writer);
+        assert_eq!(
+            result,
+            "</span></label></div></label></div></label>",
+            "Should close the inline spoiler first and then the blocks"
+        );
+        assert_eq!(state.spoiler_depth, None, "Should forget the inline spoiler");
+        assert!(state.blocks.is_empty(), "Should forget the blocks");
+    }
+
+    #[test]
+    fn test_state_finish_with_nothing_open_writes_nothing() {
+        let mut state = SpoilerState::default();
+        let mut writer = new_writer();
+
+        state.finish(&mut writer).expect("Should finish");
+
+        let result = written(writer);
+        assert_eq!(result, "", "Should not write anything");
+    }
+
+    #[test]
+    fn test_state_process_inline_spoilers_plain_text_is_written_unchanged() {
+        let mut state = SpoilerState::default();
+        let mut writer = new_writer();
+
+        state.process_inline_spoilers(&mut writer, "a < b").expect("Should write the text");
+
+        let result = written(writer);
+        assert_eq!(result, "a &lt; b", "Should write the (escaped) text");
+    }
+
+    #[test]
+    fn test_state_process_inline_spoilers_opens_and_closes_in_one_text() {
+        let mut state = SpoilerState::default();
+        let mut writer = new_writer();
+
+        state.process_inline_spoilers(&mut writer, "a ::: b ::: c").expect("Should process the text");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c"#};
+        assert_eq!(result, expected, "Should wrap b in a spoiler");
+        assert_eq!(state.spoiler_depth, None, "Should have closed the spoiler");
+    }
+
+    #[test]
+    fn test_state_process_inline_spoilers_keeps_spoiler_open_across_text_events() {
+        let mut state = SpoilerState::default();
+        let mut writer = new_writer();
+
+        state.process_inline_spoilers(&mut writer, "a ::: b ").expect("Should open the spoiler");
+        assert_eq!(state.spoiler_depth, Some(0), "Should remember where the spoiler was opened");
+        state.process_inline_spoilers(&mut writer, " c ::: d").expect("Should close the spoiler");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b  c</span></label> d"#};
+        assert_eq!(result, expected, "Should continue the spoiler in the next text and trim its end");
+    }
+
+    #[test]
+    fn test_state_process_inline_spoilers_tag_in_nested_element_is_kept_as_text() {
+        let mut state = SpoilerState { element_depth: 2, spoiler_depth: Some(1), ..Default::default() };
+        let mut writer = new_writer();
+
+        state.process_inline_spoilers(&mut writer, "x ::: y").expect("Should process the text");
+
+        let result = written(writer);
+        assert_eq!(result, "x ::: y", "Should not close a spoiler from a nested element");
+        assert_eq!(state.spoiler_depth, Some(1), "Should keep the spoiler open");
+    }
+
+    #[test]
+    fn test_state_process_inline_spoilers_trims_start_only_right_after_opening() {
+        let mut state = SpoilerState { element_depth: 0, spoiler_depth: Some(0), trim_start: false, ..Default::default() };
+        let mut writer = new_writer();
+
+        state.process_inline_spoilers(&mut writer, "  keep").expect("Should write the text");
+
+        let result = written(writer);
+        assert_eq!(result, "  keep", "Should keep leading spaces when not directly after the opening tag");
+    }
+
+    // ---------------------------------------------------------------------
+    // read_spoiler_block_marker
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_read_marker_opener_paragraph() {
+        let html = "<p>::: spoiler T</p>";
+
+        let (result, _) = marker_after_first_p(html).expect("Should find a marker");
+
+        assert_eq!(result, SpoilerBlockMarker::Open { colons: 3, title: String::from("T") }, "Should parse the opener");
+    }
+
+    #[test]
+    fn test_read_marker_closer_paragraph() {
+        let html = "<p>::::</p>";
+
+        let (result, _) = marker_after_first_p(html).expect("Should find a marker");
+
+        assert_eq!(result, SpoilerBlockMarker::Close { colons: 4 }, "Should parse the closer");
+    }
+
+    #[test]
+    fn test_read_marker_returns_reader_positioned_after_the_paragraph() {
+        let html = "<p>::: spoiler T</p><p>next</p>";
+
+        let (_, mut reader) = marker_after_first_p(html).expect("Should find a marker");
+
+        let first_event = reader.read_event().expect("Should read the next event");
+        let second_event = reader.read_event().expect("Should read the text event");
+        assert_eq!(
+            first_event,
+            Event::Start(BytesStart::new("p")),
+            "Should continue at the paragraph after the marker"
+        );
+        assert_eq!(
+            second_event,
+            Event::Text(BytesText::new("next")),
+            "Should continue with the text of the next paragraph"
+        );
+    }
+
+    #[test]
+    fn test_read_marker_does_not_advance_the_original_reader() {
+        let html = "<p>::: spoiler T</p>";
+        let mut reader = Reader::from_str(html);
+        reader.read_event().expect("Should read the opening <p> event");
+        let position_before = reader.buffer_position();
+
+        read_spoiler_block_marker(&reader).expect("Should find a marker");
+
+        let position_after = reader.buffer_position();
+        assert_eq!(position_after, position_before, "Should only look ahead on a clone");
+    }
+
+    #[test]
+    fn test_read_marker_ignores_formatting_in_title() {
+        let html = "<p>::: spoiler <em>T</em> <strong>x</strong></p>";
+
+        let (result, _) = marker_after_first_p(html).expect("Should find a marker");
+
+        assert_eq!(result, SpoilerBlockMarker::Open { colons: 3, title: String::from("T x") }, "Should only keep the text");
+    }
+
+    #[test]
+    fn test_read_marker_decodes_entities() {
+        let html = "<p>::: spoiler a &amp; b &#35; &lt;</p>";
+
+        let (result, _) = marker_after_first_p(html).expect("Should find a marker");
+
+        assert_eq!(
+            result,
+            SpoilerBlockMarker::Open { colons: 3, title: String::from("a & b # <") },
+            "Should decode named and numeric entities"
+        );
+    }
+
+    #[test]
+    fn test_read_marker_returns_none_for_normal_paragraph() {
+        let html = "<p>just text</p>";
+
+        let result = marker_after_first_p(html);
+
+        assert!(result.is_none(), "Should not find a marker in normal text");
+    }
+
+    #[test]
+    fn test_read_marker_returns_none_for_unknown_entity() {
+        let html = "<p>::: spoiler &foo;</p>";
+
+        let result = marker_after_first_p(html);
+
+        assert!(result.is_none(), "Should give up on an unknown entity");
+    }
+
+    #[test]
+    fn test_read_marker_returns_none_when_paragraph_is_not_closed() {
+        let html = "<p>::: spoiler T";
+
+        let result = marker_after_first_p(html);
+
+        assert!(result.is_none(), "Should give up at the end of the input");
+    }
+
+    #[test]
+    fn test_read_marker_returns_none_for_comment_in_paragraph() {
+        let html = "<p>::: spoiler <!-- c --></p>";
+
+        let result = marker_after_first_p(html);
+
+        assert!(result.is_none(), "Should give up on events that are not text, entities or elements");
+    }
 }
