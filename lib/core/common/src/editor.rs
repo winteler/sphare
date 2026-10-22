@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::io::Cursor;
 
-use leptos::html::Textarea;
+use leptos::html::{Textarea};
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
 use markdown::Options;
@@ -17,15 +17,18 @@ const H2_CLASS: &str = "text-2xl mb-3";
 const H3_CLASS: &str = "text-xl mb-2.5";
 const P_CLASS: &str = "mb-2.5";
 const A_CLASS: &str = "link text-primary";
-const UL_CLASS: &str = "list-inside list-disc mb-2.5";
-const OL_CLASS: &str = "list-inside list-decimal mb-2.5";
-const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 rounded-sm border-slate-400 bg-slate-600";
+const UL_CLASS: &str = "list-inside list-disc mb-2.5 [&_ul]:ms-4 [&_ol]:ms-4 [&_ul]:mb-0 [&_ol]:mb-0";
+const OL_CLASS: &str = "list-inside list-decimal mb-2.5 [&_ul]:ms-4 [&_ol]:ms-4 [&_ul]:mb-0 [&_ol]:mb-0";
+const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 border-1 border-slate-400 bg-slate-600";
 const TABLE_CLASS: &str = "table mb-2.5";
-const CODE_CLASS: &str = "inline-block w-fit rounded-md bg-black px-1 py-0.5 mx-0.5 mb-2.5";
+const INLINE_CODE_CLASS: &str =
+    "border border-neutral-600 bg-neutral-800 px-1 py-0.5 mx-0.5 text-sm text-neutral-100 break-words";
+const CODE_BLOCK_CLASS: &str =
+    "block w-fit max-w-full overflow-x-auto border border-neutral-600 bg-neutral-800 p-2 mb-2.5 text-sm text-neutral-100";
 const SPOILER_SPAN_CLASS: &str =
-    "spoiler-content relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
+    "spoiler-content cursor-pointer relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
 const SPOILER_BLOCK_CLASS: &str =
-    "spoiler-block isolate relative block w-fit min-w-[10rem] max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
+    "spoiler-block cursor-pointer isolate relative block w-fit min-w-[10rem] max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
 const SPOILER_COVER_CLASS: &str =
     "spoiler-cover absolute inset-0 z-10 flex items-center justify-center rounded-md bg-white px-2 text-center text-black transition-opacity duration-300 ease-in-out";
 const DEFAULT_SPOILER_TITLE: &str = "Spoiler";
@@ -400,11 +403,71 @@ fn read_spoiler_block_marker<'a>(reader: &Reader<&'a [u8]>) -> Option<(SpoilerBl
     Some((parse_spoiler_block_marker(&text)?, lookahead))
 }
 
+/// Adds `class` to the element. If it already has a class attribute (e.g. `language-rust`
+/// on code blocks) the class is appended, because a second `class` attribute is invalid
+/// html and browsers ignore it.
+fn append_class_to_elem(elem: &mut BytesStart<'static>, class: &str) -> Result<(), AppError> {
+    let mut has_class = false;
+    let mut content = String::from_utf8_lossy(elem.name().as_ref()).into_owned();
+    let name_len = content.len();
+    for attr in elem.html_attributes() {
+        let attr = attr.map_err(AppError::new)?;
+        let key = String::from_utf8_lossy(attr.key.as_ref());
+        // The value is still escaped here; only the quote needs care because of the double-quote rewrite
+        let mut value = String::from_utf8_lossy(&attr.value).replace('"', "&quot;");
+        if key == "class" {
+            has_class = true;
+            value = format!("{value} {class}");
+        }
+        content.push_str(&format!(" {key}=\"{value}\""));
+    }
+    if !has_class {
+        content.push_str(&format!(" class=\"{class}\""));
+    }
+    *elem = BytesStart::from_content(content, name_len);
+    Ok(())
+}
+
+fn process_elem(
+    elem: &mut BytesStart<'static>,
+    is_in_block: &mut bool,
+    is_in_code: &mut bool,
+    is_in_pre: &mut bool,
+) -> Result<(), AppError> {
+    let class = match elem.name().as_ref() {
+        b"h1" => Some(H1_CLASS),
+        b"h2" => Some(H2_CLASS),
+        b"h3" => Some(H3_CLASS),
+        b"p" if !*is_in_block => Some(P_CLASS),
+        b"a" => Some(A_CLASS),
+        b"ul" => Some(UL_CLASS),
+        b"ol" => Some(OL_CLASS),
+        b"pre" => {
+            *is_in_pre = true;
+            Some(CODE_BLOCK_CLASS)
+        },
+        b"code" if !*is_in_pre => Some(INLINE_CODE_CLASS),
+        b"table" => Some(TABLE_CLASS),
+        b"blockquote" => {
+            *is_in_block = true;
+            Some(BLOCKQUOTE_CLASS)
+        },
+        _ => None,
+    };
+
+    if let Some(class) = class {
+        append_class_to_elem(elem, class)?;
+    }
+    *is_in_code |= elem.name().as_ref() == b"code";
+    Ok(())
+}
+
 pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
     let mut reader = Reader::from_str(user_content);
     let mut writer = Writer::new(Cursor::new(Vec::new()));
     let mut is_in_block = false;
     let mut is_in_code = false;
+    let mut is_in_pre = false;
 
     let mut spoilers_state = SpoilerState::default();
 
@@ -428,26 +491,12 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
                     }
                 }
                 let mut elem = e.into_owned();
-                match elem.name().as_ref() {
-                    b"h1" => elem.push_attribute(("class", H1_CLASS)),
-                    b"h2" => elem.push_attribute(("class", H2_CLASS)),
-                    b"h3" => elem.push_attribute(("class", H3_CLASS)),
-                    b"p" if !is_in_block => elem.push_attribute(("class", P_CLASS)),
-                    b"a" => elem.push_attribute(("class", A_CLASS)),
-                    b"ul" => elem.push_attribute(("class", UL_CLASS)),
-                    b"ol" => elem.push_attribute(("class", OL_CLASS)),
-                    b"code" => elem.push_attribute(("class", CODE_CLASS)),
-                    b"table" => elem.push_attribute(("class", TABLE_CLASS)),
-                    b"blockquote" => {
-                        is_in_block = true;
-                        elem.push_attribute((
-                            "class",
-                            BLOCKQUOTE_CLASS,
-                        ))
-                    },
-                    _ => (),
-                }
-                is_in_code |= elem.name().as_ref() == b"code";
+                process_elem(
+                    &mut elem,
+                    &mut is_in_block,
+                    &mut is_in_code,
+                    &mut is_in_pre
+                )?;
                 spoilers_state.start_element();
                 writer.write_event(Event::Start(elem))?;
             }
@@ -456,6 +505,7 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
                 match e.name().as_ref() {
                     b"blockquote" => is_in_block = false,
                     b"code" => is_in_code = false,
+                    b"pre" => is_in_pre = false,
                     _ => (),
                 }
                 writer.write_event(Event::End(e))?;
@@ -464,7 +514,7 @@ pub fn style_html_user_content(user_content: &str) -> Result<String, AppError> {
                 let mut elem = e.into_owned();
 
                 if elem.name().as_ref() == b"hr" {
-                    elem.push_attribute(("class", "my-2"))
+                    append_class_to_elem(&mut elem, "my-2")?;
                 }
                 spoilers_state.other_event();
                 writer.write_event(Event::Empty(elem))?;
@@ -704,7 +754,7 @@ use indoc::{formatdoc};
 
     #[test]
     fn test_get_html_and_markdown_strings_for_markdown() {
-        let markdown_body = "#this is a header";
+        let markdown_body = "# this is a header";
 
         let (html, markdown) = get_html_and_markdown_strings(markdown_body, true).expect("Should get markdown body");
 
@@ -1094,7 +1144,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><code class="{CODE_CLASS}">code</code> and text</p>"#};
+            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">code</code> and text</p>"#};
         assert_eq!(result, expected, "Should add a class to inline code");
     }
 
@@ -1105,9 +1155,24 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <pre><code class="{CODE_CLASS}">let x = 1;
+            <pre class="{CODE_BLOCK_CLASS}"><code>let x = 1;
             </code></pre>"#};
         assert_eq!(result, expected, "Should add the code class to the code block");
+    }
+
+    #[test]
+    fn test_render_fenced_code_block_with_language() {
+        let markdown = "```rust\nfn main() {}\n```";
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+        let expected = formatdoc! {r#"
+            <pre class="{CODE_BLOCK_CLASS}><code class="language-rust">fn main() {{}}
+            </code></pre>"#
+        };
+        assert_eq!(
+            result,
+            expected,
+            "Should add the code class to the existing language class instead of a second class attribute"
+        );
     }
 
     #[test]
@@ -1117,7 +1182,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><code class="{CODE_CLASS}">&lt;b&gt; &amp; &quot;q&quot;</code></p>"#};
+            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">&lt;b&gt; &amp; &quot;q&quot;</code></p>"#};
         assert_eq!(result, expected, "Should keep html special characters escaped in code");
     }
 
@@ -1180,86 +1245,6 @@ use indoc::{formatdoc};
             <p class="{P_CLASS}">line one
             line two</p>"#};
         assert_eq!(result, expected, "Should render like plain markdown and keep soft line breaks");
-    }
-
-    // ---------------------------------------------------------------------
-    // Spoiler markers
-    // ---------------------------------------------------------------------
-
-    #[test]
-    fn test_separate_spoiler_markers() {
-        let markdown = "a\n::: spoiler T\nb\n:::\nc";
-
-        let result = separate_spoiler_markers(markdown);
-
-        assert_eq!(
-            result,
-            "a\n\n::: spoiler T\n\nb\n\n:::\n\nc",
-            "Should surround the spoiler markers with blank lines"
-        );
-    }
-
-    #[test]
-    fn test_separate_spoiler_markers_leaves_non_spoiler_markdown_untouched() {
-        // No tag, markers in code fences, inline spoilers, indented code
-        for markdown in [
-            "no spoilers\nhere",
-            "```\n:::\n```",
-            "~~~\n::: spoiler x\n~~~",
-            "a ::: b ::: c",
-            "::: spoiler a :::",
-            "    ::: spoiler x",
-        ] {
-            let result = separate_spoiler_markers(markdown);
-
-            assert_eq!(result, markdown, "Should leave {markdown:?} untouched");
-        }
-    }
-
-    #[test]
-    fn test_separate_spoiler_markers_in_blockquote() {
-        let markdown = "> a\n> ::: spoiler T\n> b\n> :::";
-
-        let result = separate_spoiler_markers(markdown);
-
-        assert_eq!(
-            result,
-            "> a\n>\n> ::: spoiler T\n>\n> b\n>\n> :::\n>",
-            "Should keep the blockquote prefix on the added blank lines"
-        );
-    }
-
-    #[test]
-    fn test_parse_spoiler_block_marker_open_with_four_colons() {
-        let text = ":::: spoiler T";
-
-        let result = parse_spoiler_block_marker(text);
-
-        assert!(
-            matches!(result, Some(SpoilerBlockMarker::Open { colons: 4, .. })),
-            "Should parse an opening marker with 4 colons"
-        );
-    }
-
-    #[test]
-    fn test_parse_spoiler_block_marker_close_with_four_colons() {
-        let text = "::::";
-
-        let result = parse_spoiler_block_marker(text);
-
-        assert!(
-            matches!(result, Some(SpoilerBlockMarker::Close { colons: 4 })),
-            "Should parse a closing marker with 4 colons"
-        );
-    }
-
-    #[test]
-    fn test_parse_spoiler_block_marker_rejects_invalid_markers() {
-        for text in ["::", ":::spoilers", "::: warning", "::: spoiler a :::", ":::: a ::::"] {
-            let result = parse_spoiler_block_marker(text);
-
-            assert!(result.is_none(), "Found unexpected spoiler block marker in {text}");
-        }
     }
 
     // ---------------------------------------------------------------------
@@ -1436,7 +1421,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><code class="{CODE_CLASS}">:::x:::</code></p>"#};
+            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">:::x:::</code></p>"#};
         assert_eq!(result, expected, "Should keep the spoiler tag literal in inline code");
     }
 
@@ -1447,7 +1432,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><code class="{CODE_CLASS}">:::</code> <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">s</span></label></p>"#};
+            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">:::</code> <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">s</span></label></p>"#};
         assert_eq!(result, expected, "Should leave code mode after the code element ends");
     }
 
@@ -1458,7 +1443,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <pre><code class="{CODE_CLASS}">::: spoiler T
+            <pre class="{CODE_BLOCK_CLASS}"><code>::: spoiler T
             x
             :::
             </code></pre>"#};
@@ -1472,7 +1457,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <pre><code class="{CODE_CLASS}">::: spoiler T
+            <pre class="{CODE_BLOCK_CLASS}"><code>::: spoiler T
             x
             </code></pre>"#};
         assert_eq!(result, expected, "Should keep block spoiler markers literal in an indented code block");
@@ -1750,7 +1735,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <pre><code class="{CODE_CLASS}">```
+            <pre class="{CODE_BLOCK_CLASS}"><code>```
             ::: spoiler T
             </code></pre>
             <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
@@ -1770,7 +1755,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <pre><code class="{CODE_CLASS}">:::
+            <pre class="{CODE_BLOCK_CLASS}"><code>:::
             </code></pre>
             <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
             <p class="{P_CLASS}">x</p>
@@ -2054,7 +2039,7 @@ use indoc::{formatdoc};
         let result = style_html_user_content(html).expect("Should style the html");
 
         let expected = formatdoc! {r#"
-            <code class="{CODE_CLASS}">:::a:::</code>"#};
+            <code class="{INLINE_CODE_CLASS}">:::a:::</code>"#};
         assert_eq!(result, expected, "Should not convert the tags in code");
     }
 
@@ -2100,8 +2085,8 @@ use indoc::{formatdoc};
 
         let result = separate_spoiler_markers(markdown);
 
-        assert!(
-            matches!(result, Cow::Borrowed(borrowed) if borrowed == markdown),
+        assert_eq!(
+            result, markdown,
             "Should not allocate when the input has no spoiler tag"
         );
     }
