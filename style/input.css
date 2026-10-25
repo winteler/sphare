@@ -304,6 +304,13 @@
     }
 }
 
+/* Styles for blockquotes */
+
+/* Only the outermost blockquote keeps its bottom margin: nothing inside a quote adds spacing */
+.editor-quote.editor-quote * {
+    margin-bottom: 0;
+}
+
 /* Styles for the spoiler blocks */
 
 /* ---------- Inline spoilers ---------- */

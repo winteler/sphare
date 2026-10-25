@@ -227,7 +227,6 @@ CREATE TABLE posts (
     link_thumbnail_url TEXT,
     is_nsfw BOOLEAN NOT NULL DEFAULT FALSE,
     is_spoiler BOOLEAN NOT NULL DEFAULT FALSE,
-    category_id BIGINT,
     is_edited BOOLEAN NOT NULL DEFAULT FALSE,
     sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
     satellite_id BIGINT,
@@ -250,8 +249,8 @@ CREATE TABLE posts (
     edit_timestamp TIMESTAMPTZ,
     scoring_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     delete_timestamp TIMESTAMPTZ,
-    CONSTRAINT valid_satellite FOREIGN KEY (sphere_id, satellite_id) REFERENCES satellites (sphere_id, satellite_id) MATCH SIMPLE,
-    CONSTRAINT valid_sphere_category FOREIGN KEY (category_id, sphere_id) REFERENCES sphere_categories (category_id, sphere_id) MATCH SIMPLE
+    CONSTRAINT post_unique_sphere UNIQUE (post_id, sphere_id),
+    CONSTRAINT post_valid_satellite FOREIGN KEY (sphere_id, satellite_id) REFERENCES satellites (sphere_id, satellite_id) MATCH SIMPLE
 );
 
 -- Global score indexes for 4 score types
@@ -316,6 +315,16 @@ CREATE INDEX idx_post_creator
 
 -- Index on post document for searches
 CREATE INDEX idx_post_document ON posts USING GIN (post_document);
+
+CREATE TABLE post_categories (
+    post_category_id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts (post_id),
+    sphere_id BIGINT NOT NULL REFERENCES spheres (sphere_id),
+    category_id BIGINT NOT NULL REFERENCES sphere_categories (category_id),
+    CONSTRAINT unique_post_category UNIQUE (post_id, category_id),
+    CONSTRAINT valid_post_and_sphere FOREIGN KEY (post_id, sphere_id) REFERENCES posts (post_id, sphere_id) MATCH SIMPLE,
+    CONSTRAINT valid_sphere_and_category FOREIGN KEY (category_id, sphere_id) REFERENCES sphere_categories (category_id, sphere_id) MATCH SIMPLE
+);
 
 CREATE TABLE comments (
     comment_id BIGSERIAL PRIMARY KEY,

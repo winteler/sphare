@@ -356,8 +356,7 @@ pub async fn insert_or_update_post(
     sphere: &ApubSphere,
     db_pool: &PgPool,
 ) -> Result<PostJoinApubInfo, AppError> {
-    // TODO decide whether to always use markdown
-    // TODO decide how to handle categories/flair, make something separate from tags?
+    // TODO decide how to handle categories/flair, make something separate from tags? Yes add separate category attribute, check how important are tags at the moment in lemmy
     // TODO dereference category
     // TODO handle satellites
     let (body, markdown_body) = page.get_main_and_md_content()?;

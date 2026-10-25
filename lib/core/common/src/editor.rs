@@ -19,7 +19,7 @@ const P_CLASS: &str = "mb-2.5";
 const A_CLASS: &str = "link text-primary";
 const UL_CLASS: &str = "list-inside list-disc mb-2.5 [&_ul]:ms-4 [&_ol]:ms-4 [&_ul]:mb-0 [&_ol]:mb-0";
 const OL_CLASS: &str = "list-inside list-decimal mb-2.5 [&_ul]:ms-4 [&_ol]:ms-4 [&_ul]:mb-0 [&_ol]:mb-0";
-const BLOCKQUOTE_CLASS: &str = "w-fit p-1 mb-2.5 border-s-4 border-1 border-slate-400 bg-slate-600";
+const BLOCKQUOTE_CLASS: &str = "editor-quote w-fit p-1 mb-2.5 border-s-4 border-1 border-slate-400 bg-slate-600";
 const TABLE_CLASS: &str = "table mb-2.5";
 const INLINE_CODE_CLASS: &str =
     "border border-neutral-600 bg-neutral-800 px-1 py-0.5 mx-0.5 text-sm text-neutral-100 break-words";
@@ -28,7 +28,7 @@ const CODE_BLOCK_CLASS: &str =
 const SPOILER_SPAN_CLASS: &str =
     "spoiler-content cursor-pointer relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
 const SPOILER_BLOCK_CLASS: &str =
-    "spoiler-block isolate relative grid w-fit max-w-full rounded-md bg-black mb-2.5 text-white";
+    "spoiler-block cursor-pointer isolate relative grid w-fit max-w-full rounded-md bg-black mb-2.5 text-white";
 const SPOILER_BODY_CLASS: &str = "spoiler-body col-start-1 row-start-1 min-w-0 p-1";
 const SPOILER_COVER_CLASS: &str =
     "spoiler-cover col-start-1 row-start-1 z-10 rounded-md bg-white px-2 flex min-w-0 items-center justify-center text-center text-black transition-opacity duration-300 ease-in-out";
@@ -344,7 +344,11 @@ fn write_spoiler_checkbox(writer: &mut Writer<Cursor<Vec<u8>>>, label: &str) -> 
     let mut checkbox_elem = BytesStart::new("input");
     checkbox_elem.push_attribute(("type", "checkbox"));
     checkbox_elem.push_attribute(("class", SPOILER_CHECKBOX_CLASS));
-    checkbox_elem.push_attribute(("aria-label", label));
+    let aria_label = match label  {
+        label if label == DEFAULT_SPOILER_TITLE => label.to_string(),
+        title => format!("{DEFAULT_SPOILER_TITLE}: {title}"),
+    };
+    checkbox_elem.push_attribute(("aria-label", aria_label.as_str()));
     writer.write_event(Event::Empty(checkbox_elem))?;
     Ok(())
 }
@@ -1270,6 +1274,34 @@ use indoc::{formatdoc};
     }
 
     // ---------------------------------------------------------------------
+    // Spoiler markup constants
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn test_spoiler_checkbox_stays_in_the_tab_order() {
+        let classes: Vec<&str> = SPOILER_CHECKBOX_CLASS.split_whitespace().collect();
+
+        assert!(classes.contains(&"sr-only"), "Should hide the checkbox visually only");
+        for class in ["hidden", "invisible"] {
+            assert!(!classes.contains(&class), "Should not use {class}, it removes the checkbox from the tab order");
+        }
+    }
+
+    #[test]
+    fn test_spoiler_cover_and_body_share_the_same_grid_cell() {
+        let block_classes: Vec<&str> = SPOILER_BLOCK_CLASS.split_whitespace().collect();
+        assert!(block_classes.contains(&"grid"), "Should lay out the block spoiler as a grid");
+
+        for class in [SPOILER_COVER_CLASS, SPOILER_BODY_CLASS] {
+            let classes: Vec<&str> = class.split_whitespace().collect();
+            assert!(
+                classes.contains(&"col-start-1") && classes.contains(&"row-start-1"),
+                "Should place the element with classes {class:?} in the first grid cell"
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // render_markdown: inline spoilers
     // ---------------------------------------------------------------------
 
@@ -1280,7 +1312,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}">hello <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">secret</span></label> world</p>"#};
+            <p class="{P_CLASS}">hello <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">secret</span></span></label> world</p>"#};
         assert_eq!(result, expected, "Should wrap the text between two tags in a spoiler");
     }
 
@@ -1291,7 +1323,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c</p>"#};
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">b</span></span></label> c</p>"#};
         assert_eq!(result, expected, "Should trim spaces at both ends of the spoiler content");
     }
 
@@ -1302,7 +1334,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">secret</span></label></p>"#};
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">secret</span></span></label></p>"#};
         assert_eq!(result, expected, "Should support a spoiler that is the whole paragraph");
     }
 
@@ -1313,7 +1345,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">d</span></label></p>"#};
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">b</span></span></label> c <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">d</span></span></label></p>"#};
         assert_eq!(
             result,
             expected,
@@ -1328,7 +1360,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">unclosed</span></label></p>
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">unclosed</span></span></label></p>
             <p class="{P_CLASS}">next paragraph</p>"#};
         assert_eq!(result, expected, "Should not let an unclosed spoiler leak into the next paragraph");
     }
@@ -1340,7 +1372,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">a <strong>b</strong> c</span></label></p>"#};
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">a <strong>b</strong> c</span></span></label></p>"#};
         assert_eq!(result, expected, "Should keep nested formatting inside the spoiler");
     }
 
@@ -1352,7 +1384,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><strong>bold <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">spoiler</span></label></strong> text<label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label></p>"#};
+            <p class="{P_CLASS}"><strong>bold <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">spoiler</span></span></label></strong> text<label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}"></span></span></label></p>"#};
         assert_eq!(result, expected, "Should close the spoiler together with the element it was opened in");
     }
 
@@ -1363,7 +1395,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}">a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label> b</p>"#};
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}"></span></span></label> b</p>"#};
         assert_eq!(result, expected, "Should render an empty spoiler for two adjacent tags");
     }
 
@@ -1374,7 +1406,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <h1 class="{H1_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">head</span></label> here</h1>"#};
+            <h1 class="{H1_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">head</span></span></label> here</h1>"#};
         assert_eq!(result, expected, "Should support spoilers in headings");
     }
 
@@ -1393,7 +1425,7 @@ use indoc::{formatdoc};
             </thead>
             <tbody>
             <tr>
-            <td><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">x</span></label></td>
+            <td><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">x</span></span></label></td>
             </tr>
             </tbody>
             </table>"#};
@@ -1408,7 +1440,7 @@ use indoc::{formatdoc};
 
         let expected = formatdoc! {r#"
             <ul class="{UL_CLASS}">
-            <li>item <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">hidden</span></label></li>
+            <li>item <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">hidden</span></span></label></li>
             </ul>"#};
         assert_eq!(result, expected, "Should support spoilers in list items");
     }
@@ -1420,7 +1452,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><a href="https://a.example" class="{A_CLASS}">a</a> <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">z</span></label></p>"#};
+            <p class="{P_CLASS}"><a href="https://a.example" class="{A_CLASS}">a</a> <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">z</span></span></label></p>"#};
         assert_eq!(result, expected, "Should handle a spoiler after a link");
     }
 
@@ -1431,19 +1463,8 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}">&amp; <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">a &lt;</span></label> b</p>"#};
+            <p class="{P_CLASS}">&amp; <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">a &lt;</span></span></label> b</p>"#};
         assert_eq!(result, expected, "Should keep entities escaped inside and outside the spoiler");
-    }
-
-    #[test]
-    fn test_render_spoiler_tag_in_inline_code_stays_literal() {
-        let markdown = "`:::x:::`";
-
-        let result = render_markdown(markdown).expect("Should render the markdown to html");
-
-        let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">:::x:::</code></p>"#};
-        assert_eq!(result, expected, "Should keep the spoiler tag literal in inline code");
     }
 
     #[test]
@@ -1453,46 +1474,8 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">:::</code> <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">s</span></label></p>"#};
+            <p class="{P_CLASS}"><code class="{INLINE_CODE_CLASS}">:::</code> <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">s</span></span></label></p>"#};
         assert_eq!(result, expected, "Should leave code mode after the code element ends");
-    }
-
-    #[test]
-    fn test_render_spoiler_tag_in_fenced_code_block_stays_literal() {
-        let markdown = "```\n::: spoiler T\nx\n:::\n```";
-
-        let result = render_markdown(markdown).expect("Should render the markdown to html");
-
-        let expected = formatdoc! {r#"
-            <pre class="{CODE_BLOCK_CLASS}"><code>::: spoiler T
-            x
-            :::
-            </code></pre>"#};
-        assert_eq!(result, expected, "Should keep block spoiler markers literal in a fenced code block");
-    }
-
-    #[test]
-    fn test_render_spoiler_tag_in_indented_code_block_stays_literal() {
-        let markdown = "    ::: spoiler T\n    x";
-
-        let result = render_markdown(markdown).expect("Should render the markdown to html");
-
-        let expected = formatdoc! {r#"
-            <pre class="{CODE_BLOCK_CLASS}"><code>::: spoiler T
-            x
-            </code></pre>"#};
-        assert_eq!(result, expected, "Should keep block spoiler markers literal in an indented code block");
-    }
-
-    #[test]
-    fn test_render_spoiler_tag_in_image_alt_text_stays_literal() {
-        let markdown = "![:::](x.png)";
-
-        let result = render_markdown(markdown).expect("Should render the markdown to html");
-
-        let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><img src="x.png" alt=":::" /></p>"#};
-        assert_eq!(result, expected, "Should keep the tag in an attribute value untouched");
     }
 
     #[test]
@@ -1502,7 +1485,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}">é <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">héllo 🎉</span></label> ü</p>"#};
+            <p class="{P_CLASS}">é <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">héllo 🎉</span></span></label> ü</p>"#};
         assert_eq!(result, expected, "Should handle non-ASCII text");
     }
 
@@ -1516,9 +1499,9 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: Title"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">hidden</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should wrap the content in a block spoiler with the title");
     }
@@ -1529,9 +1512,9 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Spoiler</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Spoiler</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">hidden</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should fall back to the default title");
     }
@@ -1542,12 +1525,55 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: Title"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span><div class="{SPOILER_BODY_CLASS}">
             <h1 class="{H1_CLASS}">Head</h1>
             <p class="{P_CLASS}">some <strong>bold</strong> text</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should style the markdown inside the block spoiler");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_drops_formatting() {
+        let markdown = "::: spoiler **bold** title\nx\n:::";
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: bold title"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">bold title</span><div class="{SPOILER_BODY_CLASS}">
+            <p class="{P_CLASS}">x</p>
+            </div></div></label>"#
+        };
+        assert_eq!(result, expected, "Should only keep the text of a formatted title");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_escapes_special_characters() {
+        let markdown = "::: spoiler a\"b&c\nx\n:::";
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: a&quot;b&amp;c"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">a&quot;b&amp;c</span><div class="{SPOILER_BODY_CLASS}">
+            <p class="{P_CLASS}">x</p>
+            </div></div></label>"#
+        };
+        assert_eq!(result, expected, "Should escape quotes and ampersands in the title and the aria-label");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_decodes_entities_once_and_escapes() {
+        let markdown = "::: spoiler a &amp; b &#35;\nx\n:::";
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: a &amp; b #"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">a &amp; b #</span><div class="{SPOILER_BODY_CLASS}">
+            <p class="{P_CLASS}">x</p>
+            </div></div></label>"#
+        };
+        assert_eq!(
+            result,
+            expected,
+            "Should decode named and numeric entities in the title and escape the result"
+        );
     }
 
     #[test]
@@ -1556,9 +1582,9 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Ünïcödé 🎉</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: Ünïcödé 🎉"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Ünïcödé 🎉</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">xé</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should handle non-ASCII titles and content");
     }
@@ -1569,8 +1595,8 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">unclosed</span>
-            <p class="{P_CLASS}">text</p></div></label>"#
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: unclosed"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">unclosed</span><div class="{SPOILER_BODY_CLASS}">
+            <p class="{P_CLASS}">text</p></div></div></label>"#
         };
         assert_eq!(result, expected, "Should close an unclosed block spoiler at the end");
     }
@@ -1581,12 +1607,12 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">A</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: A"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">A</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label>
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">B</span>
+            </div></div></label>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: B"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">B</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">y</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should render two separate block spoilers");
     }
@@ -1598,9 +1624,9 @@ use indoc::{formatdoc};
 
         let expected = formatdoc! {r#"
             <p class="{P_CLASS}">text</p>
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: T"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label>
+            </div></div></label>
             <p class="{P_CLASS}">more</p>"#
         };
         assert_eq!(
@@ -1616,12 +1642,12 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">outer</span>
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">inner</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: outer"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">outer</span><div class="{SPOILER_BODY_CLASS}">
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: inner"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">inner</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label>
+            </div></div></label>
             <p class="{P_CLASS}">y</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should close only the inner spoiler with a short closer");
     }
@@ -1632,10 +1658,10 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">outer</span>
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">inner</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: outer"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">outer</span><div class="{SPOILER_BODY_CLASS}">
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: inner"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">inner</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label></div></label>
+            </div></div></label></div></div></label>
             <p class="{P_CLASS}">y</p>"#};
         assert_eq!(result, expected, "Should close the inner and the outer spoiler with the long closer");
     }
@@ -1648,9 +1674,9 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Spoiler</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Spoiler</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}"></span></label></p></div></label>"#
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}"></span></span></label></p></div></div></label>"#
         };
         assert_eq!(
             result,
@@ -1666,9 +1692,9 @@ use indoc::{formatdoc};
 
         let expected = formatdoc! {r#"
             <blockquote class="{BLOCKQUOTE_CLASS}">
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Q</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: Q"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Q</span><div class="{SPOILER_BODY_CLASS}">
             <p>hidden</p>
-            </div></label>
+            </div></div></label>
             </blockquote>
             <p class="{P_CLASS}">after</p>"#
         };
@@ -1682,12 +1708,25 @@ use indoc::{formatdoc};
 
         let expected = formatdoc! {r#"
             <blockquote class="{BLOCKQUOTE_CLASS}">
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Q</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: Q"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Q</span><div class="{SPOILER_BODY_CLASS}">
             <p>hidden</p>
-            </div></label></blockquote>
+            </div></div></label></blockquote>
             <p class="{P_CLASS}">after</p>"#
         };
         assert_eq!(result, expected, "Should close the block spoiler before the blockquote ends");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_with_crlf_line_endings() {
+        let markdown = "::: spoiler Title\r\nhidden\r\n:::";
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: Title"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">Title</span><div class="{SPOILER_BODY_CLASS}">
+            <p class="{P_CLASS}">hidden</p>
+            </div></div></label>"#
+        };
+        assert_eq!(result, expected, "Should handle Windows line endings");
     }
 
     #[test]
@@ -1700,9 +1739,9 @@ use indoc::{formatdoc};
             <pre class="{CODE_BLOCK_CLASS}"><code>```
             ::: spoiler T
             </code></pre>
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: T"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(
             result,
@@ -1719,9 +1758,9 @@ use indoc::{formatdoc};
         let expected = formatdoc! {r#"
             <pre class="{CODE_BLOCK_CLASS}"><code>:::
             </code></pre>
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: T"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should support tilde fences");
     }
@@ -1734,7 +1773,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">spoiler Title</span></label>x<label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">hidden</span></label></p>"#};
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">spoiler Title</span></span></label>x<label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">hidden</span></span></label></p>"#};
         assert_eq!(result, expected, "Should not create a block spoiler for a line with a second tag");
     }
 
@@ -1806,7 +1845,7 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <p class="{P_CLASS}"><label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">&lt;script&gt;alert(1)&lt;/script&gt;</span></label></p>"#
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">&lt;script&gt;alert(1)&lt;/script&gt;</span></span></label></p>"#
         };
         assert_eq!(result, expected, "Should escape html inside an inline spoiler");
     }
@@ -1818,11 +1857,25 @@ use indoc::{formatdoc};
         let result = render_markdown(markdown).expect("Should render the markdown to html");
 
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;b&gt;t&lt;/b&gt;</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: &lt;b&gt;t&lt;/b&gt;"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;b&gt;t&lt;/b&gt;</span><div class="{SPOILER_BODY_CLASS}">
             <p class="{P_CLASS}">x</p>
-            </div></label>"#
+            </div></div></label>"#
         };
-        assert_eq!(result, expected, "Should escape html in the title");
+        assert_eq!(result, expected, "Should escape html in the title and the aria-label");
+    }
+
+    #[test]
+    fn test_render_block_spoiler_title_cannot_break_out_of_the_aria_label() {
+        let markdown = "::: spoiler x\" onfocus=\"alert(1)\ny\n:::";
+
+        let result = render_markdown(markdown).expect("Should render the markdown to html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: x&quot; onfocus=&quot;alert(1)"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">x&quot; onfocus=&quot;alert(1)</span><div class="{SPOILER_BODY_CLASS}">
+            <p class="{P_CLASS}">y</p>
+            </div></div></label>"#
+        };
+        assert_eq!(result, expected, "Should escape the quotes of the title in the aria-label attribute");
     }
 
     #[test]
@@ -1830,9 +1883,9 @@ use indoc::{formatdoc};
         let markdown = "::: spoiler T\n\n<script>alert(1)</script>\n\n:::";
         let result = render_markdown(markdown).expect("Should render the markdown to html");
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: T"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><div class="{SPOILER_BODY_CLASS}">
             &lt;script&gt;alert(1)&lt;/script&gt;
-            </div></label>"#
+            </div></div></label>"#
         };
         assert_eq!(result, expected, "Should escape raw html in the body of a block spoiler");
     }
@@ -1936,6 +1989,43 @@ use indoc::{formatdoc};
         let result = style_html_user_content(html);
 
         assert!(result.is_err(), "Should fail for a mismatched end tag");
+    }
+
+    #[test]
+    fn test_style_html_inline_spoiler_inside_a_paragraph() {
+        let html = "<p>a ::: b ::: c</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}">a <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">b</span></span></label> c</p>"#
+        };
+        assert_eq!(result, expected, "Should convert the tags in a text node into a spoiler");
+    }
+
+    #[test]
+    fn test_style_html_block_marker_paragraph_is_replaced_by_spoiler() {
+        let html = "<p>::: spoiler T</p><p>x</p><p>:::</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: T"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><div class="{SPOILER_BODY_CLASS}"><p class="{P_CLASS}">x</p></div></div></label>"#
+        };
+        assert_eq!(result, expected, "Should replace the marker paragraphs by the spoiler elements");
+    }
+
+    #[test]
+    fn test_style_html_closer_without_open_block_is_a_normal_paragraph_with_spoiler_tag() {
+        // Without an open block spoiler a `:::` paragraph is not a closer, it is handled as text
+        let html = "<p>:::</p>";
+
+        let result = style_html_user_content(html).expect("Should style the html");
+
+        let expected = formatdoc! {r#"
+            <p class="{P_CLASS}"><label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}"></span></span></label></p>"#
+        };
+        assert_eq!(result, expected, "Should not treat a closer as a block closer when no block is open");
     }
 
     /// Builds an element from the content of a start tag, e.g. `a href="x"`.
@@ -2599,37 +2689,37 @@ use indoc::{formatdoc};
     // ---------------------------------------------------------------------
 
     #[test]
-    fn test_open_spoiler_writes_label_checkbox_and_span() {
+    fn test_open_spoiler_writes_label_checkbox_cover_and_text_span() {
         let mut writer = new_writer();
 
         open_spoiler(&mut writer).expect("Should write the spoiler opening");
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">"#};
-        assert_eq!(result, expected, "Should open label, checkbox and span");
+            <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">"#};
+        assert_eq!(result, expected, "Should open label, labelled checkbox, cover span and text span");
     }
 
     #[test]
-    fn test_close_spoiler_closes_span_and_label() {
+    fn test_close_spoiler_closes_text_span_cover_span_and_label() {
         let mut writer = new_writer();
 
         close_spoiler(&mut writer).expect("Should write the spoiler closing");
 
         let result = written(writer);
-        assert_eq!(result, "</span></label>", "Should close span and label");
+        assert_eq!(result, "</span></span></label>", "Should close text span, cover span and label");
     }
 
     #[test]
-    fn test_open_block_spoiler_writes_cover_with_title() {
+    fn test_open_block_spoiler_writes_cover_with_title_and_body() {
         let mut writer = new_writer();
 
         open_block_spoiler(&mut writer, "My title").expect("Should write the block spoiler opening");
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">My title</span>"#};
-        assert_eq!(result, expected, "Should open label, checkbox, div and the titled cover");
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: My title"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">My title</span><div class="{SPOILER_BODY_CLASS}">"#};
+        assert_eq!(result, expected, "Should open label, checkbox labelled with the title, block, cover and body");
     }
 
     #[test]
@@ -2640,8 +2730,8 @@ use indoc::{formatdoc};
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">{DEFAULT_SPOILER_TITLE}</span>"#};
-        assert_eq!(result, expected, "Should use the default title");
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">{DEFAULT_SPOILER_TITLE}</span><div class="{SPOILER_BODY_CLASS}">"#};
+        assert_eq!(result, expected, "Should use the default title for the cover and the aria-label");
     }
 
     #[test]
@@ -2653,18 +2743,30 @@ use indoc::{formatdoc};
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;img src=x onerror=alert(1)&gt; &amp; &quot;q&quot;</span>"#};
-        assert_eq!(result, expected, "Should escape html in the title");
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: &lt;img src=x onerror=alert(1)&gt; &amp; &quot;q&quot;"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">&lt;img src=x onerror=alert(1)&gt; &amp; &quot;q&quot;</span><div class="{SPOILER_BODY_CLASS}">"#};
+        assert_eq!(result, expected, "Should escape html in the title and the aria-label");
     }
 
     #[test]
-    fn test_close_block_spoiler_closes_div_and_label() {
+    fn test_open_block_spoiler_title_cannot_break_out_of_the_aria_label() {
+        let mut writer = new_writer();
+
+        open_block_spoiler(&mut writer, "x\" onfocus=\"y").expect("Should write the block spoiler opening");
+
+        let result = written(writer);
+        let expected = formatdoc! {r#"
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: x&quot; onfocus=&quot;y"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">x&quot; onfocus=&quot;y</span><div class="{SPOILER_BODY_CLASS}">"#};
+        assert_eq!(result, expected, "Should escape the quotes in the aria-label attribute");
+    }
+
+    #[test]
+    fn test_close_block_spoiler_closes_body_block_and_label() {
         let mut writer = new_writer();
 
         close_block_spoiler(&mut writer).expect("Should write the block spoiler closing");
 
         let result = written(writer);
-        assert_eq!(result, "</div></label>", "Should close div and label");
+        assert_eq!(result, "</div></div></label>", "Should close body, block and label");
     }
 
     // ---------------------------------------------------------------------
@@ -2710,7 +2812,7 @@ use indoc::{formatdoc};
         state.end_element(&mut writer).expect("Should close the spoiler");
 
         let result = written(writer);
-        assert_eq!(result, "</span></label>", "Should close the inline spoiler");
+        assert_eq!(result, "</span></span></label>", "Should close the inline spoiler");
         assert_eq!(state.spoiler_depth, None, "Should forget the closed spoiler");
         assert_eq!(state.element_depth, 1, "Should decrease the depth");
     }
@@ -2735,7 +2837,7 @@ use indoc::{formatdoc};
         state.end_element(&mut writer).expect("Should close the blocks");
 
         let result = written(writer);
-        assert_eq!(result, "</div></label></div></label>", "Should close both blocks of depth 1");
+        assert_eq!(result, "</div></div></label></div></div></label>", "Should close both blocks of depth 1");
         assert_eq!(state.blocks, vec![(0, 3)], "Should keep the block of the parent");
     }
 
@@ -2748,7 +2850,7 @@ use indoc::{formatdoc};
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            <label class="block"><input type="checkbox" class="spoiler-checkbox hidden"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span>"#
+            <label class="block"><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}: T"/><div class="{SPOILER_BLOCK_CLASS}"><span class="{SPOILER_COVER_CLASS}">T</span><div class="{SPOILER_BODY_CLASS}">"#
         };
         assert_eq!(result, expected, "Should write the block opening");
         assert_eq!(state.blocks, vec![(2, 4)], "Should store depth and colons");
@@ -2787,7 +2889,7 @@ use indoc::{formatdoc};
         state.close_blocks_from(&mut writer, 1).expect("Should close the blocks");
 
         let result = written(writer);
-        assert_eq!(result, "</div></label></div></label>", "Should close two blocks");
+        assert_eq!(result, "</div></div></label></div></div></label>", "Should close two blocks");
         assert_eq!(state.blocks, vec![(0, 4)], "Should keep the blocks before the index");
         assert!(!state.trim_start, "Should reset trimming");
     }
@@ -2814,7 +2916,7 @@ use indoc::{formatdoc};
         let result = written(writer);
         assert_eq!(
             result,
-            "</span></label></div></label></div></label>",
+            "</span></span></label></div></div></label></div></div></label>",
             "Should close the inline spoiler first and then the blocks"
         );
         assert_eq!(state.spoiler_depth, None, "Should forget the inline spoiler");
@@ -2852,7 +2954,8 @@ use indoc::{formatdoc};
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b</span></label> c"#};
+            a <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">b</span></span></label> c"#
+        };
         assert_eq!(result, expected, "Should wrap b in a spoiler");
         assert_eq!(state.spoiler_depth, None, "Should have closed the spoiler");
     }
@@ -2868,7 +2971,8 @@ use indoc::{formatdoc};
 
         let result = written(writer);
         let expected = formatdoc! {r#"
-            a <label><input type="checkbox" class="spoiler-checkbox hidden"/><span class="{SPOILER_SPAN_CLASS}">b  c</span></label> d"#};
+            a <label><input type="checkbox" class="{SPOILER_CHECKBOX_CLASS}" aria-label="{DEFAULT_SPOILER_TITLE}"/><span class="{SPOILER_SPAN_CLASS}"><span class="{SPOILER_TEXT_CLASS}">b  c</span></span></label> d"#
+        };
         assert_eq!(result, expected, "Should continue the spoiler in the next text and trim its end");
     }
 

@@ -22,7 +22,6 @@ pub struct Post {
     pub link: Link,
     pub is_nsfw: bool,
     pub is_spoiler: bool,
-    pub category_id: Option<i64>,
     pub is_edited: bool,
     pub sphere_id: i64,
     pub satellite_id: Option<i64>,
@@ -86,7 +85,7 @@ pub struct PostTags {
 #[derive(Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct PostWithInfo {
     pub post: Post,
-    pub sphere_category: Option<SphereCategoryHeader>,
+    pub sphere_category_vec: Vec<SphereCategoryHeader>,
     pub vote: Option<Vote>,
 }
 
@@ -94,7 +93,7 @@ pub struct PostWithInfo {
 pub struct PostWithSphereInfo {
     pub post: Post,
     pub sphere_name: String,
-    pub sphere_category: Option<SphereCategoryHeader>,
+    pub sphere_category_vec: Vec<SphereCategoryHeader>,
     pub sphere_icon_url: Option<String>,
 }
 
@@ -131,20 +130,21 @@ impl PostWithSphereInfo {
     pub fn from_post(
         post: Post,
         sphere_name: String,
-        sphere_category: Option<SphereCategoryHeader>,
         sphere_icon_url: Option<String>,
+        sphere_category_vec: Vec<SphereCategoryHeader>,
     ) -> Self {
         PostWithSphereInfo {
             post,
             sphere_name,
-            sphere_category,
             sphere_icon_url,
+            sphere_category_vec,
         }
     }
 }
 
 #[cfg(feature = "ssr")]
 pub mod ssr {
+    use std::collections::HashMap;
     use serde::{Deserialize, Serialize};
     use sqlx::{AssertSqlSafe, PgPool};
     use validator::Validate;
@@ -171,8 +171,6 @@ pub mod ssr {
         #[cfg_attr(feature = "ssr", sqlx(flatten))]
         pub post: Post,
         pub sphere_name: String,
-        pub category_name: Option<String>,
-        pub category_color: Option<Color>,
         pub sphere_icon_url: Option<String>,
     }
 
@@ -180,8 +178,6 @@ pub mod ssr {
     pub struct PostJoinInfo {
         #[sqlx(flatten)]
         pub post: Post,
-        pub category_name: Option<String>,
-        pub category_color: Option<Color>,
         pub vote_id: Option<i64>,
         pub vote_post_id: Option<i64>,
         pub vote_comment_id: Option<Option<i64>>,
@@ -190,34 +186,36 @@ pub mod ssr {
         pub vote_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
 
-    impl From<PostJoinSphereInfo> for PostWithSphereInfo {
-        fn from(value: PostJoinSphereInfo) -> Self {
-            let sphere_category = match (value.category_name, value.category_color) {
-                (Some(category_name), Some(category_color)) => Some(SphereCategoryHeader {
-                    category_name,
-                    category_color,
-                }),
-                _ => None,
-            };
-            PostWithSphereInfo {
-                post: value.post,
-                sphere_name: value.sphere_name,
-                sphere_category,
-                sphere_icon_url: value.sphere_icon_url,
-            }
+    #[derive(sqlx::FromRow)]
+    struct PostCategoryRow {
+        post_id: i64,
+        category_name: String,
+        category_color: Color,
+    }
+
+    impl PostWithSphereInfo {
+        fn new(post: PostJoinSphereInfo, sphere_category_vec: Vec<SphereCategoryHeader>) -> Self {
+            PostWithSphereInfo::from_post(
+                post.post,
+                post.sphere_name,
+                post.sphere_icon_url,
+                sphere_category_vec,
+            )
+        }
+
+        fn new_vec(
+            post_vec: Vec<PostJoinSphereInfo>,
+            category_vec_by_post_id: HashMap<i64, Vec<SphereCategoryHeader>>
+        ) -> Vec<PostWithSphereInfo> {
+            post_vec.into_iter().map(|p| {
+                let post_id = p.post.post_id;
+                PostWithSphereInfo::new(p, category_vec_by_post_id.get(&post_id).cloned().unwrap_or_default())
+            }).collect()
         }
     }
 
-    impl From<PostJoinInfo> for PostWithInfo {
-
-        fn from(post: PostJoinInfo) -> Self {
-            let sphere_category = match (post.category_name, post.category_color) {
-                (Some(category_name), Some(category_color)) => Some(SphereCategoryHeader {
-                    category_name,
-                    category_color,
-                }),
-                _ => None,
-            };
+    impl PostWithInfo {
+        pub fn new(post: PostJoinInfo, sphere_category_vec: Vec<SphereCategoryHeader>) -> Self {
             let post_vote = match (post.vote_id, post.vote_person_id, post.value, post.vote_timestamp) {
                 (Some(vote_id), Some(vote_person_id), Some(value), Some(vote_timestamp)) => Some(Vote {
                     vote_id,
@@ -232,8 +230,8 @@ pub mod ssr {
 
             PostWithInfo {
                 post: post.post,
-                sphere_category,
                 vote: post_vote,
+                sphere_category_vec
             }
         }
     }
@@ -301,7 +299,9 @@ pub mod ssr {
             .fetch_one(db_pool)
             .await?;
 
-        Ok(post_join_vote.into())
+        let category_vec = get_post_category_header_vec(post_id, db_pool).await?;
+
+        Ok(PostWithInfo::new(post_join_vote, category_vec))
     }
 
     pub async fn get_post_with_sphere_info_by_id(
@@ -327,7 +327,52 @@ pub mod ssr {
             .fetch_one(db_pool)
             .await?;
 
-        Ok(post.into())
+        let post_category_vec = get_post_category_header_vec(post_id, db_pool).await?;
+
+        Ok(PostWithSphereInfo::new(post, post_category_vec))
+    }
+
+    pub async fn get_post_category_header_vec(
+        post_id: i64,
+        db_pool: &PgPool,
+    ) -> Result<Vec<SphereCategoryHeader>, AppError> {
+        let category_vec = sqlx::query_as::<_, SphereCategoryHeader>(
+            "SELECT
+                c.category_name, c.category_color
+            FROM sphere_categories c
+            JOIN post_categories pc ON pc.category_id = c.category_id
+            WHERE pc.post_id = $1",
+        )
+            .bind(post_id)
+            .fetch_all(db_pool)
+            .await?;
+        Ok(category_vec)
+    }
+
+    pub async fn get_category_headers_by_post_id_map(
+        post_id_vec: Vec<i64>,
+        db_pool: &PgPool,
+    ) -> Result<HashMap<i64, Vec<SphereCategoryHeader>>, AppError> {
+        let category_vec = sqlx::query_as::<_, PostCategoryRow>(
+            "SELECT
+                pc.post_id, c.category_name, c.category_color
+            FROM sphere_categories c
+            JOIN post_categories pc ON pc.category_id = c.category_id
+            WHERE pc.post_id = ANY($1)",
+        )
+            .bind(&post_id_vec)
+            .fetch_all(db_pool)
+            .await?;
+
+        let mut category_by_post: HashMap<i64, Vec<SphereCategoryHeader>> = HashMap::new();
+        for post_category_row in category_vec {
+            category_by_post.entry(post_category_row.post_id).or_default().push(SphereCategoryHeader {
+                category_name: post_category_row.category_name,
+                category_color: post_category_row.category_color,
+            });
+        }
+
+        Ok(category_by_post)
     }
 
     pub async fn get_post_inherited_attributes(
@@ -546,9 +591,12 @@ pub mod ssr {
             .fetch_all(db_pool)
             .await?;
 
-        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
+        let category_by_post_id_map = get_category_headers_by_post_id_map(
+            post_vec.iter().map(|p| p.post.post_id).collect(),
+            db_pool
+        ).await?;
 
-        Ok(post_vec)
+        Ok(PostWithSphereInfo::new_vec(post_vec, category_by_post_id_map))
     }
 
     pub async fn get_subscribed_post_vec(
@@ -659,9 +707,12 @@ pub mod ssr {
             post_vec.append(&mut additional_posts);
         }
 
-        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
+        let category_by_post_id_map = get_category_headers_by_post_id_map(
+            post_vec.iter().map(|p| p.post.post_id).collect(),
+            db_pool
+        ).await?;
 
-        Ok(post_vec)
+        Ok(PostWithSphereInfo::new_vec(post_vec, category_by_post_id_map))
     }
 
     pub async fn create_post_and_vote(
@@ -1081,14 +1132,14 @@ pub fn add_sphere_info_to_post_vec(
     post_vec: Vec<Post>,
     sphere_name: String,
     sphere_category_map: &HashMap<i64, SphereCategoryHeader>,
+    sphere_category_id_vec_by_post_id: &HashMap<i64, Vec<i64>>,
     sphere_icon_url: Option<String>,
 ) -> Vec<PostWithSphereInfo> {
     post_vec.into_iter().map(|post| {
-        let category_id = match post.category_id {
-            Some(category_id) => sphere_category_map.get(&category_id).cloned(),
-            None => None,
-        };
-        PostWithSphereInfo::from_post(post, sphere_name.clone(), category_id, sphere_icon_url.clone())
+        let category_vec = sphere_category_id_vec_by_post_id.get(&post.post_id).map(|catgory_id_vec| {
+            catgory_id_vec.iter().filter_map(|category_id| sphere_category_map.get(category_id).cloned()).collect()
+        }).unwrap_or_default();
+        PostWithSphereInfo::from_post(post, sphere_name.clone(), sphere_icon_url.clone(), category_vec)
     }).collect()
 }
 

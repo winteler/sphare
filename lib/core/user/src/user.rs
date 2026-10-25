@@ -676,6 +676,13 @@ pub mod ssr {
         db_pool: &PgPool,
     ) -> Result<(), AppError> {
         sqlx::query!(
+            "DELETE FROM post_categories pc
+            USING posts p
+            WHERE pc.post_id = p.post_id AND p.creator_id = $1",
+            user.user_id,
+        ).execute(db_pool).await?;
+        
+        sqlx::query!(
             "UPDATE posts SET
                 title = '',
                 body = '',
@@ -687,14 +694,11 @@ pub mod ssr {
                 is_nsfw = false,
                 is_spoiler = false,
                 is_pinned = false,
-                category_id = NULL,
                 edit_timestamp = NOW(),
                 delete_timestamp = NOW()
             WHERE creator_id = $1",
             user.user_id,
-        )
-            .execute(db_pool)
-            .await?;
+        ).execute(db_pool).await?;
 
         Ok(())
     }

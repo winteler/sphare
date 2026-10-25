@@ -1,6 +1,7 @@
 DROP TABLE user_bans;
 DROP TABLE votes;
 DROP TABLE comments;
+DROP TABLE post_categories;
 DROP TABLE posts;
 DROP TABLE sphere_subscriptions;
 DROP TABLE sphere_categories;
