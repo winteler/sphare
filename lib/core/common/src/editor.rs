@@ -28,9 +28,12 @@ const CODE_BLOCK_CLASS: &str =
 const SPOILER_SPAN_CLASS: &str =
     "spoiler-content cursor-pointer relative inline-block max-w-full rounded-md bg-black p-0.5 px-1 mx-0.5 text-white";
 const SPOILER_BLOCK_CLASS: &str =
-    "spoiler-block cursor-pointer isolate relative block w-fit min-w-[10rem] max-w-full rounded-md bg-black p-1 mb-2.5 text-white";
+    "spoiler-block isolate relative grid w-fit max-w-full rounded-md bg-black mb-2.5 text-white";
+const SPOILER_BODY_CLASS: &str = "spoiler-body col-start-1 row-start-1 min-w-0 p-1";
 const SPOILER_COVER_CLASS: &str =
-    "spoiler-cover absolute inset-0 z-10 flex items-center justify-center rounded-md bg-white px-2 text-center text-black transition-opacity duration-300 ease-in-out";
+    "spoiler-cover col-start-1 row-start-1 z-10 rounded-md bg-white px-2 flex min-w-0 items-center justify-center text-center text-black transition-opacity duration-300 ease-in-out";
+const SPOILER_CHECKBOX_CLASS: &str = "spoiler-checkbox sr-only";
+const SPOILER_TEXT_CLASS: &str = "spoiler-text";
 const DEFAULT_SPOILER_TITLE: &str = "Spoiler";
 
 #[derive(Clone, Debug, PartialEq)]
@@ -335,46 +338,61 @@ fn separate_spoiler_markers(markdown: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-fn open_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
-    writer.write_event(Event::Start(BytesStart::new("label")))?;
+/// Visually hidden but focusable checkbox that toggles the spoiler. Its `aria-label` is
+/// what a screen reader announces, so that it never reads the content of the spoiler as the name.
+fn write_spoiler_checkbox(writer: &mut Writer<Cursor<Vec<u8>>>, label: &str) -> Result<(), AppError> {
     let mut checkbox_elem = BytesStart::new("input");
     checkbox_elem.push_attribute(("type", "checkbox"));
-    checkbox_elem.push_attribute(("class", "spoiler-checkbox hidden"));
+    checkbox_elem.push_attribute(("class", SPOILER_CHECKBOX_CLASS));
+    checkbox_elem.push_attribute(("aria-label", label));
     writer.write_event(Event::Empty(checkbox_elem))?;
+    Ok(())
+}
+
+fn open_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+    writer.write_event(Event::Start(BytesStart::new("label")))?;
+    write_spoiler_checkbox(writer, DEFAULT_SPOILER_TITLE)?;
+    // The span is the cover, the inner span holds the text that is hidden until the spoiler is revealed
     let mut span = BytesStart::new("span");
     span.push_attribute(("class", SPOILER_SPAN_CLASS));
     writer.write_event(Event::Start(span))?;
+    let mut text = BytesStart::new("span");
+    text.push_attribute(("class", SPOILER_TEXT_CLASS));
+    writer.write_event(Event::Start(text))?;
     Ok(())
 }
 
 fn close_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
+    writer.write_event(Event::End(BytesEnd::new("span")))?;
     writer.write_event(Event::End(BytesEnd::new("span")))?;
     writer.write_event(Event::End(BytesEnd::new("label")))?;
     Ok(())
 }
 
 fn open_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>, title: &str) -> Result<(), AppError> {
+    let title = if title.is_empty() { DEFAULT_SPOILER_TITLE } else { title };
     let mut label = BytesStart::new("label");
     label.push_attribute(("class", "block"));
     writer.write_event(Event::Start(label))?;
-    let mut checkbox_elem = BytesStart::new("input");
-    checkbox_elem.push_attribute(("type", "checkbox"));
-    checkbox_elem.push_attribute(("class", "spoiler-checkbox hidden"));
-    writer.write_event(Event::Empty(checkbox_elem))?;
+    write_spoiler_checkbox(writer, title)?;
     let mut div = BytesStart::new("div");
     div.push_attribute(("class", SPOILER_BLOCK_CLASS));
     writer.write_event(Event::Start(div))?;
+    // The cover and the body share the same grid cell, so the block is as big as the biggest of them
     let mut cover = BytesStart::new("span");
     cover.push_attribute(("class", SPOILER_COVER_CLASS));
     writer.write_event(Event::Start(cover))?;
-    let title = if title.is_empty() { DEFAULT_SPOILER_TITLE } else { title };
     writer.write_event(Event::Text(BytesText::new(title)))?;
     writer.write_event(Event::End(BytesEnd::new("span")))?;
+    let mut body = BytesStart::new("div");
+    body.push_attribute(("class", SPOILER_BODY_CLASS));
+    writer.write_event(Event::Start(body))?;
     Ok(())
 }
 
 fn close_block_spoiler(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<(), AppError> {
-    writer.write_event(Event::End(BytesEnd::new("div")))?;
+    writer.write_event(Event::End(BytesEnd::new("div")))?; // body
+    writer.write_event(Event::End(BytesEnd::new("div")))?; // block
     writer.write_event(Event::End(BytesEnd::new("label")))?;
     Ok(())
 }

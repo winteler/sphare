@@ -305,6 +305,9 @@
 }
 
 /* Styles for the spoiler blocks */
+
+/* ---------- Inline spoilers ---------- */
+
 /* The overlay covers the content exactly, whatever its shape or size */
 .spoiler-content::after {
     content: "";
@@ -326,7 +329,20 @@
     pointer-events: none;
 }
 
-.spoiler-content > :last-child {
+/* The text is hidden from assistive tech until revealed. It becomes visible immediately
+   (the overlay still covers it while fading out) and is hidden again only after the overlay
+   has faded back in, so the text doesn't vanish before the cover is in place. */
+.spoiler-text {
+    visibility: hidden;
+    transition: visibility 0s linear 300ms;
+}
+
+.spoiler-checkbox:checked + .spoiler-content .spoiler-text {
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.spoiler-text > :last-child {
     margin-bottom: 0;
 }
 
@@ -335,7 +351,9 @@
     margin-bottom: 0;
 }
 
-/* Block spoiler: the cover shows the button text, and fades out when revealed */
+/* ---------- Block spoilers ---------- */
+
+/* Block spoiler: the cover shows the title, and fades out when revealed */
 .spoiler-checkbox:checked + .spoiler-block > .spoiler-cover {
     opacity: 0;
     pointer-events: none;
@@ -345,8 +363,28 @@
     user-select: none;
 }
 
-.spoiler-block > :last-child {
+/* Same as for the inline text: hidden from assistive tech until revealed */
+.spoiler-body {
+    visibility: hidden;
+    transition: visibility 0s linear 300ms;
+}
+
+.spoiler-checkbox:checked + .spoiler-block > .spoiler-body {
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.spoiler-body > :last-child {
     margin-bottom: 0;
+}
+
+/* ---------- Keyboard focus ---------- */
+
+/* The checkbox is visually hidden (sr-only), so show the focus on the spoiler itself */
+.spoiler-checkbox:focus-visible + .spoiler-content,
+.spoiler-checkbox:focus-visible + .spoiler-block {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
 }
 
 /* class to remove spinner from number inputs */
