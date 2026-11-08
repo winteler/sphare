@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 use std::time::Duration;
 
 use rand::RngExt;
@@ -14,7 +14,7 @@ use sphare_core_content::embed::{Link, LinkType};
 use sphare_core_content::filter::{CategorySetFilter, SphereCategoryFilter};
 use sphare_core_content::moderation::ssr::moderate_post;
 use sphare_core_content::post::ssr::{create_post, create_post_and_vote, delete_post, edit_post, get_homepage_post_vec, get_post_by_id, get_post_inherited_attributes, get_post_vec_by_satellite_id, get_post_vec_by_sphere_name, get_post_with_info_by_id, get_post_with_sphere_info_by_id, get_sorted_post_vec, get_subscribed_post_vec, update_post, update_post_scores};
-use sphare_core_content::post::{PostDataInputs, PostLocation, PostTags, PostWithSphereInfo};
+use sphare_core_content::post::{PostDataInputs, PostLocation, PostTags, PostWithInfo, PostWithSphereInfo};
 use sphare_core_content::ranking::ssr::vote_on_content;
 use sphare_core_content::ranking::{PostSortType, SortType, VoteValue};
 use sphare_core_sphere::rule::ssr::add_rule;
@@ -72,7 +72,7 @@ async fn create_sphere_with_filter_posts(
         "a",
         None,
         Link::default(),
-        PostTags::new(true, false, false, None),
+        PostTags::new(true, false, false, vec![]),
         user,
         db_pool,
     ).await.expect("new spoiler post should be created.");
@@ -84,7 +84,7 @@ async fn create_sphere_with_filter_posts(
         "a",
         None,
         Link::default(),
-        PostTags::new(true, false, false, None),
+        PostTags::new(true, false, false, vec![]),
         user,
         db_pool,
     ).await.expect("old spoiler post should be created.");
@@ -98,7 +98,7 @@ async fn create_sphere_with_filter_posts(
         "a",
         None,
         Link::default(),
-        PostTags::new(false, true, false, None),
+        PostTags::new(false, true, false, vec![]),
         user,
         db_pool,
     ).await.expect("nsfw_post should be created.");
@@ -108,9 +108,9 @@ async fn create_sphere_with_filter_posts(
         sphere.clone(),
         satellite,
         base_post_vec,
-        PostWithSphereInfo::from_post(new_spoiler_post, sphere.sphere_name.clone(), None, None),
-        PostWithSphereInfo::from_post(day_old_spoiler_post, sphere.sphere_name.clone(), None, None),
-        PostWithSphereInfo::from_post(nsfw_post, sphere.sphere_name.clone(), None, None),
+        PostWithSphereInfo::from_post(new_spoiler_post, sphere.sphere_name.clone(), None, vec![], None),
+        PostWithSphereInfo::from_post(day_old_spoiler_post, sphere.sphere_name.clone(), None, vec![], None),
+        PostWithSphereInfo::from_post(nsfw_post, sphere.sphere_name.clone(), None, vec![], None),
     )
 }
 
@@ -169,7 +169,7 @@ async fn test_get_post_with_info_by_id() -> Result<(), AppError> {
         post_1_body,
         None,
         Link::default(),
-        PostTags::new(false, false, false, Some(sphere_category.category_id)),
+        PostTags::new(false, false, false, vec![sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Should be able to create post 1.");
@@ -191,22 +191,22 @@ async fn test_get_post_with_info_by_id() -> Result<(), AppError> {
 
     let post_1_without_vote = get_post_with_info_by_id(post_1.post_id, None, &db_pool).await.expect("Should be able to load post 1.");
     assert_eq!(post_1_without_vote.post, post_1);
-    assert_eq!(post_1_without_vote.sphere_category.expect("Should have category"), sphere_category.clone().into());
+    assert_eq!(post_1_without_vote.sphere_category_vec, vec![sphere_category.clone().into()]);
     assert_eq!(post_1_without_vote.vote, None);
 
     let post_1_without_vote = get_post_with_info_by_id(post_1.post_id, Some(&user), &db_pool).await.expect("Should be able to load post 1.");
     assert_eq!(post_1_without_vote.post, post_1);
-    assert_eq!(post_1_without_vote.sphere_category.expect("Should have category"), sphere_category.into());
+    assert_eq!(post_1_without_vote.sphere_category_vec, vec![sphere_category.into()]);
     assert_eq!(post_1_without_vote.vote, None);
 
     let post_2_without_vote = get_post_with_info_by_id(post_2.post_id, None, &db_pool).await.expect("Should be able to load post 2.");
     assert_eq!(post_2_without_vote.post, post_2);
-    assert_eq!(post_2_without_vote.sphere_category, None);
+    assert!(post_2_without_vote.sphere_category_vec.is_empty());
     assert_eq!(post_2_without_vote.vote, None);
 
     let post_2_without_vote = get_post_with_info_by_id(post_2.post_id, Some(&user), &db_pool).await.expect("Should be able to load post 2.");
     assert_eq!(post_2_without_vote.post, post_2);
-    assert_eq!(post_2_without_vote.sphere_category, None);
+    assert!(post_2_without_vote.sphere_category_vec.is_empty());
     assert_eq!(post_2_without_vote.vote, None);
 
     let post_1_vote = vote_on_content(VoteValue::Up, post_1.post_id, None, None, &user, &db_pool).await.expect("Should be possible to vote on post_1.");
@@ -273,7 +273,7 @@ async fn test_get_post_inherited_attributes() -> Result<(), AppError> {
         "1",
         None,
         Link::default(),
-        PostTags::new(true, true, false, None),
+        PostTags::new(true, true, false, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create sphere 1 post.");
@@ -311,7 +311,7 @@ async fn test_get_post_inherited_attributes() -> Result<(), AppError> {
         "3",
         None,
         Link::default(),
-        PostTags::new(false, true, false, None),
+        PostTags::new(false, true, false, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create satellite 1 post.");
@@ -330,7 +330,7 @@ async fn test_get_post_inherited_attributes() -> Result<(), AppError> {
         "4",
         None,
         Link::default(),
-        PostTags::new(true, false, false, None),
+        PostTags::new(true, false, false, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create satellite 2 post.");
@@ -355,12 +355,15 @@ async fn test_get_post_with_sphere_info_by_id() {
         &sphere.sphere_name, None, "1", "test", None, Link::default(),PostTags::default(), &user, &db_pool
     ).await.expect("Should be able to create post.");
 
-    let post_with_sphere_info = get_post_with_sphere_info_by_id(expected_post.post_id, &db_pool).await.expect("Post sphere should be available.");
+    let post_with_sphere_info = get_post_with_sphere_info_by_id(expected_post.post_id, None, &db_pool).await.expect("Post sphere should be available.");
     assert_eq!(post_with_sphere_info.post, expected_post);
     assert_eq!(post_with_sphere_info.sphere_name, sphere.sphere_name);
-    assert_eq!(post_with_sphere_info.sphere_category, None);
     assert_eq!(post_with_sphere_info.sphere_icon_url, None);
+    assert_eq!(post_with_sphere_info.sphere_category_vec, vec![]);
+    assert_eq!(post_with_sphere_info.vote, None);
 }
+
+
 
 #[tokio::test]
 async fn test_get_subscribed_post_vec() -> Result<(), AppError> {
@@ -421,6 +424,7 @@ async fn test_get_subscribed_post_vec() -> Result<(), AppError> {
 
     // When no subscription, simply return all sorted posts
     for sort_type in POST_SORT_TYPE_ARRAY {
+        println!("sort_type: {:?}, person_id: {}", sort_type, user.person_id);
         let post_vec = get_subscribed_post_vec(
             SortType::Post(sort_type),
             num_post as i64,
@@ -447,6 +451,7 @@ async fn test_get_subscribed_post_vec() -> Result<(), AppError> {
             &user,
             &db_pool,
         ).await?;
+        assert_eq!(post_vec.len(), num_post+3);
         assert_eq!(post_vec, expected_vec[0..num_post+3]);
 
         let post_vec = get_subscribed_post_vec(
@@ -507,7 +512,7 @@ async fn test_get_subscribed_post_vec_with_filters() {
     ).await;
     let sphere_2_post = set_post_score(sphere_2_post.post_id, 50, &db_pool).await.expect("Should set post score");
     subscribe(sphere_2.sphere_id, user.person_id, &db_pool).await.expect("Should subscribe to sphere 1");
-    post_vec.push(PostWithSphereInfo::from_post(sphere_2_post, sphere_2.sphere_name.clone(), None, None));
+    post_vec.push(PostWithSphereInfo::from_post(sphere_2_post, sphere_2.sphere_name.clone(), None, vec![], None));
 
     let (_, _, mut sphere3_posts) = create_sphere_with_posts(
         "sphere_3",
@@ -626,7 +631,7 @@ async fn test_get_sorted_post_vec() -> Result<(), AppError> {
         "nsfw",
         None,
         Link::default(),
-        PostTags::new(false, true, false, None),
+        PostTags::new(false, true, false, vec![]),
         &user,
         &db_pool,
     ).await.expect("nsfw_post should be created.");
@@ -759,7 +764,7 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
     let sphere_name = "sphere";
     let num_posts = 20usize;
 
-    let (sphere, sphere_category_1, mut expected_post_vec) = create_sphere_with_posts(
+    let (sphere, _, mut expected_post_vec) = create_sphere_with_posts(
         sphere_name,
         None,
         num_posts,
@@ -779,11 +784,6 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         &db_pool
     ).await.expect("Sphere category should be set");
 
-    let category_map = HashMap::from([
-        (sphere_category_1.category_id, sphere_category_1.clone()),
-        (sphere_category_2.category_id, sphere_category_2.clone()),
-    ]);
-
     let category_post_1 = create_post(
         sphere_name,
         None,
@@ -791,7 +791,7 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         "1",
         None,
         Link::default(),
-        PostTags::new(true, true, false, Some(sphere_category_2.category_id)),
+        PostTags::new(true, true, false, vec![sphere_category_2.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 1 with category should be created.");
@@ -801,9 +801,10 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
     expected_post_vec.push(PostWithSphereInfo::from_post(
         category_post_1,
         sphere_name.to_string(),
-        Some(sphere_category_2.clone().into()),
-        sphere.icon_url.clone())
-    );
+        sphere.icon_url.clone(),
+        vec![sphere_category_2.clone().into()],
+        None,
+    ));
 
     // create post in satellite to make sure it doesn't get included in the results
     let satellite = create_satellite(
@@ -844,10 +845,7 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
 
 
         let post_vec: Vec<PostWithSphereInfo> = post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|category_id| {
-                category_map.get(&category_id).expect("Category should be in map").clone().into()
-            });
-            PostWithSphereInfo::from_post(post, sphere_name.to_string(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere_name.to_string(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
         assert_eq!(post_vec, expected_post_vec[..load_count]);
 
@@ -862,10 +860,7 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         ).await?;
 
         let second_post_vec: Vec<PostWithSphereInfo> = second_post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|category_id| {
-                category_map.get(&category_id).expect("Category should be in map").clone().into()
-            });
-            PostWithSphereInfo::from_post(post, sphere_name.to_string(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere_name.to_string(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
         assert_eq!(second_post_vec, expected_post_vec[load_count..(num_posts + 1)]);
     }
@@ -883,8 +878,8 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         &db_pool,
     ).await?;
 
-    assert!(!post_vec.contains(&moderated_post.post));
-    assert!(!post_vec.contains(&deleted_post.post));
+    assert!(!post_vec.contains(&moderated_post.into()));
+    assert!(!post_vec.contains(&deleted_post.into()));
 
     Ok(())
 }
@@ -915,7 +910,7 @@ async fn test_get_post_vec_by_sphere_name_with_pinned_post() -> Result<(), AppEr
         "a",
         None,
         Link::default(),
-        PostTags::new(false, false, true, None),
+        PostTags::new(false, false, true, vec![]),
         &user,
         &db_pool
     ).await.expect("Pinned post should be created");
@@ -932,7 +927,16 @@ async fn test_get_post_vec_by_sphere_name_with_pinned_post() -> Result<(), AppEr
         ).await?;
 
         assert_eq!(post_vec.len(), partial_load_num_post);
-        assert_eq!(post_vec.first(), Some(&pinned_post));
+        assert_eq!(
+            post_vec.first(),
+            Some(
+                &PostWithInfo {
+                    post: pinned_post.clone(),
+                    sphere_category_vec: vec![],
+                    vote: None,
+                }
+            )
+        );
     }
 
     Ok(())
@@ -956,7 +960,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         &db_pool,
     ).await.expect("Sphere with post should be created");
     let mut no_category_post_vec: Vec<PostWithSphereInfo> = init_post_vec.into_iter().filter(|post| {
-        post.sphere_category.is_none()
+        post.sphere_category_vec.is_empty()
     }).collect();
 
     let sphere_category = set_sphere_category(
@@ -976,7 +980,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         "1",
         None,
         Link::default(),
-        PostTags::new(false, false, false, Some(sphere_category.category_id)),
+        PostTags::new(false, false, false, vec![sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 1 with category should be created.");
@@ -988,7 +992,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         "2",
         None,
         Link::default(),
-        PostTags::new(false, false, false, Some(sphere_category.category_id)),
+        PostTags::new(false, false, false, vec![sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 2 with category should be created.");
@@ -999,8 +1003,8 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
     ).await.expect("Post 2 score should be set");
 
     let mut expected_post_vec = vec![
-        PostWithSphereInfo::from_post(category_post_1, sphere_name.to_string(), Some(sphere_category.clone().into()), sphere.icon_url.clone()),
-        PostWithSphereInfo::from_post(category_post_2, sphere_name.to_string(), Some(sphere_category.clone().into()), sphere.icon_url.clone()),
+        PostWithSphereInfo::from_post(category_post_1, sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], None),
+        PostWithSphereInfo::from_post(category_post_2, sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], None),
     ];
 
     for sort_type in POST_SORT_TYPE_ARRAY {
@@ -1015,8 +1019,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
             &db_pool,
         ).await?;
         let category_post_vec: Vec<PostWithSphereInfo> = category_post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|_| sphere_category.clone().into());
-            PostWithSphereInfo::from_post(post, sphere_name.to_string(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere_name.to_string(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
         sort_post_vec(&mut expected_post_vec, sort_type, true);
         assert_eq!(category_post_vec, expected_post_vec);
@@ -1038,8 +1041,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
             &db_pool,
         ).await?;
         let result_post_vec: Vec<PostWithSphereInfo> = category_post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|_| sphere_category.clone().into());
-            PostWithSphereInfo::from_post(post, sphere_name.to_string(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere_name.to_string(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
         sort_post_vec(&mut no_category_post_vec, sort_type, true);
         assert_eq!(result_post_vec, no_category_post_vec);
@@ -1063,8 +1065,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
             &db_pool,
         ).await?;
         let category_post_vec: Vec<PostWithSphereInfo> = category_post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|_| sphere_category.clone().into());
-            PostWithSphereInfo::from_post(post, sphere_name.to_string(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere_name.to_string(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
         sort_post_vec(&mut all_post_vec, sort_type, true);
         assert_eq!(category_post_vec, all_post_vec);
@@ -1114,7 +1115,7 @@ async fn test_get_post_vec_by_sphere_name_with_filters() {
             .await
             .expect("Should load posts by sphere name")
             .into_iter()
-            .map(|post| PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), None, None)).collect();
+            .map(|post| PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), None, vec![], None)).collect();
 
         sort_post_vec(&mut default_filter_expected_post, sort_type, true);
         assert_eq!(post_vec, default_filter_expected_post);
@@ -1138,7 +1139,7 @@ async fn test_get_post_vec_by_sphere_name_with_filters() {
             .await
             .expect("Should load posts by sphere name")
             .into_iter()
-            .map(|post| PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), None, None)).collect();
+            .map(|post| PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), None, vec![], None)).collect();
         sort_post_vec(&mut one_day_spoiler_filter_expected_post, sort_type, true);
         assert_eq!(post_vec, one_day_spoiler_filter_expected_post);
     }
@@ -1161,7 +1162,7 @@ async fn test_get_post_vec_by_sphere_name_with_filters() {
             .await
             .expect("Should load posts by sphere name")
             .into_iter()
-            .map(|post| PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), None, None)).collect();
+            .map(|post| PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), None, vec![], None)).collect();
         sort_post_vec(&mut three_day_spoiler_filter_expected_post, sort_type, true);
         assert_eq!(post_vec, three_day_spoiler_filter_expected_post);
     }
@@ -1244,10 +1245,7 @@ async fn test_get_post_vec_by_satellite_id() -> Result<(), AppError> {
         ).await.expect("First post vec should be loaded");
 
         let post_vec: Vec<PostWithSphereInfo> = post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|_| {
-                sphere_category.clone().into()
-            });
-            PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
 
         assert_eq!(post_vec, expected_post_vec[..load_count]);
@@ -1263,10 +1261,7 @@ async fn test_get_post_vec_by_satellite_id() -> Result<(), AppError> {
         ).await?;
 
         let second_post_vec: Vec<PostWithSphereInfo> = second_post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|_| {
-                sphere_category.clone().into()
-            });
-            PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
         }).collect();
         assert_eq!(second_post_vec, expected_post_vec[load_count..num_posts]);
     }
@@ -1283,8 +1278,8 @@ async fn test_get_post_vec_by_satellite_id() -> Result<(), AppError> {
         &db_pool,
     ).await?;
 
-    assert!(!post_vec.contains(&moderated_post.post));
-    assert!(!post_vec.contains(&deleted_post.post));
+    assert!(!post_vec.contains(&moderated_post.into()));
+    assert!(!post_vec.contains(&deleted_post.into()));
 
     Ok(())
 }
@@ -1313,7 +1308,7 @@ async fn test_get_post_vec_by_satellite_id_with_pinned_post() -> Result<(), AppE
         "a",
         None,
         Link::default(),
-        PostTags::new(false, false, true, None),
+        PostTags::new(false, false, true, vec![]),
         &user,
         &db_pool
     ).await.expect("Pinned post should be created");
@@ -1342,7 +1337,7 @@ async fn test_get_post_vec_by_satellite_id_with_pinned_post() -> Result<(), AppE
         ).await.expect("First post vec should be loaded");
 
         assert_eq!(post_vec.len(), load_count);
-        assert_eq!(post_vec.first(), Some(&pinned_post));
+        assert_eq!(post_vec.first().unwrap().post, pinned_post);
     }
 
     Ok(())
@@ -1392,7 +1387,7 @@ async fn test_get_post_vec_by_satellite_id_with_category() -> Result<(), AppErro
         "1",
         None,
         Link::default(),
-        PostTags::new(false, false, false, Some(sphere_category.category_id)),
+        PostTags::new(false, false, false, vec![sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 1 with category should be created.");
@@ -1404,14 +1399,14 @@ async fn test_get_post_vec_by_satellite_id_with_category() -> Result<(), AppErro
         "2",
         None,
         Link::default(),
-        PostTags::new(false, false, false, Some(sphere_category.category_id)),
+        PostTags::new(false, false, false, vec![sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 2 with category should be created.");
 
     let mut expected_post_vec = vec![
-        PostWithSphereInfo::from_post(category_post_1, sphere.sphere_name.clone(), Some(sphere_category.clone().into()), sphere.icon_url.clone()),
-        PostWithSphereInfo::from_post(category_post_2, sphere.sphere_name.clone(), Some(sphere_category.clone().into()), sphere.icon_url.clone()),
+        PostWithSphereInfo::from_post(category_post_1, sphere.sphere_name.clone(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], None),
+        PostWithSphereInfo::from_post(category_post_2, sphere.sphere_name.clone(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], None),
     ];
 
     create_posts(
@@ -1436,8 +1431,7 @@ async fn test_get_post_vec_by_satellite_id_with_category() -> Result<(), AppErro
             &db_pool,
         ).await?;
         let category_post_vec: Vec<PostWithSphereInfo> = category_post_vec.into_iter().map(|post| {
-            let sphere_category = post.category_id.map(|_| sphere_category.clone().into());
-            PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), sphere_category, sphere.icon_url.clone())
+            PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], post.vote)
         }).collect();
         sort_post_vec(&mut expected_post_vec, sort_type, true);
         assert_eq!(category_post_vec, expected_post_vec);
@@ -1528,7 +1522,7 @@ async fn test_get_post_vec_by_satellite_id_with_filters() {
             .await
             .expect("Should load posts by satellite id")
             .into_iter()
-            .map(|post| PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), None, None)).collect();
+            .map(|post| PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), None, vec![], None)).collect();
 
         sort_post_vec(&mut default_filter_expected_post, sort_type, true);
         assert_eq!(post_vec, default_filter_expected_post);
@@ -1552,7 +1546,7 @@ async fn test_get_post_vec_by_satellite_id_with_filters() {
             .await
             .expect("Should load posts by satellite id")
             .into_iter()
-            .map(|post| PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), None, None)).collect();
+            .map(|post| PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), None, vec![], None)).collect();
         sort_post_vec(&mut one_day_spoiler_filter_expected_post, sort_type, true);
         assert_eq!(post_vec, one_day_spoiler_filter_expected_post);
     }
@@ -1575,7 +1569,7 @@ async fn test_get_post_vec_by_satellite_id_with_filters() {
             .await
             .expect("Should load posts by satellite id")
             .into_iter()
-            .map(|post| PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), None, None)).collect();
+            .map(|post| PostWithSphereInfo::from_post(post.post, sphere.sphere_name.clone(), None, vec![], None)).collect();
         sort_post_vec(&mut three_day_spoiler_filter_expected_post, sort_type, true);
         assert_eq!(post_vec, three_day_spoiler_filter_expected_post);
     }
@@ -1689,7 +1683,7 @@ async fn test_create_post_and_vote() {
     assert_eq!(vote_1.post_id, post_1.post_id);
     assert_eq!(vote_1.comment_id, None);
     assert_eq!(vote_1.person_id, user.person_id);
-    assert_eq!(vote_1.value, VoteValue::Up);
+    assert_eq!(vote_1.vote_value, VoteValue::Up);
 
     assert_eq!(post_1_path, get_post_path(&sphere.sphere_name, None, post_1.post_id));
 
@@ -1737,7 +1731,7 @@ async fn test_create_post_and_vote() {
     assert_eq!(vote_2.post_id, post_2.post_id);
     assert_eq!(vote_2.comment_id, None);
     assert_eq!(vote_2.person_id, user.person_id);
-    assert_eq!(vote_2.value, VoteValue::Up);
+    assert_eq!(vote_2.vote_value, VoteValue::Up);
 
     assert_eq!(post_path, get_post_path(&sphere.sphere_name, Some(satellite.satellite_id), post_2.post_id));
 }
@@ -1770,7 +1764,6 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(post_1.link, Link::default());
     assert_eq!(post_1.is_nsfw, false);
     assert_eq!(post_1.is_spoiler, false);
-    assert_eq!(post_1.category_id, None);
     assert_eq!(post_1.is_edited, false);
     assert_eq!(post_1.sphere_id, sphere_1.sphere_id);
     assert_eq!(post_1.satellite_id, None);
@@ -1789,7 +1782,7 @@ async fn test_create_post() -> Result<(), AppError> {
 
     // cannot create pinned comment without moderator permissions (need to reload user to actualize them)
     assert_eq!(
-        create_post(&sphere_1.sphere_name, None, post_1_title, post_1_body, None, Link::default(), PostTags::new(false, false, true, None), &user, &db_pool).await,
+        create_post(&sphere_1.sphere_name, None, post_1_title, post_1_body, None, Link::default(), PostTags::new(false, false, true, vec![]), &user, &db_pool).await,
         Err(AppError::InsufficientPrivileges),
     );
 
@@ -1810,7 +1803,7 @@ async fn test_create_post() -> Result<(), AppError> {
         post_2_body,
         Some(post_2_markdown_body),
         post_2_link.clone(),
-        PostTags::new(true, true, true, None),
+        PostTags::new(true, true, true, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create post 2.");
@@ -1822,7 +1815,6 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(post_2.markdown_body, Some(String::from(post_2_markdown_body)));
     assert_eq!(post_2.is_nsfw, true);
     assert_eq!(post_2.is_spoiler, true);
-    assert_eq!(post_2.category_id, None);
     assert_eq!(post_2.is_edited, false);
     assert_eq!(post_2.sphere_id, sphere_1.sphere_id);
     assert_eq!(post_2.satellite_id, None);
@@ -1865,7 +1857,6 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(nsfw_post.link, nsfw_link);
     assert_eq!(nsfw_post.is_nsfw, true);
     assert_eq!(nsfw_post.is_spoiler, false);
-    assert_eq!(nsfw_post.category_id, None);
     assert_eq!(nsfw_post.is_edited, false);
     assert_eq!(nsfw_post.sphere_id, sphere_2.sphere_id);
     assert_eq!(nsfw_post.satellite_id, None);
@@ -1932,7 +1923,6 @@ async fn test_create_post_in_satellite() -> Result<(), AppError> {
     assert_eq!(post.link, Link::default());
     assert_eq!(post.is_nsfw, false);
     assert_eq!(post.is_spoiler, false);
-    assert_eq!(post.category_id, None);
     assert_eq!(post.is_edited, false);
     assert_eq!(post.sphere_id, sphere_1.sphere_id);
     assert_eq!(post.satellite_id, Some(satellite_1.satellite_id));
@@ -1972,7 +1962,7 @@ async fn test_create_post_in_satellite() -> Result<(), AppError> {
         "2",
         None,
         link.clone(),
-        PostTags::new(false, false, true, None),
+        PostTags::new(false, false, true, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create post in satellite 2.");
@@ -1983,7 +1973,6 @@ async fn test_create_post_in_satellite() -> Result<(), AppError> {
     assert_eq!(post.link, link);
     assert_eq!(post.is_nsfw, true);
     assert_eq!(post.is_spoiler, true);
-    assert_eq!(post.category_id, None);
     assert_eq!(post.is_edited, false);
     assert_eq!(post.sphere_id, sphere_2.sphere_id);
     assert_eq!(post.satellite_id, Some(satellite_2.satellite_id));
@@ -2047,7 +2036,7 @@ async fn test_edit_post() {
                 is_spoiler: true,
                 is_nsfw: true,
                 is_pinned: true,
-                category_id: None,
+                category_id_vec: Vec::new(),
             },
         },
     ];
@@ -2138,7 +2127,7 @@ async fn test_update_post() -> Result<(), AppError> {
             Some(String::from("embed")),
             Some(String::from("thumbnail")),
         ),
-        PostTags::new(false, true, false, None),
+        PostTags::new(false, true, false, vec![]),
         &user,
         &db_pool,
     ).await?;
@@ -2224,7 +2213,7 @@ async fn test_update_post_in_satellite() -> Result<(), AppError> {
         "1",
         None,
         Link::default(),
-        PostTags::new(true, true, false, None),
+        PostTags::new(true, true, false, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create post in");
@@ -2245,7 +2234,7 @@ async fn test_update_post_in_satellite() -> Result<(), AppError> {
         &updated_html_body,
         Some(updated_markdown_body),
         updated_link.clone(),
-        PostTags::new(false, false, true, None),
+        PostTags::new(false, false, true, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to update post");
@@ -2281,7 +2270,7 @@ async fn test_update_post_in_satellite() -> Result<(), AppError> {
         "2",
         None,
         Link::default(),
-        PostTags::new(true, true, false, None),
+        PostTags::new(true, true, false, vec![]),
         &user,
         &db_pool
     ).await.expect("Should be able to create post in");
@@ -2342,7 +2331,7 @@ async fn test_delete_post() {
             Some(String::from("embed")),
             Some(String::from("thumbnail")),
         ),
-        PostTags::new(true, true, true, None),
+        PostTags::new(true, true, true, vec![]),
         &user,
         &db_pool,
     ).await.expect("Should create post");

@@ -126,6 +126,7 @@ pub struct ApubPost {
     pub markdown_content: Option<String>,
     pub is_nsfw: bool,
     pub is_spoiler: bool,
+    pub apub_tag_vec: Vec<ApubTag>,
     pub update_timestamp: Option<DateTime<Utc>>,
 }
 
@@ -134,13 +135,11 @@ pub struct PostJoinApubInfo {
     #[cfg_attr(feature = "ssr", sqlx(flatten))]
     pub post: Post,
     pub sphere_apub_id: String,
-    pub category_apub_id: Option<String>,
 }
 
-impl TryFrom<PostJoinApubInfo> for ApubPost {
-    type Error = AppError;
+impl ApubPost {
 
-    fn try_from(post: PostJoinApubInfo) -> Result<Self, Self::Error> {
+    fn new(post: PostJoinApubInfo, apub_tag_vec: Vec<ApubTag>) -> Result<Self, AppError> {
         Ok(Self {
             apub_id: Url::parse(&post.post.post_apub_id)?.into(),
             sphere_apub_id: Url::parse(&post.sphere_apub_id)?.into(),
@@ -150,6 +149,7 @@ impl TryFrom<PostJoinApubInfo> for ApubPost {
             markdown_content: post.post.markdown_body,
             is_nsfw: post.post.is_nsfw,
             is_spoiler: post.post.is_spoiler,
+            apub_tag_vec,
             update_timestamp: post.post.edit_timestamp,
         })
     }
@@ -171,7 +171,10 @@ impl Object for ApubPost {
     ) -> Result<Option<Self>, Self::Error> {
         let post = load_post_by_apub_id(&object_id, data.get_db_pool()).await?;
         let post = match post {
-            Some(post) => Some(post.try_into()?),
+            Some(post) => {
+                let apub_tag_vec = load_post_apub_tag_vec(post.post.post_id, data.get_db_pool()).await?;
+                Some(ApubPost::new(post, apub_tag_vec)?)
+            },
             None => None,
         };
         Ok(post)
@@ -207,7 +210,7 @@ impl Object for ApubPost {
             updated: self.update_timestamp,
             language: None,
             audience: Some(self.sphere_apub_id),
-            tag: vec![],
+            tag: self.apub_tag_vec,
             context: None,
         })
     }
@@ -226,7 +229,7 @@ impl Object for ApubPost {
         let creator = json.creator()?.dereference(data).await?;
         let apub_sphere = json.apub_sphere_id()?.dereference(data).await?;
         let post = insert_or_update_post(&json, &creator, &apub_sphere, data.app_data().get_db_pool()).await?;
-        Ok(post.try_into()?)
+        Ok(ApubPost::new(post, json.tag)?)
     }
 }
 
@@ -324,11 +327,6 @@ impl Page {
             None
         }
     }
-
-    pub fn get_sphere_category(&self) -> Result<Option<SphereCategory>, AppError> {
-        // TODO for now return first tag/category
-        Ok(None)
-    }
 }
 
 pub async fn load_post_by_apub_id(
@@ -350,6 +348,31 @@ pub async fn load_post_by_apub_id(
     Ok(post)
 }
 
+pub async fn load_post_apub_tag_vec(
+    post_id: i64,
+    db_pool: &PgPool
+) -> Result<Vec<ApubTag>, AppError> {
+    let post_category_vec = sqlx::query_as::<_, SphereCategory>(
+        "SELECT c.*
+        FROM sphere_categories c
+        JOIN post_categories pc ON pc.category_id = c.category_id
+        WHERE pc.post_id = $1",
+    )
+        .bind(post_id)
+        .fetch_all(db_pool)
+        .await?;
+
+    let apub_tag_vec = post_category_vec.into_iter().filter_map(|category| {
+        let community_tag = category.try_into();
+        match community_tag {
+            Ok(community_tag) => Some(ApubTag::CommunityTag(community_tag)),
+            Err(_) => None,
+        }
+    }).collect();
+
+    Ok(apub_tag_vec)
+}
+
 pub async fn insert_or_update_post(
     page: &Page,
     creator: &ApubPerson,
@@ -365,7 +388,7 @@ pub async fn insert_or_update_post(
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
         "WITH upserted_post AS (
                 INSERT INTO posts (
-                    post_apub_id, title, body, markdown_body, link_type, link_url, link_embed, link_thumbnail_url, is_nsfw, is_spoiler, category_id,
+                    post_apub_id, title, body, markdown_body, link_type, link_url, link_embed, link_thumbnail_url, is_nsfw, is_spoiler,
                     sphere_id, satellite_id, is_pinned, creator_id, is_creator_moderator
                 )
                 VALUES (
@@ -374,9 +397,9 @@ pub async fn insert_or_update_post(
                         CASE
                             WHEN $9 THEN TRUE
                             ELSE (
-                                (SELECT is_nsfw FROM spheres s WHERE s.sphere_apub_id = $12) OR
+                                (SELECT is_nsfw FROM spheres s WHERE s.sphere_apub_id = $11) OR
                                 COALESCE(
-                                    (SELECT is_nsfw FROM satellites sa WHERE sa.satellite_id = $13),
+                                    (SELECT is_nsfw FROM satellites sa WHERE sa.satellite_id = $12),
                                     FALSE
                                 )
                             )
@@ -386,15 +409,14 @@ pub async fn insert_or_update_post(
                         CASE
                             WHEN $10 THEN TRUE
                             ELSE COALESCE(
-                                (SELECT is_spoiler FROM satellites sa WHERE sa.satellite_id = $13),
+                                (SELECT is_spoiler FROM satellites sa WHERE sa.satellite_id = $12),
                                 FALSE
                             )
                         END
                     ),
-                    (SELECT category_id FROM sphere_categories WHERE category_apub_id = $11),
-                    (SELECT sphere_id FROM spheres s WHERE s.sphere_apub_id = $12),
-                    $13, FALSE,
-                    (SELECT person_id FROM  persons WHERE actor_id = $14),
+                    (SELECT sphere_id FROM spheres s WHERE s.sphere_apub_id = $11),
+                    $12, FALSE,
+                    (SELECT person_id FROM  persons WHERE actor_id = $13),
                     EXISTS (
                         SELECT 1 FROM user_sphere_roles r
                         JOIN persons p ON p.person_id = r.person_id
@@ -419,7 +441,7 @@ pub async fn insert_or_update_post(
                     is_creator_moderator = EXCLUDED.is_creator_moderator
                 RETURNING *
             )
-            SELECT p.*, $14 as creator_apub_id, $15 as creator_name, s.sphere_apub_id, sc.category_apub_id
+            SELECT p.*, $13 as creator_apub_id, $14 as creator_name, s.sphere_apub_id, sc.category_apub_id
             FROM upserted_post p
             JOIN spheres s ON p.sphere_id = s.sphere_id
             LEFT JOIN sphere_categories sc ON p.sphere_id = sc.category_id",
@@ -434,7 +456,6 @@ pub async fn insert_or_update_post(
         .bind(link.link_thumbnail_url)
         .bind(page.sensitive.unwrap_or_default())
         .bind(page.spoiler.unwrap_or_default())
-        .bind(page.get_sphere_category()?.map(|c| c.category_apub_id.to_string()))
         .bind(sphere.apub_id.to_string())
         .bind(None::<i64>) // satellite id
         .bind(creator.apub_id.inner().to_string())
@@ -456,7 +477,6 @@ mod tests {
     use sphare_core_common::editor::ssr::get_html_and_markdown_strings;
     use sphare_core_content::embed::{Link, LinkType};
     use crate::page::{ApubDocument, ApubImage, ApubLink, ApubPost, Attachment, Page, PageType};
-    use crate::tag::{ApubCommunityTag, ApubTag, CommunityTagType};
     use crate::utils::{convert_plaintext_to_html, Source, convert_plaintext_to_md};
 
     fn get_apub_post(content: &str, markdown_content: Option<&str>) -> ApubPost {
@@ -469,6 +489,7 @@ mod tests {
             markdown_content: markdown_content.map(|s| s.to_string()),
             is_nsfw: false,
             is_spoiler: false,
+            apub_tag_vec: vec![],
             update_timestamp: None,
         }
     }
@@ -698,24 +719,5 @@ mod tests {
             link_attachment.clone(),
         ];
         assert_eq!(page.get_link(), Some(image_link));
-    }
-
-    #[test]
-    fn test_page_get_sphere_category() {
-        let mut page = get_post_page(Some(String::from("title")), Some(String::from("content")), None, None, None, None);
-        // TODO set category
-        page.tag = vec![
-            ApubTag::CommunityTag(
-                ApubCommunityTag {
-                    kind: CommunityTagType::CommunityPostTag,
-                    id: Url::parse("https://sphare.space/c/games/t/rpg").expect("Should be valid url"),
-                    name: String::from("RPG"),
-                    display_name: Some(String::from("RPG")),
-                    content: None,
-                    color: None,
-                }
-            ),
-        ];
-        assert_eq!(page.get_sphere_category(), Ok(None));
     }
 }

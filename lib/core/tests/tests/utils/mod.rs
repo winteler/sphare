@@ -354,6 +354,7 @@ pub fn get_apub_post(sphere_apub_id: &Url, creator_apub_id: &ObjectId<ApubPerson
         markdown_content: None,
         is_nsfw: false,
         is_spoiler: false,
+        apub_tag_vec: vec![],
         update_timestamp: None,
     }
 }
@@ -368,6 +369,7 @@ pub fn get_updated_apub_post(base_url: &Url, creator_apub_id: &ObjectId<ApubPers
         markdown_content: Some("markdown content".to_string()),
         is_nsfw: false,
         is_spoiler: false,
+        apub_tag_vec: vec![],
         update_timestamp: Some(Utc::now()),
     }
 }

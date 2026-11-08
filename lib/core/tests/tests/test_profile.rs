@@ -48,7 +48,7 @@ async fn test_get_user_post_vec() {
         &db_pool,
     ).await.expect("Should create satellite post");
     let satellite_post = set_post_score(satellite_post.post_id, -1, &db_pool).await.expect("Should set post score");
-    user_1_expected_post_vec.push(PostWithSphereInfo::from_post(satellite_post, sphere1_name.to_string(), None, None));
+    user_1_expected_post_vec.push(PostWithSphereInfo::from_post(satellite_post, sphere1_name.to_string(), None, Vec::new(), None));
 
     let (_, _, mut user_2_expected_post_vec) = create_sphere_with_posts(
         sphere2_name,
@@ -72,7 +72,7 @@ async fn test_get_user_post_vec() {
         &db_pool,
     ).await.expect("Should create satellite post");
     let sphere_2_post = set_post_score(sphere_2_post.post_id, -2, &db_pool).await.expect("Should set post score");
-    user_1_expected_post_vec.push(PostWithSphereInfo::from_post(sphere_2_post, sphere2_name.to_string(), None, None));
+    user_1_expected_post_vec.push(PostWithSphereInfo::from_post(sphere_2_post, sphere2_name.to_string(), None, Vec::new(), None));
     
     for sort_type in POST_SORT_TYPE_ARRAY {
         let user_1_post_vec = get_user_post_vec(
@@ -80,6 +80,7 @@ async fn test_get_user_post_vec() {
             SortType::Post(sort_type),
             (num_post + 2) as i64,
             0,
+            None,
             &db_pool,
         ).await.expect("Should get user 1 post vec");
         sort_post_vec(&mut user_1_expected_post_vec, sort_type, false);
@@ -90,6 +91,7 @@ async fn test_get_user_post_vec() {
             SortType::Post(sort_type),
             num_post as i64,
             0,
+            None,
             &db_pool,
         ).await.expect("Should get user 2 post vec");
         sort_post_vec(&mut user_2_expected_post_vec, sort_type, false);
@@ -102,6 +104,7 @@ async fn test_get_user_post_vec() {
         SortType::Post(PostSortType::Recent),
         num_post as i64,
         0,
+        None,
         &db_pool,
     ).await.expect("Should get user_post vec");
     assert!(!post_vec.contains(&moderated_post));

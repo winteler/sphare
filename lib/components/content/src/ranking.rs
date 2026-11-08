@@ -33,8 +33,8 @@ pub fn VotePanel(
     let (vote_id, vote_value, initial_score) = match vote {
         Some(vote) => (
             Some(vote.vote_id),
-            Some(vote.value),
-            score - (vote.value as i32),
+            Some(vote.vote_value),
+            score - (vote.vote_value as i32),
         ),
         None => (None, None, score),
     };

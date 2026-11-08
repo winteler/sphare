@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use sqlx::PgPool;
-
+use sphare_core_apub::tag::ApubTag;
 use sphare_core_common::colors::Color;
 use sphare_core_common::common::Rule;
 use sphare_core_common::errors::AppError;
@@ -129,9 +129,9 @@ pub async fn create_posts(
 
     let mut expected_post_vec = Vec::<PostWithSphereInfo>::with_capacity(num_posts);
     for i in 0..num_posts {
-        let category_id = match (category_vec.get(i), sphere_category) {
-            (Some(has_category), Some(sphere_category)) if *has_category => Some(sphere_category.category_id),
-            _ => None,
+        let category_id_vec = match (category_vec.get(i), sphere_category) {
+            (Some(has_category), Some(sphere_category)) if *has_category => vec![sphere_category.category_id],
+            _ => Vec::new(),
         };
         let mut post = create_post(
             &sphere.sphere_name,
@@ -140,22 +140,20 @@ pub async fn create_posts(
             "body",
             None,
             Link::default(),
-            PostTags::new(false, false, false, category_id),
-            &user,
+            PostTags::new(false, false, false, category_id_vec.clone()),
+            user,
             db_pool,
         ).await?;
 
-        if let Some(score_vec) = &score_vec {
-            if i < score_vec.len() {
-                post = set_post_score(post.post_id, score_vec[i], db_pool).await?;
-            }
+        if let Some(score_vec) = &score_vec && i < score_vec.len() {
+            post = set_post_score(post.post_id, score_vec[i], db_pool).await?;
         }
 
-        let sphere_category_header = match (category_id, sphere_category.cloned()) {
-            (Some(_), Some(sphere_category)) => Some(sphere_category.into()),
-            _ => None,
+        let category_vec = match (category_id_vec.is_empty(), sphere_category.cloned()) {
+            (false, Some(sphere_category)) => vec![sphere_category.into()],
+            _ => Vec::new(),
         };
-        expected_post_vec.push(PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), sphere_category_header, sphere.icon_url.clone()));
+        expected_post_vec.push(PostWithSphereInfo::from_post(post, sphere.sphere_name.clone(), sphere.icon_url.clone(), category_vec, None));
     }
 
     Ok(expected_post_vec)
@@ -249,7 +247,7 @@ pub async fn create_simple_post(
         db_pool,
     ).await.expect("Post should be created");
     
-    PostWithSphereInfo::from_post(post, String::from(sphere_name), None, None)
+    PostWithSphereInfo::from_post(post, String::from(sphere_name), None, Vec::new(), None)
 }
 
 pub async fn create_post_with_comments(
@@ -306,8 +304,8 @@ pub async fn create_post_with_comments(
             ).await.expect("Vote should be set");
 
             comment.score = match &vote {
-                Some(vote) if vote.value == VoteValue::Up => 1,
-                Some(vote) if vote.value == VoteValue::Down => -1,
+                Some(vote) if vote.vote_value == VoteValue::Up => 1,
+                Some(vote) if vote.vote_value == VoteValue::Down => -1,
                 _ => 0,
             };
             vote_vec.push(vote);
@@ -362,14 +360,14 @@ pub async fn get_moderated_post(sphere_name: &str, user: &User, db_pool: &PgPool
     let rule = add_rule(sphere_name, 0, "1", "2", false, &user, &db_pool).await.expect("Should add rule");
     let post = create_simple_post(sphere_name, None, "a", "b", None, &user, &db_pool).await;
     let post = moderate_post(post.post.post_id, rule.rule_id, "reason", &user, &db_pool).await.expect("Should moderate post.");
-    PostWithSphereInfo::from_post(post, sphere_name.to_string(), None, None)
+    PostWithSphereInfo::from_post(post, sphere_name.to_string(), None, Vec::new(), None)
 }
 
 /// creates, deletes and returns a post.
 pub async fn get_deleted_post(sphere_name: &str, user: &User, db_pool: &PgPool) -> PostWithSphereInfo {
     let post = create_simple_post(sphere_name, None, "a", "b", None, &user, &db_pool).await;
     let post = delete_post(post.post.post_id, &user, &db_pool).await.expect("Post should be deleted.");
-    PostWithSphereInfo::from_post(post, sphere_name.to_string(), None, None)
+    PostWithSphereInfo::from_post(post, sphere_name.to_string(), None, Vec::new(), None)
 }
 
 /// creates, moderates/deletes and returns two posts. Expects `user` to have management rights on `sphere_name`
@@ -388,11 +386,10 @@ pub async fn get_moderated_comment(post: &Post, sphere_name: &str, user: &User, 
         "a",
         None,
         false,
-        &user,
-        &db_pool
+        user,
+        db_pool
     ).await.expect("Comment should be created.");
-    let comment = moderate_comment(comment.comment_id, rule.rule_id, "reason", &user, &db_pool).await.expect("Should moderate comment.");
-    comment
+    moderate_comment(comment.comment_id, rule.rule_id, "reason", &user, &db_pool).await.expect("Should moderate comment.")
 }
 
 /// creates, deletes and returns a comment.
@@ -403,11 +400,10 @@ pub async fn get_deleted_comment(post: &Post, user: &User, db_pool: &PgPool) -> 
         "a",
         None,
         false,
-        &user,
-        &db_pool
+        user,
+        db_pool
     ).await.expect("Comment should be created.");
-    let comment = delete_comment(comment.comment_id, &user, &db_pool).await.expect("Comment should be deleted.");
-    comment
+    delete_comment(comment.comment_id, user, db_pool).await.expect("Comment should be deleted.")
 }
 
 pub async fn get_moderated_and_deleted_comments(post: &Post, sphere_name: &str, user: &User, db_pool: &PgPool) -> (Comment, Comment) {
@@ -617,4 +613,28 @@ pub async fn remove_base_rule(
     ).execute(db_pool).await?;
 
     Ok(())
+}
+
+pub async fn get_sphere_category_vec_from_apub_tag_vec(
+    apub_tag_vec: &[ApubTag],
+    db_pool: &PgPool,
+) -> Result<Vec<SphereCategory>, AppError> {
+    let apub_community_tag_id_vec: Vec<String> = apub_tag_vec.iter().filter_map(|tag| match tag {
+        ApubTag::CommunityTag(tag) => Some(tag.id.to_string()),
+        _ => None,
+    }).collect();
+
+    let category_vec = sqlx::query_as!(
+        SphereCategory,
+        r#"
+        WITH community_tags AS (
+            SELECT *
+            FROM UNNEST($1::text[]) AS t(category_apub_id)
+        )
+        SELECT * FROM sphere_categories WHERE category_apub_id = ANY(SELECT category_apub_id FROM community_tags)
+        "#,
+        &apub_community_tag_id_vec
+    ).fetch_all(db_pool).await?;
+
+    Ok(category_vec)
 }

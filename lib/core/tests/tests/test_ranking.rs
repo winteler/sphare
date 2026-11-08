@@ -37,7 +37,7 @@ async fn test_vote_on_content_post() -> Result<(), AppError> {
 
     let post_with_vote = post::ssr::get_post_with_info_by_id(post.post_id, Some(&user), &db_pool).await?;
     let vote = post_with_vote.vote.expect("Vote should be Some");
-    assert_eq!(vote.value, vote_value);
+    assert_eq!(vote.vote_value, vote_value);
     assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, post.post_id);
     assert_eq!(vote.comment_id, None);
@@ -77,7 +77,7 @@ async fn test_vote_on_content_post() -> Result<(), AppError> {
 
     let post_with_vote = post::ssr::get_post_with_info_by_id(post.post_id, Some(&user), &db_pool).await?;
     let vote = post_with_vote.vote.expect("Post should have vote");
-    assert_eq!(vote.value, VoteValue::Down);
+    assert_eq!(vote.vote_value, VoteValue::Down);
     assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, post.post_id);
     assert_eq!(vote.comment_id, None);
@@ -120,7 +120,7 @@ async fn test_vote_on_content_comment() {
 
     let comment = get_comment_by_id(comment.comment_id, &db_pool).await.expect("Should get comment aftervote");
     let vote = get_user_comment_vote(&comment, user.person_id, &db_pool).await.expect("Should get user comment vote");
-    assert_eq!(vote.value, vote_value);
+    assert_eq!(vote.vote_value, vote_value);
     assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, comment.post_id);
     assert_eq!(vote.comment_id, Some(comment.comment_id));
@@ -160,7 +160,7 @@ async fn test_vote_on_content_comment() {
 
     let comment = get_comment_by_id(comment.comment_id, &db_pool).await.expect("Should get comment after 2nd vote");
     let vote = get_user_comment_vote(&comment, user.person_id, &db_pool).await.expect("Should get user comment vote");
-    assert_eq!(vote.value, VoteValue::Down);
+    assert_eq!(vote.vote_value, VoteValue::Down);
     assert_eq!(vote.person_id, user.person_id);
     assert_eq!(vote.post_id, comment.post_id);
     assert_eq!(vote.comment_id, Some(comment.comment_id));

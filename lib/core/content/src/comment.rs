@@ -100,7 +100,7 @@ pub mod ssr {
         pub vote_post_id: Option<i64>,
         pub vote_comment_id: Option<Option<i64>>,
         pub vote_person_id: Option<i64>,
-        pub value: Option<i16>,
+        pub vote_value: Option<i16>,
         pub vote_timestamp: Option<chrono::DateTime<chrono::Utc>>,
     }
 
@@ -112,7 +112,7 @@ pub mod ssr {
                     person_id: self.vote_person_id.unwrap(),
                     comment_id: self.vote_comment_id.unwrap(),
                     post_id: self.vote_post_id.unwrap(),
-                    value: VoteValue::from(self.value.unwrap()),
+                    vote_value: VoteValue::from(self.vote_value.unwrap()),
                     timestamp: self.vote_timestamp.unwrap(),
                 })
             } else {
@@ -265,7 +265,7 @@ pub mod ssr {
                     v.person_id as vote_person_id,
                     v.post_id as vote_post_id,
                     v.comment_id as vote_comment_id,
-                    v.value,
+                    v.vote_value,
                     v.timestamp as vote_timestamp
                 FROM comment_tree c
                 LEFT JOIN persons p ON p.person_id = c.creator_id AND c.delete_timestamp IS NULL
@@ -353,7 +353,7 @@ pub mod ssr {
                     v.person_id as vote_person_id,
                     v.post_id as vote_post_id,
                     v.comment_id as vote_comment_id,
-                    v.value,
+                    v.vote_value,
                     v.timestamp as vote_timestamp
                 FROM selected_comments c
                 LEFT JOIN persons p ON p.person_id = c.creator_id AND c.delete_timestamp IS NULL
@@ -478,7 +478,7 @@ pub mod ssr {
         user: &User,
         db_pool: &PgPool,
     ) -> Result<Comment, AppError> {
-        let post = get_post_with_sphere_info_by_id(post_id, db_pool).await?;
+        let post = get_post_with_sphere_info_by_id(post_id, None, db_pool).await?;
         user.check_can_publish_on_sphere(&post.sphere_name)?;
         if comment.is_empty() {
             return Err(AppError::new("Cannot create empty comment."));
@@ -634,7 +634,7 @@ pub mod ssr {
                 vote_post_id: None,
                 vote_comment_id: None,
                 vote_person_id: None,
-                value: None,
+                vote_value: None,
                 vote_timestamp: None,
             };
             let comment_without_vote = comment_without_vote.into_comment_with_children();
@@ -648,7 +648,7 @@ pub mod ssr {
                 vote_post_id: Some(comment.post_id),
                 vote_comment_id: Some(Some(comment.comment_id)),
                 vote_person_id: Some(user.person_id),
-                value: Some(1),
+                vote_value: Some(1),
                 vote_timestamp: Some(comment.create_timestamp),
             };
             let comment_with_vote = comment_with_vote.into_comment_with_children();
@@ -656,9 +656,9 @@ pub mod ssr {
             assert_eq!(comment_with_vote.comment, comment);
             assert_eq!(user_vote.person_id, user.person_id);
             assert_eq!(user_vote.comment_id, Some(comment.comment_id));
-            assert_eq!(user_vote.value, VoteValue::Up);
+            assert_eq!(user_vote.vote_value, VoteValue::Up);
             assert_eq!(user_vote.comment_id, Some(comment.comment_id));
-            assert_eq!(comment_with_vote.child_comments.is_empty(), true);
+            assert!(comment_with_vote.child_comments.is_empty());
         }
     }
 }

@@ -133,9 +133,8 @@ pub fn SatelliteContent() -> impl IntoView {
             ).await.map(|post_vec| add_sphere_info_to_post_vec(
                 post_vec,
                 sphere_state.sphere_name.get_untracked(),
-                &*sphere_category_header_map.read_untracked(),
-                None)
-            );
+                None
+            ));
             #[cfg(feature = "hydrate")]
             is_loading.set(false);
             result
@@ -165,9 +164,8 @@ pub fn SatelliteContent() -> impl IntoView {
                 ).await.map(|post_vec| add_sphere_info_to_post_vec(
                     post_vec,
                     sphere_state.sphere_name.get_untracked(),
-                    &*sphere_category_header_map.read_untracked(),
-                    None)
-                );
+                    None
+                ));
                 handle_additional_load(additional_load, additional_post_vec, load_error);
                 is_loading.set(false);
             }

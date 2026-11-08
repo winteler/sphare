@@ -21,6 +21,7 @@ pub struct SphereCategory {
 impl From<SphereCategory> for SphereCategoryHeader {
     fn from(sphere_category: SphereCategory) -> Self {
         SphereCategoryHeader {
+            category_id: sphere_category.category_id,
             category_name: sphere_category.category_name,
             category_color: sphere_category.category_color,
         }
@@ -30,6 +31,7 @@ impl From<SphereCategory> for SphereCategoryHeader {
 impl From<&SphereCategory> for SphereCategoryHeader {
     fn from(sphere_category: &SphereCategory) -> Self {
         SphereCategoryHeader {
+            category_id: sphere_category.category_id,
             category_name: sphere_category.category_name.clone(),
             category_color: sphere_category.category_color,
         }
@@ -137,7 +139,7 @@ pub mod ssr {
              WHERE sphere_id = (
                     SELECT sphere_id FROM spheres WHERE sphere_name = $1
                 ) AND category_name = $2 AND NOT EXISTS (
-                SELECT 1 FROM posts p WHERE p.category_id = c.category_id
+                SELECT 1 FROM post_categories pc WHERE pc.category_id = c.category_id
              )",
             sphere_name,
             category_name,

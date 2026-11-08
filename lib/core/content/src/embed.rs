@@ -359,13 +359,11 @@ fn filter_attribute_values(attribute_value: &str, allowed_values: &[&str]) -> St
         .split(';')
         .filter_map(|v| {
             let mut parts = v.split(':').map(str::trim);
-            if let Some(key) = parts.next() {
-                if allowed_values.contains(&key) {
-                    return match parts.next() {
-                        Some(value) => Some(format!("{}:{}", key, value)),
-                        None => Some(key.to_string()),
-                    };
-                }
+            if let Some(key) = parts.next() &&  allowed_values.contains(&key) {
+                return match parts.next() {
+                    Some(value) => Some(format!("{}:{}", key, value)),
+                    None => Some(key.to_string()),
+                };
             }
             None
         })

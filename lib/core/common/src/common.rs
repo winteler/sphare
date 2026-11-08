@@ -13,6 +13,7 @@ pub struct SphereHeader {
 #[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct SphereCategoryHeader {
+    pub category_id: i64,
     pub category_name: String,
     pub category_color: Color,
 }

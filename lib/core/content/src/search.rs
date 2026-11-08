@@ -31,8 +31,9 @@ pub mod ssr {
     use sphare_core_common::common::SphereHeader;
     use sphare_core_common::constants::{MAX_SEARCH_QUERY_LENGTH, SPHERE_FETCH_LIMIT};
     use sphare_core_common::errors::AppError;
+    use sphare_core_user::user::User;
     use crate::comment::CommentWithContext;
-    use crate::post::ssr::PostJoinSphereInfo;
+    use crate::post::ssr::{get_category_headers_by_post_id_map, PostJoinSphereInfo};
     use crate::post::PostWithSphereInfo;
 
 
@@ -122,6 +123,7 @@ pub mod ssr {
         show_nsfw: bool,
         limit: i64,
         offset: i64,
+        user: Option<&User>,
         db_pool: &PgPool,
     ) -> Result<Vec<PostWithSphereInfo>, AppError> {
         if let Some(sphere_name) = &sphere_name {
@@ -133,8 +135,12 @@ pub mod ssr {
                 p.*,
                 pe.username as creator_name,
                 pe.actor_id as creator_apub_id,
-                c.category_name,
-                c.category_color,
+                v.vote_id,
+                v.person_id as vote_person_id,
+                v.post_id as vote_post_id,
+                v.comment_id as vote_comment_id,
+                v.vote_value as vote_value,
+                v.timestamp as vote_timestamp,
                 s.icon_url as sphere_icon_url,
                 s.sphere_name,
                 ts_rank(p.post_document,
@@ -142,7 +148,10 @@ pub mod ssr {
             FROM posts p
             JOIN persons pe ON pe.person_id = p.creator_id
             JOIN spheres s ON s.sphere_id = p.sphere_id
-            LEFT JOIN sphere_categories c ON c.category_id = p.category_id
+            LEFT JOIN votes v
+                ON v.post_id = p.post_id AND
+                   v.comment_id IS NULL AND
+                   v.person_id = $5
             WHERE
                 p.post_document @@ plainto_tsquery('simple', $1) AND
                 ($2 IS NULL OR s.sphere_name = $2) AND
@@ -151,21 +160,28 @@ pub mod ssr {
                 p.moderator_id IS NULL AND
                 p.delete_timestamp IS NULL
             ORDER BY rank DESC, p.score DESC
-            LIMIT $5
-            OFFSET $6"
+            LIMIT $6
+            OFFSET $7"
         )
             .bind(search_query)
             .bind(sphere_name)
             .bind(show_spoilers)
             .bind(show_nsfw)
+            .bind(user.map(|user| user.person_id))
             .bind(limit)
             .bind(offset)
             .fetch_all(db_pool)
             .await?;
 
-        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
+        let category_by_post_id_map = get_category_headers_by_post_id_map(
+            post_vec.iter().map(|p| p.post.post_id).collect(),
+            db_pool
+        ).await?;
 
-        Ok(post_vec)
+        Ok(PostWithSphereInfo::new_vec(
+            post_vec,
+            category_by_post_id_map
+        ))
     }
 
     pub async fn search_comments(

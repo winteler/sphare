@@ -211,7 +211,7 @@ async fn test_delete_sphere_category() -> Result<(), AppError> {
         "b",
         None,
         Link::default(),
-        PostTags::new(false, false, false, Some(sphere_category.category_id)),
+        PostTags::new(false, false, false, vec![sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Post should be created.");

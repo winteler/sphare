@@ -3,9 +3,9 @@ pub mod ssr {
     use sqlx::{AssertSqlSafe, PgPool};
     use sphare_core_common::checks::check_username;
     use sphare_core_common::errors::AppError;
-
+    use sphare_core_user::user::User;
     use crate::comment::CommentWithContext;
-    use crate::post::ssr::PostJoinSphereInfo;
+    use crate::post::ssr::{get_category_headers_by_post_id_map, PostJoinSphereInfo};
     use crate::post::PostWithSphereInfo;
     use crate::ranking::SortType;
 
@@ -14,6 +14,7 @@ pub mod ssr {
         sort_type: SortType,
         limit: i64,
         offset: i64,
+        user: Option<&User>,
         db_pool: &PgPool,
     ) -> Result<Vec<PostWithSphereInfo>, AppError> {
         check_username(username, false)?;
@@ -23,33 +24,47 @@ pub mod ssr {
                     p.*,
                     pe.username as creator_name,
                     pe.actor_id as creator_apub_id,
-                    c.category_name,
-                    c.category_color,
+                    v.vote_id,
+                    v.person_id as vote_person_id,
+                    v.post_id as vote_post_id,
+                    v.comment_id as vote_comment_id,
+                    v.vote_value as vote_value,
+                    v.timestamp as vote_timestamp,
                     s.icon_url as sphere_icon_url,
                     s.sphere_name
                 FROM posts p
                 JOIN persons pe ON pe.person_id = p.creator_id
                 JOIN spheres s ON s.sphere_id = p.sphere_id
-                LEFT JOIN sphere_categories c ON c.category_id = p.category_id
+                LEFT JOIN votes v
+                    ON v.post_id = p.post_id AND
+                       v.comment_id IS NULL AND
+                       v.person_id = $2
                 WHERE
                     pe.username = $1 AND
                     p.moderator_id IS NULL AND
                     p.delete_timestamp IS NULL
                 ORDER BY {} DESC
-                LIMIT $2
-                OFFSET $3",
+                LIMIT $3
+                OFFSET $4",
                 sort_type.to_order_by_code(),
             ))
         )
             .bind(username)
+            .bind(user.map(|u| u.person_id))
             .bind(limit)
             .bind(offset)
             .fetch_all(db_pool)
             .await?;
 
-        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
+        let category_by_post_id_map = get_category_headers_by_post_id_map(
+            post_vec.iter().map(|p| p.post.post_id).collect(),
+            db_pool
+        ).await?;
 
-        Ok(post_vec)
+        Ok(PostWithSphereInfo::new_vec(
+            post_vec,
+            category_by_post_id_map
+        ))
     }
 
     pub async fn get_user_comment_vec(

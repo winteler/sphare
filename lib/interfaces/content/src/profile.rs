@@ -11,6 +11,7 @@ use sphare_core_common::errors::AppError;
 use sphare_core_content::comment::CommentWithContext;
 use sphare_core_content::post::PostWithSphereInfo;
 use sphare_core_content::ranking::SortType;
+use sphare_core_user::auth::ssr::get_user;
 
 #[server]
 pub async fn get_user_post_vec(
@@ -18,6 +19,7 @@ pub async fn get_user_post_vec(
     sort_type: SortType,
     num_already_loaded: usize,
 ) -> Result<Vec<PostWithSphereInfo>, AppError> {
+    let user = get_user().await.unwrap_or(None);
     let db_pool = get_db_pool()?;
 
     ssr::get_user_post_vec(
@@ -25,6 +27,7 @@ pub async fn get_user_post_vec(
         sort_type,
         POST_BATCH_SIZE,
         num_already_loaded as i64,
+        user.as_ref(),
         &db_pool,
     ).await
 }

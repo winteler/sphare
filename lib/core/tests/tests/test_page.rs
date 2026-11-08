@@ -11,12 +11,11 @@ use sphare_core_apub::person::{get_person_by_username, ApubPerson};
 use sphare_core_apub::utils::{Source};
 use sphare_core_common::activity_pub::{AttributedTo};
 use sphare_core_content::post::Post;
-use sphare_core_content::post::ssr::{get_post_by_id, get_post_with_sphere_info_by_id};
+use sphare_core_content::post::ssr::{get_post_by_id};
 use sphare_core_sphere::sphere::ssr::create_sphere;
-use sphare_core_sphere::sphere_category::ssr::get_sphere_category_apub_id;
 use crate::apub_factory::{mock_apub_group, mock_apub_group_moderators, mock_apub_persons};
 use crate::common::{create_test_user, get_db_pool};
-use crate::data_factory::create_sphere_with_post;
+use crate::data_factory::{create_sphere_with_post};
 use crate::utils::{get_apub_post, get_updated_apub_post, init_local_instance_and_get_apub_config};
 
 mod apub_factory;
@@ -165,15 +164,8 @@ async fn test_load_post_by_apub_id() {
         &Url::parse(&expected_post.post_apub_id).expect("Should parse apub ID"),
         &db_pool
     ).await.expect("Should load post").expect("Post should exist");
-    let post_with_sphere_info = get_post_with_sphere_info_by_id(expected_post.post_id, &db_pool).await.expect("Should load post with sphere info");
     assert_eq!(post.post, expected_post);
     assert_eq!(post.sphere_apub_id, sphere.sphere_apub_id);
-    assert_eq!(
-        post.category_apub_id,
-        post_with_sphere_info.sphere_category.map(|category| {
-            get_sphere_category_apub_id(&post_with_sphere_info.sphere_name, &category.category_name).expect("Should get sphere category apub ID").to_string()
-        })
-    );
 }
 
 #[tokio::test]
@@ -200,10 +192,6 @@ async fn test_insert_or_update_post() {
     check_apub_post_match_post(&apub_post, &post);
     assert_eq!(post.sphere_id, sphere.sphere_id);
     assert_eq!(inserted_post_with_apub_info.sphere_apub_id, apub_post.sphere_apub_id.to_string());
-    assert_eq!(
-        inserted_post_with_apub_info.category_apub_id,
-        page.get_sphere_category().expect("Should get category").map(|category| category.category_apub_id.to_string())
-    );
 
     apub_post.content = String::from("Updated content");
     let page = apub_post.clone().into_json(&apub_data).await.expect("Should get page");
@@ -215,8 +203,4 @@ async fn test_insert_or_update_post() {
     check_apub_post_match_post(&apub_post, &post);
     assert_eq!(post.sphere_id, sphere.sphere_id);
     assert_eq!(inserted_post_with_apub_info.sphere_apub_id, apub_post.sphere_apub_id.to_string());
-    assert_eq!(
-        inserted_post_with_apub_info.category_apub_id,
-        page.get_sphere_category().expect("Should get category").map(|category| category.category_apub_id.to_string())
-    );
 }

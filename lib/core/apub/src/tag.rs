@@ -11,7 +11,7 @@ use sphare_core_user::user::FunctionUserType;
 /// Possible values in the `tag` field of a federated post or comment. Note that we don't support
 /// hashtags or community tags in comments, but its easier to use the same struct for both
 /// (anyway unsupported values are ignored).
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ApubTag {
     CommunityTag(ApubCommunityTag),
@@ -28,7 +28,7 @@ pub enum CommunityTagType {
 }
 
 /// A tag that a community owns, that is added to a post.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApubCommunityTag {
     #[serde(rename = "type")]
@@ -45,7 +45,7 @@ impl TryFrom<SphereCategory> for ApubCommunityTag {
 
     fn try_from(value: SphereCategory) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: Url::parse(&value.category_apub_id)?,
+            id: Url::parse(&value.category_apub_id)?.into(),
             name: value.category_name,
             display_name: None,
             content: Some(value.description),

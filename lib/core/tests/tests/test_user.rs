@@ -73,12 +73,12 @@ async fn test_delete_user() {
     delete_user(&banned_user, &db_pool).await.expect("Should delete user");
 
     assert_eq!(User::get(banned_user.person_id, &db_pool).await, None);
-    let deleted_ban_user_post_vec = get_user_post_vec(&banned_user.username, SortType::Post(PostSortType::Hot), 1, 0, &db_pool).await.expect("Should get user posts");
+    let deleted_ban_user_post_vec = get_user_post_vec(&banned_user.username, SortType::Post(PostSortType::Hot), 1, 0, None, &db_pool).await.expect("Should get user posts");
     assert!(deleted_ban_user_post_vec.is_empty());
 
     delete_user(&user, &db_pool).await.expect("Should delete user");
 
-    let deleted_user_post_vec = get_user_post_vec(&user.username, SortType::Post(PostSortType::Hot), 1, 0, &db_pool).await.expect("Should get user posts");
+    let deleted_user_post_vec = get_user_post_vec(&user.username, SortType::Post(PostSortType::Hot), 1, 0, None, &db_pool).await.expect("Should get user posts");
     let deleted_user_comment_vec = get_user_comment_vec(&user.username, SortType::Comment(CommentSortType::Recent), 1, 0, &db_pool).await.expect("Should get user comments");
     assert!(deleted_user_post_vec.is_empty());
     assert!(deleted_user_comment_vec.is_empty());

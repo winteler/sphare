@@ -43,8 +43,10 @@ pub async fn search_posts(
     show_spoilers: bool,
     num_already_loaded: usize,
 ) -> Result<Vec<PostWithSphereInfo>, AppError> {
+    let user = get_user().await.unwrap_or(None);
+    let show_nsfw = user.as_ref().map(|user| user.show_nsfw).unwrap_or_default();
     let db_pool = get_db_pool()?;
-    let show_nsfw = get_user().await.unwrap_or(None).map(|user| user.show_nsfw).unwrap_or_default();
+
     ssr::search_posts(
         &search_query,
         sphere_name.as_deref(),
@@ -52,6 +54,7 @@ pub async fn search_posts(
         show_nsfw,
         POST_BATCH_SIZE,
         num_already_loaded as i64,
+        user.as_ref(),
         &db_pool
     ).await
 }
