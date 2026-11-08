@@ -60,7 +60,7 @@ pub async fn get_post_vec_by_sphere_name(
     sphere_category_set: SphereCategoryFilter,
     sort_type: SortType,
     num_already_loaded: usize,
-) -> Result<Vec<Post>, AppError> {
+) -> Result<Vec<PostWithInfo>, AppError> {
     let user = get_user().await.unwrap_or(None);
     let db_pool = get_db_pool()?;
     ssr::get_post_vec_by_sphere_name(
@@ -80,7 +80,7 @@ pub async fn get_post_vec_by_satellite_id(
     sphere_category_id: Option<i64>,
     sort_type: SortType,
     num_already_loaded: usize,
-) -> Result<Vec<Post>, AppError> {
+) -> Result<Vec<PostWithInfo>, AppError> {
     let user = get_user().await.unwrap_or(None);
     let db_pool = get_db_pool()?;
     ssr::get_post_vec_by_satellite_id(

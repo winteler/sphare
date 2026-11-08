@@ -1,10 +1,14 @@
 use activitypub_federation::config::Data;
+use activitypub_federation::fetch::object_id::ObjectId;
+use activitypub_federation::protocol::verification::verify_domains_match;
+use activitypub_federation::traits::Object;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
 use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::colors::Color;
 use sphare_core_common::errors::AppError;
+use sphare_core_common::to_app_error;
 use sphare_core_sphere::sphere_category::SphereCategory;
 use sphare_core_user::user::FunctionUserType;
 
@@ -33,7 +37,7 @@ pub enum CommunityTagType {
 pub struct ApubCommunityTag {
     #[serde(rename = "type")]
     pub kind: CommunityTagType,
-    pub id: Url,
+    pub id: ObjectId<ApubCommunityTag>,
     pub name: String,
     pub display_name: Option<String>,
     pub content: Option<String>,
@@ -45,7 +49,7 @@ impl TryFrom<SphereCategory> for ApubCommunityTag {
 
     fn try_from(value: SphereCategory) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: Url::parse(&value.category_apub_id)?,
+            id: Url::parse(&value.category_apub_id)?.into(),
             name: value.category_name,
             display_name: None,
             content: Some(value.description),
@@ -53,6 +57,49 @@ impl TryFrom<SphereCategory> for ApubCommunityTag {
             kind: Default::default(),
         })
     }
+}
+
+impl Object for ApubCommunityTag {
+    type DataType = ApubHelper;
+    type Kind = ApubCommunityTag;
+    type Error = AppError;
+
+    fn id(&self) -> &Url {
+        self.id.inner()
+    }
+
+    async fn read_from_id(object_id: Url, data: &Data<Self::DataType>) -> Result<Option<Self>, Self::Error> {
+        load_category_by_apub_id(&object_id, data).await
+    }
+
+    async fn into_json(self, data: &Data<Self::DataType>) -> Result<Self::Kind, Self::Error> {
+        Ok(self.clone())
+    }
+
+    async fn verify(json: &Self::Kind, expected_domain: &Url, data: &Data<Self::DataType>) -> Result<(), Self::Error> {
+        verify_domains_match(json.id.inner(), expected_domain).map_err(to_app_error!("Failed domain verification"))?;
+        Ok(())
+    }
+
+    async fn from_json(json: Self::Kind, data: &Data<Self::DataType>) -> Result<Self, Self::Error> {
+        upsert_apub_category(&json, data).await
+    }
+}
+
+pub async fn load_category_by_apub_id(
+    category_apub_id: &Url,
+    context: &Data<ApubHelper>,
+) -> Result<Option<ApubCommunityTag>, AppError> {
+    // TODO: Implement load logic
+    Ok(None)
+}
+
+pub async fn upsert_apub_category(
+    category_apub: &ApubCommunityTag,
+    context: &Data<ApubHelper>,
+) -> Result<ApubCommunityTag, AppError> {
+    // TODO: Implement upsert logic
+    Ok(category_apub.clone())
 }
 
 pub async fn load_group_categories(

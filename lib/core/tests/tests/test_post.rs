@@ -1689,7 +1689,7 @@ async fn test_create_post_and_vote() {
     assert_eq!(vote_1.post_id, post_1.post_id);
     assert_eq!(vote_1.comment_id, None);
     assert_eq!(vote_1.person_id, user.person_id);
-    assert_eq!(vote_1.value, VoteValue::Up);
+    assert_eq!(vote_1.vote_value, VoteValue::Up);
 
     assert_eq!(post_1_path, get_post_path(&sphere.sphere_name, None, post_1.post_id));
 
@@ -1737,7 +1737,7 @@ async fn test_create_post_and_vote() {
     assert_eq!(vote_2.post_id, post_2.post_id);
     assert_eq!(vote_2.comment_id, None);
     assert_eq!(vote_2.person_id, user.person_id);
-    assert_eq!(vote_2.value, VoteValue::Up);
+    assert_eq!(vote_2.vote_value, VoteValue::Up);
 
     assert_eq!(post_path, get_post_path(&sphere.sphere_name, Some(satellite.satellite_id), post_2.post_id));
 }

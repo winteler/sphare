@@ -165,14 +165,14 @@ async fn test_load_post_by_apub_id() {
         &Url::parse(&expected_post.post_apub_id).expect("Should parse apub ID"),
         &db_pool
     ).await.expect("Should load post").expect("Post should exist");
-    let post_with_sphere_info = get_post_with_sphere_info_by_id(expected_post.post_id, &db_pool).await.expect("Should load post with sphere info");
+    let post_with_sphere_info = get_post_with_sphere_info_by_id(expected_post.post_id, None, &db_pool).await.expect("Should load post with sphere info");
     assert_eq!(post.post, expected_post);
     assert_eq!(post.sphere_apub_id, sphere.sphere_apub_id);
     assert_eq!(
-        post.category_apub_id,
-        post_with_sphere_info.sphere_category.map(|category| {
+        post.category_apub_id_vec,
+        post_with_sphere_info.sphere_category_vec.into_iter().map(|category| {
             get_sphere_category_apub_id(&post_with_sphere_info.sphere_name, &category.category_name).expect("Should get sphere category apub ID").to_string()
-        })
+        }).collect()
     );
 }
 
@@ -201,8 +201,8 @@ async fn test_insert_or_update_post() {
     assert_eq!(post.sphere_id, sphere.sphere_id);
     assert_eq!(inserted_post_with_apub_info.sphere_apub_id, apub_post.sphere_apub_id.to_string());
     assert_eq!(
-        inserted_post_with_apub_info.category_apub_id,
-        page.get_sphere_category().expect("Should get category").map(|category| category.category_apub_id.to_string())
+        inserted_post_with_apub_info.category_apub_id_vec,
+        page.get_sphere_category_vec().expect("Should get category").into_iter().map(|category| category.category_apub_id.to_string()).collect()
     );
 
     apub_post.content = String::from("Updated content");
@@ -216,7 +216,7 @@ async fn test_insert_or_update_post() {
     assert_eq!(post.sphere_id, sphere.sphere_id);
     assert_eq!(inserted_post_with_apub_info.sphere_apub_id, apub_post.sphere_apub_id.to_string());
     assert_eq!(
-        inserted_post_with_apub_info.category_apub_id,
-        page.get_sphere_category().expect("Should get category").map(|category| category.category_apub_id.to_string())
+        inserted_post_with_apub_info.category_apub_id_vec,
+        page.get_sphere_category_vec().expect("Should get category").into_iter().map(|category| category.category_apub_id.to_string()).collect()
     );
 }

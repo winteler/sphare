@@ -27,7 +27,7 @@ use sphare_core_sphere::sphere_category::SphereCategory;
 
 use crate::group::{ApubSphere};
 use crate::person::ApubPerson;
-use crate::tag::{ApubTag};
+use crate::tag::{ApubCommunityTag, ApubTag};
 use crate::utils::{convert_plaintext_to_html, ImageObject, LanguageTag, Source, convert_plaintext_to_md};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -121,6 +121,7 @@ pub struct ApubPost {
     pub apub_id: ObjectId<ApubPost>,
     pub sphere_apub_id: ObjectId<ApubSphere>,
     pub person_id: ObjectId<ApubPerson>,
+    pub category_apub_id_vec: Vec<ObjectId<ApubCommunityTag>>,
     pub title: String,
     pub content: String,
     pub markdown_content: Option<String>,
@@ -134,7 +135,7 @@ pub struct PostJoinApubInfo {
     #[cfg_attr(feature = "ssr", sqlx(flatten))]
     pub post: Post,
     pub sphere_apub_id: String,
-    pub category_apub_id: Option<String>,
+    pub category_apub_id_vec: Vec<String>,
 }
 
 impl TryFrom<PostJoinApubInfo> for ApubPost {
@@ -207,7 +208,7 @@ impl Object for ApubPost {
             updated: self.update_timestamp,
             language: None,
             audience: Some(self.sphere_apub_id),
-            tag: vec![],
+            tag: ,
             context: None,
         })
     }
@@ -325,9 +326,9 @@ impl Page {
         }
     }
 
-    pub fn get_sphere_category(&self) -> Result<Option<SphereCategory>, AppError> {
-        // TODO for now return first tag/category
-        Ok(None)
+    pub fn get_sphere_category_vec(&self) -> Result<Vec<SphereCategory>, AppError> {
+        // TODO load vector from vector of category apub vec
+        Ok(Vec::new())
     }
 }
 

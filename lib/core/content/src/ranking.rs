@@ -38,7 +38,7 @@ pub struct Vote {
     pub person_id: i64,
     pub comment_id: Option<i64>,
     pub post_id: i64,
-    pub value: VoteValue,
+    pub vote_value: VoteValue,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
@@ -88,6 +88,31 @@ pub mod ssr {
     use sphare_core_user::user::User;
     use sqlx::PgPool;
 
+    impl Vote {
+        pub fn from_optional_parts(
+            vote_id: Option<i64>,
+            vote_post_id: Option<i64>,
+            vote_comment_id: Option<Option<i64>>,
+            vote_person_id: Option<i64>,
+            value: Option<i16>,
+            vote_timestamp: Option<chrono::DateTime<chrono::Utc>>,
+        ) -> Option<Vote> {
+            match (vote_id, vote_post_id, vote_comment_id, vote_person_id, value, vote_timestamp) {
+                (Some(vote_id), Some(post_id), Some(comment_id), Some(person_id), Some(value), Some(timestamp)) => {
+                    Some(Vote {
+                        vote_id,
+                        person_id,
+                        comment_id,
+                        post_id,
+                        vote_value: value.into(),
+                        timestamp,
+                    })
+                },
+                _ => None,
+            }
+        }
+    }
+
     pub async fn vote_on_content(
         vote_value: VoteValue,
         post_id: i64,
@@ -99,14 +124,14 @@ pub mod ssr {
         user.check_can_publish()?;
         let (prev_vote_value, vote) = if let Some(vote_id) = vote_id {
             let current_vote = get_user_vote_on_content(post_id,  comment_id, vote_id, user, db_pool).await?;
-            if current_vote.value == vote_value {
+            if current_vote.vote_value == vote_value {
                 log::debug!("Vote already has the right value, don't update it.");
-                (current_vote.value, Some(current_vote))
+                (current_vote.vote_value, Some(current_vote))
             } else if vote_value != VoteValue::None {
                 log::debug!("Update vote {vote_id} with value {vote_value:?}");
                 let vote = sqlx::query_as!(
                     Vote,
-                    "UPDATE votes SET value = $1
+                    "UPDATE votes SET vote_value = $1
                     WHERE
                         vote_id = $2 AND
                         post_id = $3 AND
@@ -130,7 +155,7 @@ pub mod ssr {
                 )
                     .fetch_one(db_pool)
                     .await?;
-                (current_vote.value, Some(vote))
+                (current_vote.vote_value, Some(vote))
             } else {
                 log::debug!("Delete vote {vote_id}");
                 sqlx::query!(
@@ -144,13 +169,13 @@ pub mod ssr {
                 )
                     .execute(db_pool)
                     .await?;
-                (current_vote.value, None)
+                (current_vote.vote_value, None)
             }
         } else {
             log::debug!("Create vote for content {post_id}, comment {comment_id:?}, person_id {} with value {vote_value:?}", user.person_id);
             let vote = sqlx::query_as!(
                 Vote,
-                "INSERT INTO votes (post_id, comment_id, person_id, value)
+                "INSERT INTO votes (post_id, comment_id, person_id, vote_value)
                 SELECT $1, $2, $3, $4
                 WHERE NOT EXISTS (
                     SELECT * FROM user_bans b

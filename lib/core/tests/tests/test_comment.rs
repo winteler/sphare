@@ -390,7 +390,7 @@ async fn test_create_comment_with_notif() {
     assert_eq!(expected_vote_1.post_id, expected_comment_1.post_id);
     assert_eq!(expected_vote_1.comment_id, Some(expected_comment_1.comment_id));
     assert_eq!(expected_vote_1.person_id, base_user.person_id);
-    assert_eq!(expected_vote_1.value, VoteValue::Up);
+    assert_eq!(expected_vote_1.vote_value, VoteValue::Up);
 
     assert_eq!(expected_comment_1.post_id, post.post_id);
     assert_eq!(expected_comment_1.parent_id, None);

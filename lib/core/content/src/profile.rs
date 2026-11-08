@@ -5,7 +5,7 @@ pub mod ssr {
     use sphare_core_common::errors::AppError;
 
     use crate::comment::CommentWithContext;
-    use crate::post::ssr::PostJoinSphereInfo;
+    use crate::post::ssr::{get_category_headers_by_post_id_map, PostJoinSphereInfo};
     use crate::post::PostWithSphereInfo;
     use crate::ranking::SortType;
 
@@ -47,9 +47,15 @@ pub mod ssr {
             .fetch_all(db_pool)
             .await?;
 
-        let post_vec = post_vec.into_iter().map(PostWithSphereInfo::from).collect();
+        let category_by_post_id_map = get_category_headers_by_post_id_map(
+            post_vec.iter().map(|p| p.post.post_id).collect(),
+            db_pool
+        ).await?;
 
-        Ok(post_vec)
+        Ok(PostWithSphereInfo::new_vec(
+            post_vec,
+            category_by_post_id_map
+        ))
     }
 
     pub async fn get_user_comment_vec(

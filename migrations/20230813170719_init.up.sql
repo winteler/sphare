@@ -371,7 +371,7 @@ CREATE TABLE votes (
     post_id BIGINT NOT NULL REFERENCES posts (post_id),
     comment_id BIGINT REFERENCES comments (comment_id),
     person_id BIGINT NOT NULL REFERENCES persons (person_id),
-    value SMALLINT NOT NULL CHECK (value IN (-1, 1)),
+    vote_value SMALLINT NOT NULL CHECK (vote_value IN (-1, 1)),
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_vote UNIQUE NULLS NOT DISTINCT (post_id, comment_id, person_id)
 );

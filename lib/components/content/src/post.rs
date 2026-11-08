@@ -13,7 +13,7 @@ use sphare_core_common::routes::{get_post_id_memo, get_post_link, CREATE_POST_SP
 use sphare_core_content::comment::CommentWithChildren;
 use sphare_core_content::embed::{EmbedType, LinkType};
 use sphare_core_content::moderation::Content;
-use sphare_core_content::post::{Post, PostWithInfo};
+use sphare_core_content::post::{PostWithInfo};
 
 use sphare_iface_content::post::{get_post_inherited_attributes, get_post_with_info_by_id, CreatePost};
 use sphare_iface_content::search::get_matching_sphere_header_vec;
@@ -100,7 +100,7 @@ pub fn Post() -> impl IntoView {
                             <Embed link=post_with_info.post.link.clone()/>
                             <PostBadgeList
                                 sphere_header=None
-                                sphere_category=post_with_info.sphere_category.clone()
+                                sphere_category_vec=post_with_info.sphere_category_vec.clone()
                                 is_spoiler=post_with_info.post.is_spoiler
                                 is_nsfw=post_with_info.post.is_nsfw
                                 is_pinned=post_with_info.post.is_pinned
@@ -196,7 +196,7 @@ fn PostBottomWidgetBar(
     let author_id = post.post.creator_id;
     let is_active = post.post.is_active();
     let post_link = get_post_link(&*sphere_state.sphere_name.get_untracked(), post.post.satellite_id, post.post.post_id);
-    let stored_post = StoredValue::new(post.post.clone());
+    let stored_post = StoredValue::new(post.clone());
     view! {
         <div class="flex items-center gap-1">
             { match is_active {
@@ -228,7 +228,7 @@ fn PostBottomWidgetBar(
                     </SuspenseUnpack>
                     <DeletePostButton post_id author_id/>
                 })}
-                <ModerationInfoButton content=Content::Post(stored_post.get_value())/>
+                <ModerationInfoButton content=Content::Post(stored_post.get_value().post)/>
                 {
                     match post_link.clone() {
                         Ok(post_link) => Either::Left(view! { <ShareButton link=post_link/> }),
@@ -246,7 +246,7 @@ fn PostBottomWidgetBar(
 /// Component to edit a post
 #[component]
 pub fn EditPostButton(
-    post: StoredValue<Post>,
+    post: StoredValue<PostWithInfo>,
     author_id: i64
 ) -> impl IntoView {
     let state = expect_context::<GlobalState>();
@@ -437,7 +437,7 @@ pub fn CreatePost() -> impl IntoView {
 /// Dialog to edit a post
 #[component]
 pub fn EditPostDialog(
-    post: Post,
+    post: PostWithInfo,
     show_dialog: RwSignal<bool>,
 ) -> impl IntoView {
     let post = StoredValue::new(post);
@@ -457,21 +457,21 @@ pub fn EditPostDialog(
 /// Form to edit a post
 #[component]
 pub fn EditPostForm(
-    post: StoredValue<Post>,
+    post: StoredValue<PostWithInfo>,
     show_form: RwSignal<bool>,
 ) -> impl IntoView {
     let state = expect_context::<GlobalState>();
     let sphere_state = expect_context::<SphereState>();
 
     let (post_id, title, body, link_type, link_url) = post.with_value(|post| (
-        post.post_id,
-        post.title.clone(),
-        match &post.markdown_body {
+        post.post.post_id,
+        post.post.title.clone(),
+        match &post.post.markdown_body {
             Some(body) => body.clone(),
-            None => post.body.clone(),
+            None => post.post.body.clone(),
         },
-        post.link.link_type,
-        post.link.link_url.clone(),
+        post.post.link.link_type,
+        post.post.link.link_url.clone(),
     ));
     let title_input = RwSignal::new(title);
     let title_textarea_ref = NodeRef::<html::Textarea>::new();

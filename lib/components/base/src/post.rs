@@ -10,7 +10,7 @@ use sphare_core_common::editor::TextareaData;
 use sphare_core_common::errors::AppError;
 use sphare_core_common::routes::get_post_path;
 use sphare_core_content::embed::EmbedType;
-use sphare_core_content::post::{Post, PostWithSphereInfo};
+use sphare_core_content::post::{PostWithInfo, PostWithSphereInfo};
 use sphare_core_sphere::sphere_category::SphereCategory;
 
 use sphare_cmp_common::auth_widget::AuthorWidget;
@@ -131,7 +131,7 @@ pub fn PostMiniatureList(
                                 <h2 class="card-title pl-1 w-full whitespace-pre-wrap text-wrap wrap-anywhere">{post.title.clone()}</h2>
                                 <PostBadgeList
                                     sphere_header
-                                    sphere_category=post_info.sphere_category
+                                    sphere_category_vec=post_info.sphere_category_vec
                                     is_spoiler=post.is_spoiler
                                     is_nsfw=post.is_nsfw
                                     is_pinned=post.is_pinned
@@ -159,20 +159,20 @@ pub fn PostMiniatureList(
 #[component]
 pub fn PostBadgeList(
     sphere_header: Option<SphereHeader>,
-    sphere_category: Option<SphereCategoryHeader>,
+    sphere_category_vec: Vec<SphereCategoryHeader>,
     is_spoiler: bool,
     is_nsfw: bool,
     is_pinned: bool,
 ) -> impl IntoView {
-    match (sphere_header, sphere_category, is_spoiler, is_nsfw, is_pinned) {
-        (None, None, false, false, false) => None,
+    match (sphere_header, sphere_category_vec, is_spoiler, is_nsfw, is_pinned) {
+        (None, category_vec, false, false, false) if category_vec.is_empty() => None,
         (sphere_header, sphere_category, is_spoiler, is_nsfw, is_pinned) => Some(view! {
             <div class="flex gap-2 items-center">
             {
                 sphere_header.map(|sphere_header| view! { <SphereHeaderLink sphere_header/> })
             }
             {
-                sphere_category.map(|category_header| view! { <SphereCategoryBadge category_header/> })
+                sphere_category.into_iter().map(|category_header| view! { <SphereCategoryBadge category_header/> }).collect_view()
             }
             <TagsWidget is_spoiler is_nsfw is_pinned/>
             </div>
@@ -195,7 +195,7 @@ pub fn PostForm(
     is_parent_nsfw: Signal<bool>,
     category_vec_resource: Resource<Result<Vec<SphereCategory>, AppError>>,
     #[prop(default = None)]
-    current_post: Option<StoredValue<Post>>,
+    current_post: Option<StoredValue<PostWithInfo>>,
     /// reference to the title textarea node
     #[prop(optional)]
     title_textarea_ref: NodeRef<html::Textarea>,
@@ -203,11 +203,11 @@ pub fn PostForm(
     #[prop(optional)]
     link_textarea_ref: NodeRef<html::Textarea>,
 ) -> impl IntoView {
-    let (is_markdown, is_spoiler, is_nsfw, is_pinned, category_id) = match current_post {
+    let (is_markdown, is_spoiler, is_nsfw, is_pinned, category_vec) = match current_post {
         Some(post) => post.with_value(|post| {
-            (post.markdown_body.is_some(), post.is_spoiler, post.is_nsfw, post.is_pinned, post.category_id)
+            (post.post.markdown_body.is_some(), post.post.is_spoiler, post.post.is_nsfw, post.post.is_pinned, post.sphere_category_vec.clone())
         }),
-        None => (false, false, false, false, None),
+        None => (false, false, false, false, Vec::new()),
     };
 
     view! {
@@ -273,7 +273,7 @@ pub fn PostForm(
             }
         }}
         <IsPinnedCheckbox sphere_name name="post_inputs[post_tags][is_pinned]" value=is_pinned/>
-        <SphereCategoryDropdown category_vec_resource init_category_id=category_id name="post_inputs[post_tags][category_id]" show_inactive=false/>
+        <SphereCategoryDropdown category_vec_resource init_category_vec=category_vec name="post_inputs[post_tags][category_id]" show_inactive=false/>
     }
 }
 
