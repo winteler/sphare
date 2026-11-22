@@ -519,7 +519,7 @@ async fn test_get_subscribed_post_vec_with_filters() {
         None,
         num_post,
         Some((0..num_post).map(|i| 100 + i as i32).collect()),
-        Vec::new(),
+        vec![],
         &mut user,
         &db_pool,
     ).await.expect("Sphere 3 with posts should be created");
@@ -774,11 +774,21 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         &db_pool,
     ).await.expect("Should create sphere with posts");
 
-    let sphere_category_2 = set_sphere_category(
+    let sphere_category_1 = set_sphere_category(
         sphere_name,
         "a",
         Color::Red,
         "a",
+        true,
+        &user,
+        &db_pool
+    ).await.expect("Sphere category should be set");
+
+    let sphere_category_2 = set_sphere_category(
+        sphere_name,
+        "b",
+        Color::Blue,
+        "b",
         true,
         &user,
         &db_pool
@@ -791,7 +801,7 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         "1",
         None,
         Link::default(),
-        PostTags::new(true, true, false, vec![sphere_category_2.category_id]),
+        PostTags::new(true, true, false, vec![sphere_category_1.category_id, sphere_category_2.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 1 with category should be created.");
@@ -802,7 +812,7 @@ async fn test_get_post_vec_by_sphere_name() -> Result<(), AppError> {
         category_post_1,
         sphere_name.to_string(),
         sphere.icon_url.clone(),
-        vec![sphere_category_2.clone().into()],
+        vec![sphere_category_1.clone().into(), sphere_category_2.clone().into()],
         None,
     ));
 
@@ -963,15 +973,25 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         post.sphere_category_vec.is_empty()
     }).collect();
 
-    let sphere_category = set_sphere_category(
+    let sphere_category_1 = set_sphere_category(
         sphere_name,
-        "a",
+        "1",
         Color::Green,
-        "a",
+        "1",
         true,
         &user,
         &db_pool
-    ).await.expect("Sphere category should be set.");
+    ).await.expect("Sphere category 1 should be set.");
+
+    let sphere_category_2 = set_sphere_category(
+        sphere_name,
+        "2",
+        Color::Blue,
+        "2",
+        true,
+        &user,
+        &db_pool
+    ).await.expect("Sphere category 2 should be set.");
 
     let category_post_1 = create_post(
         sphere_name,
@@ -980,7 +1000,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         "1",
         None,
         Link::default(),
-        PostTags::new(false, false, false, vec![sphere_category.category_id]),
+        PostTags::new(false, false, false, vec![sphere_category_1.category_id, sphere_category_2.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 1 with category should be created.");
@@ -992,7 +1012,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         "2",
         None,
         Link::default(),
-        PostTags::new(false, false, false, vec![sphere_category.category_id]),
+        PostTags::new(false, false, false, vec![sphere_category_1.category_id]),
         &user,
         &db_pool
     ).await.expect("Post 2 with category should be created.");
@@ -1003,15 +1023,14 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
     ).await.expect("Post 2 score should be set");
 
     let mut expected_post_vec = vec![
-        PostWithSphereInfo::from_post(category_post_1, sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], None),
-        PostWithSphereInfo::from_post(category_post_2, sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category.clone().into()], None),
+        PostWithSphereInfo::from_post(category_post_1.clone(), sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category_1.clone().into(), sphere_category_2.clone().into()], None),
     ];
 
     for sort_type in POST_SORT_TYPE_ARRAY {
         println!("Sort type: {:?}", sort_type);
         let category_post_vec = get_post_vec_by_sphere_name(
             sphere_name,
-            SphereCategoryFilter::CategorySet(CategorySetFilter::new(sphere_category.category_id)),
+            SphereCategoryFilter::CategorySet(CategorySetFilter::new(sphere_category_2.category_id)),
             SortType::Post(sort_type),
             num_posts as i64,
             0,
@@ -1025,7 +1044,29 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         assert_eq!(category_post_vec, expected_post_vec);
     }
 
-    //
+    let mut expected_post_vec = vec![
+        PostWithSphereInfo::from_post(category_post_1, sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category_1.clone().into(), sphere_category_2.clone().into()], None),
+        PostWithSphereInfo::from_post(category_post_2, sphere_name.to_string(), sphere.icon_url.clone(), vec![sphere_category_1.clone().into()], None),
+    ];
+
+    for sort_type in POST_SORT_TYPE_ARRAY {
+        println!("Sort type: {:?}", sort_type);
+        let category_post_vec = get_post_vec_by_sphere_name(
+            sphere_name,
+            SphereCategoryFilter::CategorySet(CategorySetFilter::new(sphere_category_1.category_id)),
+            SortType::Post(sort_type),
+            num_posts as i64,
+            0,
+            None,
+            &db_pool,
+        ).await?;
+        let category_post_vec: Vec<PostWithSphereInfo> = category_post_vec.into_iter().map(|post| {
+            PostWithSphereInfo::from_post(post.post, sphere_name.to_string(), sphere.icon_url.clone(), post.sphere_category_vec, post.vote)
+        }).collect();
+        sort_post_vec(&mut expected_post_vec, sort_type, true);
+        assert_eq!(category_post_vec, expected_post_vec);
+    }
+
     for sort_type in POST_SORT_TYPE_ARRAY {
         println!("Sort type: {:?}", sort_type);
         let category_post_vec = get_post_vec_by_sphere_name(
@@ -1055,7 +1096,7 @@ async fn test_get_post_vec_by_sphere_name_with_category() -> Result<(), AppError
         let category_post_vec = get_post_vec_by_sphere_name(
             sphere_name,
             SphereCategoryFilter::CategorySet(CategorySetFilter {
-                filters: std::iter::once(sphere_category.category_id).collect(),
+                filters: std::iter::once(sphere_category_1.category_id).collect(),
                 only_category: false,
             }),
             SortType::Post(sort_type),
