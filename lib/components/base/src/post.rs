@@ -273,7 +273,7 @@ pub fn PostForm(
             }
         }}
         <IsPinnedCheckbox sphere_name name="post_inputs[post_tags][is_pinned]" value=is_pinned/>
-        <SphereCategoryDropdown category_vec_resource init_category_vec=category_vec name="post_inputs[post_tags][category_id]" show_inactive=false/>
+        <SphereCategoryDropdown category_vec_resource init_category_vec=category_vec name="post_inputs[post_tags][category_id_vec]" show_inactive=false/>
     }
 }
 

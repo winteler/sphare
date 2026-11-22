@@ -1,6 +1,10 @@
+use std::collections::{HashMap};
+use sphare_cmp_utils::widget::DropdownButton;
+use leptos::html::{Div, Input};
 use leptos::prelude::*;
 use leptos_fluent::move_tr;
-
+#[cfg(feature = "hydrate")]
+use leptos_use::on_click_outside;
 use sphare_core_common::common::SphereCategoryHeader;
 use sphare_core_common::errors::AppError;
 use sphare_core_sphere::sphere_category::SphereCategory;
@@ -36,8 +40,14 @@ pub fn SphereCategoryDropdown(
     #[prop(default = "")]
     name: &'static str,
 ) -> impl IntoView {
-    let selected_category: RwSignal<Vec<SphereCategoryHeader>> = RwSignal::new(init_category_vec);
-
+    let selected_category_by_id_map: RwSignal<HashMap<i64, SphereCategoryHeader>> = RwSignal::new(init_category_vec.iter().map(|c| (c.category_id, c.clone())).collect());
+    let show_dropdown = RwSignal::new(false);
+    let dropdown_ref = NodeRef::<Div>::new();
+    #[cfg(feature = "hydrate")]
+    {
+        // only enable with "hydrate" to avoid server side "Dropped SendWrapper" error
+        let _ = on_click_outside(dropdown_ref, move |_| show_dropdown.set(false));
+    }
     view! {
         <TransitionUnpack resource=category_vec_resource let:sphere_category_vec>
         {
@@ -48,29 +58,72 @@ pub fn SphereCategoryDropdown(
             let sphere_category_vec = StoredValue::new(sphere_category_vec.clone());
             view! {
                 <div class="flex justify-between">
-                    <span class="label text-white">{move_tr!("category")}</span>
-                    <select
-                        name=name
-                        multiple
-                        class="select_input"
-                    >
+                    <div class="flex flex-col items-end">
+                        <DropdownButton
+                            button_class="button-ghost input_outline_primary"
+                            activated_button_class="button-primary input_outline_primary"
+                            button_content=move || view! { <div class="flex items-center gap-2"><div>{move_tr!("categories")}</div><RotatingArrow point_up=Signal::derive(move || !*show_dropdown.read())/></div> }
+                            align_right=true
+                            show_dropdown
+                            dropdown_ref
+                        >
+                            <div class="z-10 mt-2 p-2 bg-base-200 rounded-sm w-fit flex flex-col items-end gap-2">
+                            {
+                                sphere_category_vec.read_value().iter().map(|category| match show_inactive || category.is_active {
+                                    true => {
+                                        let category_id = category.category_id;
+                                        let category_header: StoredValue<SphereCategoryHeader> = StoredValue::new(category.clone().into());
+                                        let input_node_ref = NodeRef::<Input>::new();
+                                        Some(view! {
+                                            <div
+                                                class="flex items-center gap-2 cursor-pointer"
+                                                on:click=move |_| {
+                                                    let mut selected_category_id_set = selected_category_by_id_map.write();
+                                                    match selected_category_id_set.contains_key(&category_id) {
+                                                        true => {
+                                                            selected_category_id_set.remove(&category_id);
+                                                            if let Some(input_node_ref) = input_node_ref.get() {
+                                                                input_node_ref.set_checked(false);
+                                                            }
+                                                        },
+                                                        false => {
+                                                            selected_category_id_set.insert(category_id, category_header.get_value());
+                                                            if let Some(input_node_ref) = input_node_ref.get() {
+                                                                input_node_ref.set_checked(true);
+                                                            }
+                                                        },
+                                                    };
+                                                }
+                                            >
+                                                <SphereCategoryBadge category_header=category_header.get_value()/>
+                                                <input
+                                                    type="checkbox"
+                                                    class="checkbox checkbox-primary"
+                                                    value=category_id
+                                                    checked=move || selected_category_by_id_map.read().contains_key(&category_id)
+                                                    node_ref=input_node_ref
+                                                />
+                                            </div>
+                                        })
+                                    },
+                                    false => None,
+                                }.into_any()).collect_view()
+                            }
+                            </div>
+                        </DropdownButton>
+                    </div>
+                    <div class="flex gap-2">
                     {
-                        sphere_category_vec.read_value().iter().map(|category| match show_inactive || category.is_active {
-                            true => {
-                                let category_id = category.category_id;
-                                Some(view! {
-                                    <option
-                                        selected=move || selected_category.read().iter().find(|category_header| category_header.category_id == category_id).is_some()
-                                        value={category_id}
-                                    >
-                                        <SphereCategoryBadge category_header=category/>
-                                    </option>
-                                })
-                            },
-                            false => None,
+                        move || selected_category_by_id_map.read().iter().enumerate().map(|(i, (category_id, category_header))| view! {
+                            <input
+                                type="hidden"
+                                name=format!("{name}[{i}]")
+                                value=*category_id
+                            />
+                            <SphereCategoryBadge category_header=category_header.clone()/>
                         }.into_any()).collect_view()
                     }
-                    </select>
+                    </div>
                 </div>
             }.into_any()
         }

@@ -76,6 +76,7 @@ pub struct PostTags {
     pub is_nsfw: bool,
     #[serde(default)]
     pub is_pinned: bool,
+    #[serde(default)]
     #[validate(custom(function = "validate_category_id_vec"))]
     pub category_id_vec: Vec<i64>,
 }
@@ -694,8 +695,6 @@ pub mod ssr {
     ) -> Result<Vec<PostWithSphereInfo>, AppError> {
         let posts_filters = user.get_posts_filter();
         let order_by = sort_type.to_order_by_code();
-        println!("order_by: {:?}", order_by);
-        println!("posts_filters: {:?}", posts_filters);
         let mut post_vec = sqlx::query_as::<_, PostJoinSphereInfo>(
             AssertSqlSafe(format!(
                 "SELECT
@@ -742,10 +741,8 @@ pub mod ssr {
             .await?;
 
         let loaded_post_count = post_vec.len();
-        println!("Subscribed posts loaded: {}", loaded_post_count);
         // If no posts are returned, fetch posts from not subscribed spheres
         if loaded_post_count < limit as usize {
-            println!("Fetching posts from not subscribed spheres, limit: {}", limit - loaded_post_count as i64);
             let mut additional_posts = sqlx::query_as::<_, PostJoinSphereInfo>(
                 AssertSqlSafe(format!(
                     "WITH subscribed_post_count AS (
@@ -810,7 +807,6 @@ pub mod ssr {
                     .await?;
             post_vec.append(&mut additional_posts);
         }
-        println!("Total posts loaded: {}", post_vec.len());
 
         let category_by_post_id_map = get_category_headers_by_post_id_map(
             post_vec.iter().map(|p| p.post.post_id).collect(),
@@ -1264,7 +1260,7 @@ pub mod ssr {
 fn validate_category_id_vec(category_id_vec: &[i64]) -> Result<(), ValidationError> {
     (
         category_id_vec.is_empty() ||
-        category_id_vec.iter().any(|category_id| !matches!(category_id, category_id if *category_id > 0))
+        category_id_vec.iter().all(|category_id| *category_id > 0)
     ).ok_or(ValidationError::new("category_id must be greater than 0"))
 }
 
