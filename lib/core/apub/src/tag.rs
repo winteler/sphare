@@ -1,12 +1,17 @@
+use std::collections::HashSet;
 use activitypub_federation::config::Data;
+use activitypub_federation::fetch::object_id::ObjectId;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::PgPool;
 use url::Url;
 use sphare_core_common::activity_pub::ApubHelper;
 use sphare_core_common::colors::Color;
 use sphare_core_common::errors::AppError;
 use sphare_core_sphere::sphere_category::SphereCategory;
+use sphare_core_sphere::sphere_category::ssr::get_sphere_category_vec;
 use sphare_core_user::user::FunctionUserType;
+use crate::group::ApubSphere;
 
 /// Possible values in the `tag` field of a federated post or comment. Note that we don't support
 /// hashtags or community tags in comments, but its easier to use the same struct for both
@@ -119,6 +124,20 @@ pub async fn load_group_categories(
         .await?;
 
     Ok(())
+}
+
+/// Identify community tags that haven't yet been loaded locally as sphere categories
+pub async fn identify_missing_apub_community_tags<'a>(
+    community_tag_vec: &'a [ApubCommunityTag],
+    apub_sphere: &ApubSphere,
+    db_pool: &PgPool,
+) -> Result<Vec<&'a ApubCommunityTag>, AppError> {
+    let current_category_set: HashSet<String> = get_sphere_category_vec(&apub_sphere.name, db_pool).await?.into_iter().map(|c| c.category_apub_id).collect();
+    let missing_community_tag_vec = community_tag_vec.iter().filter_map(|tag| match current_category_set.contains(&tag.id.to_string()) {
+        Some(_) => None,
+        None => Some(tag),
+    }).collect();
+    Ok(missing_community_tag_vec)
 }
 
 #[cfg(test)]

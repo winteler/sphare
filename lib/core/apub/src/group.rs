@@ -86,7 +86,7 @@ pub struct Group {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ApubSphere {
     pub apub_id: ObjectId<ApubSphere>,
-    name: String,
+    pub name: String,
     description: String,
     icon: Option<ImageObject>,
     banner: Option<ImageObject>,
@@ -131,8 +131,8 @@ impl ApubSphere {
     async fn load_collections(&self, group: &Group, context: &Data<ApubHelper>) -> Result<(), AppError> {
         self.load_moderators(group, context).await?;
         load_group_categories(group.id.inner(), &group.tags, context).await?;
-        // pinned posts
-        // initial content
+        // TODO pinned posts
+        // TODO initial content
         Ok(())
     }
 

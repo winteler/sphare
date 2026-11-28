@@ -27,7 +27,7 @@ use sphare_core_sphere::sphere_category::SphereCategory;
 
 use crate::group::{ApubSphere};
 use crate::person::ApubPerson;
-use crate::tag::{ApubCommunityTag, ApubTag};
+use crate::tag::{identify_missing_apub_community_tags, ApubCommunityTag, ApubTag};
 use crate::utils::{convert_plaintext_to_html, ImageObject, LanguageTag, Source, convert_plaintext_to_md};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -384,14 +384,21 @@ pub async fn insert_or_update_post(
     page: &Page,
     creator: &ApubPerson,
     sphere: &ApubSphere,
-    db_pool: &PgPool,
+    apub_helper: &Data<ApubHelper>,
 ) -> Result<PostJoinApubInfo, AppError> {
     // TODO handle satellites
     let (body, markdown_body) = page.get_main_and_md_content()?;
     let link = page.get_link().unwrap_or_default();
     let apub_community_tags = page.get_apub_community_tags();
     // Check if community tags are already loaded, if not fetch them from the source and insert them in the database
-
+    let missing_community_tag_vec = identify_missing_apub_community_tags(&apub_community_tags, sphere, apub_helper.get_db_pool()).await?;
+    if !missing_community_tag_vec.is_empty() {
+        log::info!("Apub community tags are missing, refetch community {}. Missing tags: {missing_community_tag_vec}", sphere.apub_id);
+        let refreshed_result = sphere.apub_id.dereference(apub_helper).await;
+        if let Err(e) = refreshed_result {
+            log::error!("Failed to refresh community. Continue without missing tags.");
+        }
+    }
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
         "WITH upserted_post AS (
                 INSERT INTO posts (
