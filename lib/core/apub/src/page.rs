@@ -27,7 +27,7 @@ use sphare_core_sphere::sphere_category::SphereCategory;
 
 use crate::group::{ApubSphere};
 use crate::person::ApubPerson;
-use crate::tag::{ApubTag};
+use crate::tag::{ApubCommunityTag, ApubTag};
 use crate::utils::{convert_plaintext_to_html, ImageObject, LanguageTag, Source, convert_plaintext_to_md};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -327,6 +327,13 @@ impl Page {
             None
         }
     }
+
+    pub fn get_apub_community_tags(&self) -> Vec<ApubCommunityTag> {
+        self.tag.iter().filter_map(|tag| match tag {
+            ApubTag::CommunityTag(tag) => Some(tag.clone()),
+            ApubTag::Unknown(_) => None
+        }).collect()
+    }
 }
 
 pub async fn load_post_by_apub_id(
@@ -379,11 +386,11 @@ pub async fn insert_or_update_post(
     sphere: &ApubSphere,
     db_pool: &PgPool,
 ) -> Result<PostJoinApubInfo, AppError> {
-    // TODO decide how to handle categories/flair, make something separate from tags? Yes add separate category attribute, check how important are tags at the moment in lemmy
-    // TODO dereference category
     // TODO handle satellites
     let (body, markdown_body) = page.get_main_and_md_content()?;
     let link = page.get_link().unwrap_or_default();
+    let apub_community_tags = page.get_apub_community_tags();
+    // Check if community tags are already loaded, if not fetch them from the source and insert them in the database
 
     let post = sqlx::query_as::<_, PostJoinApubInfo>(
         "WITH upserted_post AS (
@@ -440,6 +447,23 @@ pub async fn insert_or_update_post(
                     creator_id = EXCLUDED.creator_id,
                     is_creator_moderator = EXCLUDED.is_creator_moderator
                 RETURNING *
+            ),
+            input_post_categories AS (
+                SELECT p.post_id, p.sphere_id, c.category_id FROM
+                    upserted_post p, unnest($15::bigint[]) AS t(category_apub_id)
+                JOIN sphere_categories c ON c.category_apub_id = t.category_apub_id
+            ),
+            deleted_post_categories AS (
+                DELETE FROM post_categories pc
+                USING input_post_categories c
+                WHERE pc.post_id = c.post_id
+                  AND pc.sphere_id = c.sphere_id
+                  AND pc.category_id <> c.category_id
+            ), inserted_post_categories AS (
+                INSERT INTO post_categories (post_id, sphere_id, category_id)
+                SELECT post_id, sphere_id, category_id
+                FROM input_post_categories c
+                ON CONFLICT (post_id, category_id) DO NOTHING
             )
             SELECT p.*, $13 as creator_apub_id, $14 as creator_name, s.sphere_apub_id, sc.category_apub_id
             FROM upserted_post p
@@ -463,6 +487,8 @@ pub async fn insert_or_update_post(
             Some(name) => name,
             None => &creator.preferred_username,
         })
+        .bind(creator.apub_id.inner().to_string())
+        .bind(apub_community_tags.iter().map(|c| c.id.to_string()).collect::<Vec<String>>())
         .fetch_one(db_pool)
         .await?;
 

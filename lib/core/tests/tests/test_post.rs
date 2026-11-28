@@ -1828,6 +1828,26 @@ async fn test_create_post() -> Result<(), AppError> {
     );
 
     let user = User::get(user.person_id, &db_pool).await.expect("User should be reloaded.");
+    let sphere_category = set_sphere_category(
+        &sphere_1.sphere_name,
+        "a",
+        Color::Green,
+        "a",
+        true,
+        &user,
+        &db_pool
+    ).await.expect("Sphere category should be set.");
+
+    let other_sphere_category = set_sphere_category(
+        &sphere_1.sphere_name,
+        "b",
+        Color::Blue,
+        "b",
+        true,
+        &user,
+        &db_pool
+    ).await.expect("Other sphere category should be set.");
+
     let post_2_title = "1";
     let post_2_body = "test";
     let post_2_markdown_body = "test";
@@ -1844,7 +1864,7 @@ async fn test_create_post() -> Result<(), AppError> {
         post_2_body,
         Some(post_2_markdown_body),
         post_2_link.clone(),
-        PostTags::new(true, true, true, vec![]),
+        PostTags::new(true, true, true, vec![sphere_category.category_id, other_sphere_category.category_id]),
         &user,
         &db_pool
     ).await.expect("Should be able to create post 2.");
@@ -1871,6 +1891,9 @@ async fn test_create_post() -> Result<(), AppError> {
     assert_eq!(post_2.is_pinned, true);
     assert_eq!(post_2.score, 0);
     assert_eq!(post_2.delete_timestamp, None);
+
+    let post_with_info = get_post_with_info_by_id(post_2.post_id, None, &db_pool).await.expect("Post should be reloaded.");
+    assert_eq!(post_with_info.sphere_category_vec, vec![sphere_category.into(), other_sphere_category.into()]);
 
     let nsfw_post_title = "1";
     let nsfw_post_body = "test";

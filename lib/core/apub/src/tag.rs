@@ -45,7 +45,7 @@ impl TryFrom<SphereCategory> for ApubCommunityTag {
 
     fn try_from(value: SphereCategory) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: Url::parse(&value.category_apub_id)?.into(),
+            id: Url::parse(&value.category_apub_id)?,
             name: value.category_name,
             display_name: None,
             content: Some(value.description),
